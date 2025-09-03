@@ -1,0 +1,86 @@
+# =========================================
+# GLOBAL / SISTEMA
+# =========================================
+# Archivos temporales del sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Entornos
+.env
+.env.*
+
+# =========================================
+# FRONTEND (Angular / npm)
+# =========================================
+# Dependencias
+frontend/node_modules/
+frontend/package-lock.json
+
+# Build outputs
+frontend/dist/
+frontend/out-tsc/
+frontend/.angular/
+frontend/.angular/cache/
+
+# IDEs / editores
+frontend/.vscode/
+frontend/.idea/
+
+# Testing / coverage
+frontend/coverage/
+frontend/karma-coverage/
+
+# =========================================
+# BACKEND (FastAPI / Python)
+# =========================================
+# Entornos virtuales
+backend/venv/
+backend/.venv/
+backend/env/
+backend/.env/
+
+# Compilados
+backend/__pycache__/
+backend/**/*.pyc
+backend/**/*.pyo
+backend/**/*.pyd
+
+# Archivos de instalación
+backend/*.egg-info/
+backend/*.egg
+
+# Testing / coverage
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.coverage
+backend/htmlcov/
+backend/.tox/
+backend/.hypothesis/
+
+# =========================================
+# DOCKER / COMPOSE
+# =========================================
+docker-compose.override.yml
+*.pid
+*.seed
+*.pid.lock
+
+# Volúmenes montados
+/data/
+volumes/
+
+# =========================================
+# EDITORES / TOOLS
+# =========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+

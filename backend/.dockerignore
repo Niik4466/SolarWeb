@@ -1,0 +1,49 @@
+# =========================================
+# SISTEMA
+# =========================================
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# =========================================
+# PYTHON / FASTAPI
+# =========================================
+# Entornos virtuales
+venv/
+.venv/
+env/
+.env/
+
+# Bytecode compilado
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos de instalación innecesarios
+*.egg-info/
+*.egg
+
+# =========================================
+# TESTING / TOOLS
+# =========================================
+.pytest_cache/
+.mypy_cache/
+.tox/
+.hypothesis/
+.coverage
+htmlcov/
+
+# =========================================
+# CONFIGURACIÓN / IDE
+# =========================================
+.vscode/
+.idea/
+
+# =========================================
+# DOCKER / COMPOSE
+# =========================================
+docker-compose.override.yml
+Dockerfile.dev
+Dockerfile

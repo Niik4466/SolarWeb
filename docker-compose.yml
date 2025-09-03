@@ -1,0 +1,13 @@
+version: "3.9"
+
+services: 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fastapi-backend
+    ports:
+      - "4466:8000"
+    volumes:
+      - ./backend:/app
+
