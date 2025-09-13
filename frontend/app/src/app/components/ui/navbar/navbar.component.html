@@ -1,0 +1,26 @@
+<header class="nav" role="navigation" aria-label="Principal">
+  <div class="brand">
+
+    
+    <!-- Si aún no tienes logo, deja solo el texto -->
+    <span class="logo">☀</span>
+    <span class="title">SolarWeb</span>
+  </div>
+
+  
+  <!-- Puedes agregar más pestañas según sea necesario -->
+  <nav class="tabs" role="tablist">
+
+    <!-- Pestaña Gráficos -->
+    <a routerLink="/graficos"
+       routerLinkActive="active"
+       class="tab"
+       [attr.aria-current]="(true ? 'page' : null)">Gráficos</a>
+
+
+    <!-- Pestaña Exportar -->
+    <a routerLink="/exportar"
+       routerLinkActive="active"
+       class="tab">Exportar</a>
+  </nav>
+</header>
