@@ -1,11 +1,20 @@
 services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "2002:4200"
+    restart: unless-stopped
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: fastapi-backend
     ports:
-      - "8000:8000"
+      - "2003:8000"
     volumes:
       - ./backend:/app
 
@@ -36,7 +45,7 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - ./minio_data:/data
+      - miniodb2:/data
     command: server /data --console-address ":9001"
 
   minio-uploader:
@@ -71,3 +80,4 @@ services:
 
 volumes:
   influxdb2:
+  miniodb2:
