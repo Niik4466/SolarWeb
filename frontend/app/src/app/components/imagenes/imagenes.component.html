@@ -1,0 +1,42 @@
+<div class="sky-viewer" *ngIf="frames?.length; else empty">
+  <div class="header" *ngIf="showHeader && current()">
+    <span class="badge">{{ labelFor(current()!.time) }}</span>
+    <div class="spacer"></div>
+    <div class="controls">
+      <button class="btn" (click)="prev()" aria-label="Anterior">◀</button>
+      <button class="btn" (click)="next()" aria-label="Siguiente">▶</button>
+    </div>
+  </div>
+
+  <div class="image-wrap"
+      [style.--ratio]="ratio"
+      [style.--maxH.px]="maxHeight"
+      *ngIf="current() as c">
+    <img [src]="c.src" [alt]="c.alt || ('Cielo ' + labelFor(c.time))" />
+  </div>
+
+
+  <div class="slider-wrap" role="group" aria-label="Seleccionar hora">
+    <input
+      type="range"
+      [min]="0"
+      [max]="frames.length - 1"
+      step="1"
+      [value]="index()"
+      (input)="onSlide(($any($event.target)).valueAsNumber)"
+    />
+    <div class="ticks">
+      <span
+        *ngFor="let f of frames; let i = index"
+        class="tick"
+        [style.left.%]="(i / (frames.length - 1)) * 100"
+        [attr.aria-hidden]="true"
+        >{{ i % step() === 0 ? labelFor(f.time) : '' }}</span
+      >
+    </div>
+  </div>
+</div>
+
+<ng-template #empty>
+  <div class="empty">No hay imágenes para mostrar.</div>
+</ng-template>

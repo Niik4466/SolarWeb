@@ -1,0 +1,14 @@
+.panel{
+  max-width: 1100px;
+  margin: 16px auto 32px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;          /* móvil: apilado */
+}
+@media (min-width: 980px){
+  .panel{
+    grid-template-columns: 1.4fr 1.0fr;  /* desktop: dos columnas */  /* chart | fotos  (ajústalo a gusto) */
+    align-items: start;
+  }
+}
+.col{ min-width: 0; }                   /* evita overflow del chart */
