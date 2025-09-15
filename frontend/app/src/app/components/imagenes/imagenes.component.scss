@@ -1,0 +1,70 @@
+.sky-viewer {
+  display: grid;
+  gap: .5rem;
+
+  .header {
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+
+    .badge {
+      font-weight: 600;
+      font-size: .8rem;
+      padding: .1rem .4rem;
+      border-radius: 999px;
+      background: rgba(0,0,0,.06);
+    }
+    .spacer { flex: 1; }
+    .controls { display: flex; gap: .25rem; }
+    .btn {
+      padding: .15rem .4rem;
+      border: 1px solid rgba(0,0,0,.15);
+      background: #fff;
+      border-radius: .5rem;
+      cursor: pointer;
+    }
+  }
+
+  .image-wrap {
+    width: 100%;
+    /* usa variables que vienen desde el template */
+    aspect-ratio: var(--ratio, 4 / 3);
+    max-height: var(--maxH, 260px);
+    border-radius: .5rem;
+    overflow: hidden;
+    box-shadow: 0 1px 8px rgba(0,0,0,.06);
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+  }
+
+  .slider-wrap {
+    position: relative;
+
+    input[type='range'] { width: 100%; }
+
+    .ticks {
+      position: relative;
+      height: 1rem;
+      margin-top: .1rem;
+
+      .tick {
+        position: absolute;
+        transform: translateX(-50%);
+        font-size: .68rem;
+        color: #555;
+        white-space: nowrap;
+      }
+    }
+  }
+
+  .empty {
+    padding: .75rem;
+    border: 1px dashed rgba(0,0,0,.2);
+    border-radius: .5rem;
+  }
+}
