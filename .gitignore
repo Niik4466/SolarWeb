@@ -84,3 +84,5 @@ volumes/
 *.swp
 *.swo
 
+# IGNORA ENTORNO VIRTUAL 
+venv

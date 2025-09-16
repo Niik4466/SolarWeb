@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from api.v1 import irradiance
+from backend.api.v1 import irradiance
 
 app = FastAPI(title="Solar API", version="1.0.0")
 
@@ -9,4 +9,4 @@ app.include_router(irradiance.router)
 
 @app.get("/")
 def root():
-    return {"message": "Solar API is running ✨"}
+    return {"message": "Solar API is running"}

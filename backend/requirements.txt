@@ -1,2 +1,7 @@
 fastapi
 uvicorn[standard]
+influxdb-client
+minio
+python-dotenv
+pydantic
+pydantic-settings
