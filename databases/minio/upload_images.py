@@ -2,6 +2,7 @@ import sys
 import os
 import time
 from datetime import datetime
+import re
 from pathlib import Path
 import boto3
 from PIL import Image
@@ -34,27 +35,33 @@ except botocore.exceptions.ClientError as e:
     else:
         raise
 
-def get_image_datetime(image_path):
-    try:
-        img = Image.open(image_path)
-        exif_data = img._getexif() or {}
-        for tag, value in exif_data.items():
-            decoded = TAGS.get(tag, tag)
-            if decoded == "DateTimeOriginal":
-                return datetime.strptime(value, "%Y:%m:%d %H:%M:%S")
-    except:
-        pass
-    # fallback: fecha de modificación del archivo
-    t = os.path.getmtime(image_path)
-    return datetime.fromtimestamp(t)
-
 
 def upload_file(file_path: Path):
     if not file_path.is_file():
         return
 
-    dt = get_image_datetime(file_path)
-    key = f"{dt.year:04d}/{dt.month:02d}/{dt.day:02d}/{dt.hour:02d}_{dt.minute:02d}_{dt.second:02d}{file_path.suffix}"
+    filename = file_path.name  # ejemplo: 172.16.137.6_01_20250802213004761_TIMING.jpg
+
+    # Buscar la cadena de fecha en el nombre (17 dígitos seguidos de números)
+    match = re.search(r'(\d{17})', filename)
+    if not match:
+        print(f"[ERROR] No se encontró timestamp en {filename}")
+        return
+
+    timestamp_str = match.group(1)  # "20250802213004761"
+    base_time = timestamp_str[:14]  # "20250802213004" → YYYYMMDDHHMMSS
+    millis = timestamp_str[14:]     # "761"
+
+    # Convertir a datetime
+    dt = datetime.strptime(base_time, "%Y%m%d%H%M%S")
+
+    # Construir key con el nuevo formato
+    key = (
+        f"{dt.year:04d}/"
+        f"{dt.month:02d}/"
+        f"{dt.day:02d}/"
+        f"{dt.hour:02d}_{dt.minute:02d}_{dt.second:02d}{file_path.suffix}"
+    )
 
     # Consultar si ya existe en MinIO
     try:
@@ -83,7 +90,7 @@ class ImageHandler(FileSystemEventHandler):
         upload_file(file_path)
 
 observer = Observer()
-observer.schedule(ImageHandler(), path=image_dir, recursive=False)
+observer.schedule(ImageHandler(), path=image_dir, recursive=True)
 observer.start()
 
 print(f"[WATCHING] Directorio: {image_dir}")
