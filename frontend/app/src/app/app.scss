@@ -1,0 +1,17 @@
+@use '../styles/colors' as *;
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: $color-blanco-nieve;
+  color: $color-gris-oscuro;
+}
+
+h1, h2, h3 { color: $color-azul-profundo; }
+
+a {
+  color: $color-azul-profundo;
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+}
+

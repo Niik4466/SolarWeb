@@ -1,18 +1,62 @@
+
+/* navbar.component.scss (arriba del todo, antes de cualquier regla) */
+@use 'sass:color';
+@use '../../../../styles/colors' as *; // carga variables de la paleta
+
+/* ===== Navbar ===== */
 .nav {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: .5rem 1rem; background: #294e7b; color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .5rem 1rem;
+  background: $color-azul-profundo;   /* antes: #294e7b */
+  color: $color-blanco-nieve;
   box-shadow: 0 2px 6px rgba(0,0,0,.15);
-  position: sticky; top: 0; z-index: 50;
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
 
 .brand { display: flex; align-items: center; gap: .5rem; }
-.logo { font-size: 1.25rem; line-height: 1; }
+.logo  { font-size: 1.25rem; line-height: 1; }
 .title { font-weight: 700; letter-spacing: .3px; }
 
+/* ===== Tabs ===== */
 .tabs { display: flex; gap: 1.25rem; margin-left: 2rem; }
+
 .tab {
-  color: #e8eef6; text-decoration: none; padding: .4rem 0;
-  border-bottom: 2px solid transparent; transition: .15s ease;
+  color: rgba($color-blanco-nieve, .9);
+  text-decoration: none;
+  padding: .4rem 0;
+  border-bottom: 2px solid transparent;
+  transition: color .15s ease, border-color .15s ease, background-color .15s ease;
+
+  &:hover {
+    color: $color-blanco-nieve;
+    border-bottom-color: lighten($color-amarillo-solar, 6%); /* feedback sutil */
+  }
+
+  &.active {
+    color: $color-blanco-nieve;
+    border-bottom-color: $color-amarillo-solar;              /* acento amarillo */
+    /* opcional: pill suave
+    background: rgba($color-blanco-nieve, .06);
+    border-radius: 6px;
+    padding: .4rem .5rem;
+    */
+  }
+
+  /* Accesibilidad teclado */
+  &:focus-visible {
+    outline: 2px solid $color-amarillo-solar;
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
 }
-.tab:hover { color: #ffffff; }
-.tab.active { color: #ffffff; border-bottom-color: #ffffff; }
+
+/* ===== (Opcional) versión “compacta” en pantallas pequeñas ===== */
+@media (max-width: 640px) {
+  .tabs { gap: .75rem; margin-left: 1rem; }
+  .title { font-size: 1rem; }
+}
+
