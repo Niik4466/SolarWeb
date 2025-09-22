@@ -1,8 +1,48 @@
-.wrap{
-  max-width: 1200px;
-  margin: 1rem auto;
-  padding: 1rem;
-  background: #fff;
-  border: 1px solid #e6eaf2;
-  border-radius: .75rem;
+.title { text-align: center; margin: 1rem 0 2rem; font-size: 1.5rem; }
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 1.25rem;
 }
+
+.left {
+  background: #f7f7f9; border: 1px solid #e1e3ea; border-radius: 12px; padding: 1rem;
+}
+.right .panel {
+  background: #eceff6; border: 1px solid #d4daeb; border-radius: 16px; padding: 1rem 1rem 1.25rem;
+}
+
+.panel-title { font-weight: 700; margin-bottom: .5rem; }
+
+.segmented {
+  display: inline-flex; background: #cfd6ea; border-radius: 999px; padding: .25rem;
+  .seg-btn {
+    border: 0; background: transparent; padding: .4rem .9rem; border-radius: 999px; cursor: pointer;
+    &.active { background: #8192c0; color: #fff; font-weight: 700; }
+  }
+}
+
+.group { margin-top: 1rem; }
+.label { font-weight: 600; margin-bottom: .25rem; }
+.row { display: flex; align-items: center; gap: .5rem; }
+.between { justify-content: space-between; align-items: flex-start; }
+
+.calendar-block, .range-block { display: grid; gap: .75rem; }
+.field { display: grid; gap: .25rem; }
+
+.chips { margin-top: .75rem; display: grid; gap: .5rem; }
+.chips-title { font-size: .9rem; color: #475569; }
+.chip {
+  display: inline-flex; align-items: center; gap: .4rem; margin: .25rem;
+  background: #d4daeb; border: none; border-radius: 999px; padding: .35rem .6rem; font-weight: 600;
+  cursor: pointer;
+}
+
+.btn {
+  border: 1px solid #c0c7dc; background: #fff; padding: .5rem .9rem; border-radius: 8px; cursor: pointer;
+  &.primary { background: #6c82b7; color: #fff; border-color: #6c82b7; font-weight: 700; }
+  &:disabled { opacity: .5; cursor: not-allowed; }
+}
+
+.muted { color: #6b7280; font-size: .9rem; }

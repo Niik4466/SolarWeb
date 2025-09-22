@@ -1,4 +1,124 @@
-<section class="wrap">
-  <h1>Exportar</h1>
-  <p>Esta es una página de prueba para verificar la barra de navegación.</p>
+<h1 class="title">Exportar datos</h1>
+
+<section class="layout">
+  <!-- Panel izquierdo: calendario / selección de fechas -->
+  <div class="left">
+
+    <!-- Diario -->
+    <div *ngIf="granularidad() === 'diario'" class="calendar-block">
+      <label for="fechaDiaria">Selecciona un día</label>
+      <div class="row">
+        <input id="fechaDiaria" type="date" [formControl]="form.controls.fechaDiaria" />
+        <button type="button" class="btn" (click)="addFechaDiaria()">Agregar</button>
+      </div>
+
+      <div class="chips" *ngIf="fechasDiarias().length">
+        <div class="chips-title">Vista previa de fechas seleccionadas:</div>
+        <button
+          type="button"
+          class="chip"
+          *ngFor="let f of fechasDiarias()"
+          (click)="removeFechaDiaria(f)"
+          aria-label="Quitar {{ f }}"
+          title="Quitar {{ f }}"
+        >
+          {{ f }} <span aria-hidden="true">×</span>
+        </button>
+      </div>
+    </div>
+    <div *ngIf="granularidad() === 'rango'" class="range-block">
+      <div class="row">
+        <div class="field">
+          <label for="rangoInicio">Inicio</label>
+          <input id="rangoInicio" type="date" [formControl]="form.controls.rangoInicio" />
+        </div>
+        <div class="field">
+          <label for="rangoFin">Fin</label>
+          <input id="rangoFin" type="date" [formControl]="form.controls.rangoFin" />
+        </div>
+      </div>
+      <p class="muted" *ngIf="form.value.rangoInicio && form.value.rangoFin && form.value.rangoInicio! > form.value.rangoFin!">
+        El inicio no puede ser posterior al fin.
+      </p>
+    </div>
+  </div>
+
+  <!-- Panel derecho: opciones -->
+  <aside class="right">
+    <div class="panel">
+      <div class="panel-title">Granularidad</div>
+      <div class="segmented" role="group" aria-label="Granularidad">
+        <button type="button"
+                class="seg-btn"
+                [class.active]="granularidad() === 'diario'"
+                (click)="setGranularidad('diario')"
+                aria-pressed="{{ granularidad() === 'diario' }}">
+          Diario
+        </button>
+        <button type="button"
+                class="seg-btn"
+                [class.active]="granularidad() === 'rango'"
+                (click)="setGranularidad('rango')"
+                aria-pressed="{{ granularidad() === 'rango' }}">
+          Rango
+        </button>
+      </div>
+
+      <div class="group">
+        <div class="label">Variables</div>
+        <label class="row"><input type="radio" formControlName="variable" value="GHI" /> GHI</label>
+        <label class="row"><input type="radio" formControlName="variable" value="DNI" /> DNI</label>
+        <label class="row"><input type="radio" formControlName="variable" value="DHI" /> DHI</label>
+      </div>
+
+      <div class="group">
+        <div class="label">Métricas</div>
+        <label class="row">
+          <input type="checkbox"
+                 [checked]="(form.value.metrics ?? []).includes('promedio')"
+                 (change)="toggleMetric('promedio', $any($event.target).checked)" />
+          Promedio irradiancia
+        </label>
+        <label class="row">
+          <input type="checkbox"
+                 [checked]="(form.value.metrics ?? []).includes('suma')"
+                 (change)="toggleMetric('suma', $any($event.target).checked)" />
+          Suma de kWh/m²
+        </label>
+        <label class="row">
+          <input type="checkbox"
+                 [checked]="(form.value.metrics ?? []).includes('minimo')"
+                 (change)="toggleMetric('minimo', $any($event.target).checked)" />
+          Mínimo
+        </label>
+        <label class="row">
+          <input type="checkbox"
+                 [checked]="(form.value.metrics ?? []).includes('maximo')"
+                 (change)="toggleMetric('maximo', $any($event.target).checked)" />
+          Máximo
+        </label>
+      </div>
+
+      <div class="row between group">
+        <div>
+          <div class="label">Formato</div>
+          <label class="row"><input type="radio" formControlName="formato" value="csv" /> CSV</label>
+          <label class="row"><input type="radio" formControlName="formato" value="json" /> JSON</label>
+        </div>
+
+        <div>
+          <div class="label">¿Incluir imágenes?</div>
+          <label class="row">
+            <input type="checkbox" formControlName="incluirImagenes" /> Sí
+          </label>
+        </div>
+      </div>
+
+      <button type="button" class="btn primary"
+              [disabled]="!puedeExportar()"
+              (click)="exportar()">
+        EXPORTAR
+      </button>
+    </div>
+  </aside>
 </section>
