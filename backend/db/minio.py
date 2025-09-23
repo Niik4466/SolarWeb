@@ -1,7 +1,7 @@
 # backend/db/minio_client.py
 from functools import lru_cache
 from minio import Minio
-from backend.core.config import settings
+from core.config import settings
 
 @lru_cache
 def get_minio_client() -> Minio:

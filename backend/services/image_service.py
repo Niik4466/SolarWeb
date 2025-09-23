@@ -1,6 +1,6 @@
 # backend/services/image_service.py
-from backend.db.minio import get_minio_client
-from backend.schemas.image import MinioListResponse, MinioObject
+from db.minio import get_minio_client
+from schemas.image import MinioListResponse, MinioObject
 
 
 def list_images(bucket: str, prefix: str = "") -> MinioListResponse:

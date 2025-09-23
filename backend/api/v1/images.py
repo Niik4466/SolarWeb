@@ -2,8 +2,8 @@
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, Response
 from fastapi.responses import StreamingResponse
-from backend.services.image_service import list_images, get_image  # get_image debe hacer minio.get_object(...)
-from backend.schemas.image import MinioListResponse
+from services.image_service import list_images, get_image  # get_image debe hacer minio.get_object(...)
+from schemas.image import MinioListResponse
 
 router = APIRouter()
 

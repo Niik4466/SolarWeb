@@ -2,8 +2,8 @@
 # SOLO delega al service; no toca la BD directamente.
 
 from fastapi import APIRouter, Query
-from backend.schemas.irradiance import SeriesOut, FieldName
-from backend.services.irradiance_service import get_series
+from schemas.irradiance import SeriesOut, FieldName
+from services.irradiance_service import get_series
 
 router = APIRouter(prefix="/api/v1/irradiance", tags=["irradiance"])
 

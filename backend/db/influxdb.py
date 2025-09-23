@@ -1,7 +1,7 @@
 # backend/db/influxdb.py
 from functools import lru_cache
 from influxdb_client import InfluxDBClient
-from backend.core.config import settings
+from core.config import settings
 
 @lru_cache
 def get_influx_client() -> InfluxDBClient:

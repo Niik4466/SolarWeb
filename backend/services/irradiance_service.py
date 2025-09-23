@@ -3,9 +3,9 @@
 # - ejecuta contra Influx (usando db/query_flux)
 # - transforma el resultado al esquema de schemas(SeriesOut)
 
-from backend.db.influxdb import query_flux           # función que ejecuta Flux
-from backend.core.config import settings             # para leer INFLUX_BUCKET del .env
-from backend.schemas.irradiance import SeriesOut, IrrPoint, FieldName
+from db.influxdb import query_flux           # función que ejecuta Flux
+from core.config import settings             # para leer INFLUX_BUCKET del .env
+from schemas.irradiance import SeriesOut, IrrPoint, FieldName
 
 MEASUREMENT = "radiacion_solar"  # el measurement que hay en influx
 

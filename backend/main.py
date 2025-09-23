@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.api.v1 import irradiance, images
+from api.v1 import irradiance, images
 
 app = FastAPI(title="Solar API", version="1.0.0")
 
