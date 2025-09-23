@@ -1,37 +1,67 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+// src/app/pages/graficos/graficos.ts
+import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClientModule } from '@angular/common/http';
 
 import { IrradianceChartComponent, Serie } from '../../components/charts/irradiance-chart/irradiance-chart';
 import { ImagenesPorHoraComponent, SkyFrame } from '../../components/imagenes/imagenes.component';
+
 import { ImagesService } from '../../services/images.api';
+import { IrradianceApi, SeriesOut } from '../../services/irradiance.api';
 import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-graficos',
   standalone: true,
-  imports: [CommonModule, IrradianceChartComponent, ImagenesPorHoraComponent],
-  templateUrl: './graficos.html', 
+  imports: [CommonModule, HttpClientModule, IrradianceChartComponent, ImagenesPorHoraComponent],
+  templateUrl: './graficos.html',
   styleUrls: ['./graficos.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class GraficosComponent {
-  // Chart (queda igual por ahora)
-  hours = ['6 AM','7 AM','8 AM','9 AM','10 AM','11 AM','12 PM','2 PM','4 PM','6 PM','8 PM'];
-  series: Serie[] = [
-    { name: 'Global',  data: [0,200,450,700,900,960,920,700,450,200,0] },
-    { name: 'Direct',  data: [0,180,420,650,820,840,800,620,400,180,0] },
-    { name: 'Diffuse', data: [0,120,300,480,620,680,660,520,340,150,0] },
-  ];
+export class GraficosComponent implements OnInit {
+  // Series para el chart en formato { x: epochMs, y: number }
+  series: Serie[] = [];
 
-  // Parámetro de día (si luego quieres hacerlo ‘dinámico’, lo expones como input/router param)
+  // Imágenes: flujo asíncrono desde el servicio
   readonly dayISO = '2025-08-02';
-  frames$!: Observable<SkyFrame[]>;   // nota la “!”
+  frames$!: Observable<SkyFrame[]>;
 
-  constructor(private images: ImagesService) {
+  constructor(
+    private irrApi: IrradianceApi,
+    private images: ImagesService,
+  ) {}
+
+  ngOnInit(): void {
+    // Cargar imágenes del día elegido
     this.frames$ = this.images.getDayFrames(this.dayISO);
+
+    // Cargar irradiancia (ejemplo: todo el día con agregación 5m)
+    const day = '2025-04-08';
+    const startISO = `${day}T00:00:00Z`;
+    const stopISO  = `${day}T23:59:59Z`;
+    const agg: string | undefined = '5m'; // usa undefined para crudo (más pesado)
+
+    Promise.all([
+      this.irrApi.getSeries({ startISO, stopISO, field: 'GHI', aggregate_every: agg, limit: 200000 }).toPromise(),
+      this.irrApi.getSeries({ startISO, stopISO, field: 'DNI', aggregate_every: agg, limit: 200000 }).toPromise(),
+      this.irrApi.getSeries({ startISO, stopISO, field: 'DHI', aggregate_every: agg, limit: 200000 }).toPromise(),
+    ]).then(([ghi, dni, dhi]) => {
+      const toXY = (s?: SeriesOut) =>
+        (s?.points ?? [])
+          .map(p => ({ x: Date.parse(p.time), y: Number(p.value) }))
+          .filter(pt => Number.isFinite(pt.y));
+
+      this.series = [
+        { name: 'Global',  data: toXY(ghi) as any },
+        { name: 'Directa', data: toXY(dni) as any },
+        { name: 'Difusa',  data: toXY(dhi) as any },
+      ];
+    }).catch(err => {
+      console.error('Error cargando series de irradiancia', err);
+    });
   }
 
   onFrameChange(f: SkyFrame) {
-    // futuro: sincronizar con gráfico
+    // Hook futuro para sincronizar frame seleccionado con el gráfico
   }
 }
