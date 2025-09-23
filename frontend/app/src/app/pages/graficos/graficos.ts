@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 
 import { IrradianceChartComponent, Serie } from '../../components/charts/irradiance-chart/irradiance-chart';
 import { ImagenesPorHoraComponent, SkyFrame } from '../../components/imagenes/imagenes.component';
-import { ImagesService } from '../../services/images.service';
+import { ImagesService } from '../../services/images.api';
 import { Observable } from 'rxjs';
 
 @Component({

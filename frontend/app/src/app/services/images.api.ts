@@ -7,6 +7,13 @@ import { MinioListResponse, MinioObject } from '../shared/models/minio';
 import { SkyFrame } from '../shared/models/sky-frame';;
 import { minioObjectToSkyFrame, sortFramesByTime } from '../shared/utils/skyframe.util';
 
+/**
+ * Service for retrieving images and frames from a specific bucket.
+ * 
+ * This service provides methods to interact with an API that serves
+ * image data stored in a MinIO bucket. It includes functionality to
+ * fetch and process frames for a specific day.
+ */
 @Injectable({ providedIn: 'root' })
 export class ImagesService {
   private http = inject(HttpClient);

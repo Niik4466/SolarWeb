@@ -20,6 +20,32 @@ export type SkyFrame = {
   alt?: string;
 };
 
+/**
+ * Component that displays a series of images organized by hour, with optional autoplay functionality
+ * and customizable display settings.
+ *
+ * @remarks
+ * This component is designed to display a collection of images (`SkyFrame[]`) in a slider-like interface.
+ * It supports autoplay, custom aspect ratios, and emits events when the selected image changes.
+ *
+ * @example
+ * ```html
+ * <app-imagenes-por-hora
+ *   [frames]="framesArray"
+ *   [showHeader]="true"
+ *   [autoplay]="true"
+ *   [intervalMs]="5000"
+ *   [maxHeight]="240"
+ *   [ratio]="'16 / 9'"
+ *   (frameChange)="onFrameChange($event)">
+ * </app-imagenes-por-hora>
+ * ```
+ *
+ * @export
+ * @class ImagenesPorHoraComponent
+ * @implements {OnInit}
+ * @implements {OnDestroy}
+ */
 @Component({
   selector: 'app-imagenes-por-hora',
   standalone: true,
