@@ -17,11 +17,12 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar el código del backend
-COPY . .
+COPY . ./backend
+COPY ../.env ./.env
+WORKDIR /app/backend
 
 # Exponer el puerto de FastAPI
 EXPOSE 8000
 
 # Comando por defecto: arrancar la app con uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir"]
