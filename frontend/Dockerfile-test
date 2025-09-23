@@ -1,0 +1,24 @@
+# Imagen base con Node.js
+FROM node:20-alpine
+
+# Crear directorio de trabajo
+WORKDIR /usr/src/app
+
+# Instalar Angular CLI globalmente (opcional si ya está en package.json)
+RUN npm install -g @angular/cli
+
+# Copiar package.json y lock
+COPY app/package*.json ./
+
+# Instalar dependencias
+RUN npm install
+
+# Copiar el resto del proyecto
+COPY app/ .
+
+# Exponer puerto (Angular usa 4200 por defecto)
+EXPOSE 4200
+
+# Usar npm run start
+CMD ["npm", "run", "start", "--", "--host", "0.0.0.0"]
+

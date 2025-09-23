@@ -77,7 +77,7 @@ def upload_file(file_path: Path):
     s3.upload_file(str(file_path), bucket_name, key)
 
 # Subir imágenes existentes
-for file_path in Path(image_dir).glob("*.*"):
+for file_path in Path(image_dir).rglob("*.*"):
     upload_file(file_path)
 
 # Watchdog para nuevas imágenes
