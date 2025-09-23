@@ -1,1 +1,28 @@
-<p>graficos works!</p>
+<section class="panel">
+  <div class="col chart">
+    <app-irradiance-chart
+      [series]="series"
+      [categories]="hours">
+    </app-irradiance-chart>
+  </div>
+
+  <div class="col photos">
+    <ng-container *ngIf="frames$ | async as frames; else cargando">
+      <app-imagenes-por-hora
+        [frames]="frames"
+        [autoplay]="true"
+        [intervalMs]="10000"
+        [showHeader]="true"
+        [maxHeight]="290"
+        [ratio]="'16 / 9'"
+        (frameChange)="onFrameChange($event)">
+      </app-imagenes-por-hora>
+
+      <div *ngIf="frames.length === 0" class="hint">No hay imágenes para mostrar.</div>
+    </ng-container>
+
+    <ng-template #cargando>
+      <div class="hint">Cargando imágenes…</div>
+    </ng-template>
+  </div>
+</section>
