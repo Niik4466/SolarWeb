@@ -1,3 +1,5 @@
+@use '../../../styles/colors' as *;
+
 .panel{
   max-width: 1100px;
   margin: 16px auto 32px;
@@ -7,8 +9,22 @@
 }
 @media (min-width: 980px){
   .panel{
-    grid-template-columns: 1.4fr 1.0fr;  /* desktop: dos columnas */  /* chart | fotos  (ajústalo a gusto) */
+    grid-template-columns: 1.4fr 1.0fr;  /* desktop: chart | fotos */
     align-items: start;
   }
 }
-.col{ min-width: 0; }                   /* evita overflow del chart */
+.col{
+  min-width: 0; /* evita overflow del chart */
+  background: $color-blanco-nieve;
+  border: 1px solid #e6e8ef;
+  border-radius: 12px;
+  padding: 12px;
+  /* opcional: destacar un poco sobre el fondo gris */
+  box-shadow: 0 2px 6px rgba(0,0,0,.06);
+}
+
+/* Asegura que el chart use todo el ancho del panel */
+.col.chart apx-chart{
+  display: block;
+  width: 100%;
+}
