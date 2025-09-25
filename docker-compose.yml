@@ -3,7 +3,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile-test
-    container_name: frontend
+    container_name: frontend-local
     ports:
       - "3002:4200"
     restart: unless-stopped
@@ -14,7 +14,7 @@ services:
       dockerfile: Dockerfile-production
     volumes:
       - ./solarweb-build/:/usr/share/solarweb
-    container_name: frontend
+    container_name: frontend-production
     restart: unless-stopped
     command: sh -c "npm install && ng build --configuration production --output-path /usr/share/solarweb && sleep infinity"
 
@@ -33,9 +33,7 @@ services:
       dockerfile: Dockerfile
     container_name: fastapi-backend
     ports:
-      - "4002:8000"
-    volumes:
-      - ./backend:/app
+      - "8000:8000"
 
   influxdb:
     image: influxdb:2.7
