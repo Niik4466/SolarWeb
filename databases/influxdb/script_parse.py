@@ -1,51 +1,58 @@
 import os, csv
 from datetime import datetime
 from influxdb_client import InfluxDBClient, Point, WritePrecision
+from influxdb_client.client.write_api import SYNCHRONOUS
 
-# Ruta a directorios
 directorio = "/datos"
 
-#Configuracion de la base de datos influxDB
-
-# URL del servidor InfluxDB ("localhost" si esta en el mismo pc)
 URL = os.getenv("INFLUX_ENDPOINT", "http://influxdb:8086")
-# Token de autenticación de InfluxDB 
 TOKEN = os.getenv("INFLUX_TOKEN", "super-secret-token")
-# Organización de InfluxDB 
 ORG = os.getenv("INFLUX_ORG", "miOrg")
-# Bucket donde se guardarán los datos
 BUCKET = os.getenv("INFLUX_BUCKET", "miBucket")
 
-# Crear cliente y API de escritura
 client = InfluxDBClient(url=URL, token=TOKEN, org=ORG)
-write_api = client.write_api()
+write_api = client.write_api(write_options=SYNCHRONOUS)
 
-# Recorre todos los archivos dentro de la carpeta 'datos'
 for nombre in os.listdir(directorio):
-    with open(os.path.join(directorio, nombre), newline="", encoding="utf-8") as f:
-        # 👇 Salta la primera línea (encabezado)
-        next(f)
-        for fila in csv.DictReader(f, fieldnames=["Fecha", "Hora", "DNI", "DHI", "GHI"]):
-            if not fila["Fecha"] or not fila["Hora"]:
-                continue  # saltar filas vacías
-            try:
-                # intentar con microsegundos y luego sin microsegundos
-                try:
-                    ts = datetime.strptime(fila["Fecha"] + " " + fila["Hora"], "%Y-%m-%d %H:%M:%S.%f")
-                except ValueError:
-                    ts = datetime.strptime(fila["Fecha"] + " " + fila["Hora"], "%Y-%m-%d %H:%M:%S")
+    if not nombre.lower().endswith(".csv"):
+        continue
 
-                punto = (
+    ruta = os.path.join(directorio, nombre)
+    with open(ruta, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        points = []
+
+        for fila in reader:
+            if not fila["Fecha"] or not fila["Hora"]:
+                continue
+
+            try:
+                # Parsear fecha sola
+                fecha = datetime.strptime(fila["Fecha"], "%Y-%m-%d").date()
+
+                # Parsear hora sola (puede tener o no microsegundos)
+                hora_str = fila["Hora"]
+                if "." in hora_str:
+                    hora = datetime.strptime(hora_str, "%H:%M:%S.%f").time()
+                else:
+                    hora = datetime.strptime(hora_str, "%H:%M:%S").time()
+
+                # Combinar fecha + hora en un solo datetime
+                ts = datetime.combine(fecha, hora)
+
+                points.append(
                     Point("radiacion_solar")
                     .time(ts, WritePrecision.NS)
                     .field("DNI", float(fila["DNI"]))
                     .field("DHI", float(fila["DHI"]))
                     .field("GHI", float(fila["GHI"]))
                 )
-                write_api.write(bucket=BUCKET, org=ORG, record=punto)
+
             except Exception as e:
                 print(f"Fila omitida en {nombre}: {e}")
 
-#mensaje de validacion
-print("Datos enviados a InfluxDB")
+        if points:
+            write_api.write(bucket=BUCKET, org=ORG, record=points)
 
+print("Datos enviados a InfluxDB")
+client.close()

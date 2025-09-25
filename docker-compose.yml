@@ -1,12 +1,31 @@
 services:
-  frontend:
+  frontend-local:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-    container_name: frontend
+      dockerfile: Dockerfile-test
+    container_name: frontend-local
     ports:
-      - "2002:4200"
+      - "3002:4200"
     restart: unless-stopped
+
+  frontend-production:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile-production
+    volumes:
+      - ./solarweb-build/:/usr/share/solarweb
+    container_name: frontend-production
+    restart: unless-stopped
+    command: sh -c "npm install && ng build --configuration production --output-path /usr/share/solarweb && sleep infinity"
+
+  # frontend-production:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile-production
+  #   volumes:
+  #     - ./solarweb-build/:/usr/share/solarweb/
+  #   container_name: frontend
+  #   restart: unless-stopped
 
   backend:
     build:
@@ -14,9 +33,7 @@ services:
       dockerfile: Dockerfile
     container_name: fastapi-backend
     ports:
-      - "2003:8000"
-    volumes:
-      - ./backend:/app
+      - "8000:8000"
 
   influxdb:
     image: influxdb:2.7
@@ -42,7 +59,7 @@ services:
       MINIO_ROOT_USER: "${MINIO_USER}"
       MINIO_ROOT_PASSWORD: "${MINIO_PASSWORD}"
     ports:
-      - "9000:9000"
+      - "4466:9000"
       - "9001:9001"
     volumes:
       - miniodb2:/data
@@ -59,7 +76,7 @@ services:
       - MINIO_ROOT_PASSWORD=${MINIO_PASSWORD}
       - PYTHONUNBUFFERED=1
     volumes:
-      - ~/Pictures:/app/images
+      - ~/Pictures/DatosCamera/2025_02_08-2025_02_08/:/app/images
     depends_on:
       - minio
 

@@ -12,8 +12,6 @@
 # Entornos virtuales
 venv/
 .venv/
-env/
-.env/
 
 # Bytecode compilado
 __pycache__/
