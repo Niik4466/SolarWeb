@@ -3,41 +3,54 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile-test
-    container_name: frontend-local
+    container_name: frontend-solarweb
     ports:
       - "3002:4200"
     restart: unless-stopped
+    env_file:
+      - .env
 
   frontend-production:
     build:
       context: ./frontend
       dockerfile: Dockerfile-production
-    volumes:
-      - ./solarweb-build/:/usr/share/solarweb
-    container_name: frontend-production
+    container_name: frontend-solarweb
+    ports:
+      - "3002:80"
     restart: unless-stopped
-    command: sh -c "npm install && ng build --configuration production --output-path /usr/share/solarweb && sleep infinity"
+    volumes:
+      - ./frontend/Caddyfile:/etc/caddy/Caddyfile
+    networks:
+      - red_taller_software
 
-  # frontend-production:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile-production
-  #   volumes:
-  #     - ./solarweb-build/:/usr/share/solarweb/
-  #   container_name: frontend
-  #   restart: unless-stopped
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: fastapi-backend
+    container_name: backend-solarweb
     ports:
-      - "8000:8000"
+      - "4002:8000"
+    volumes: 
+      - ./.env:/app/backend/.env
+
+  backend-production:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile-production
+    container_name: backend-solarweb
+    ports:
+      - "4002:8000"
+    env_file:
+      - .env
+    networks:
+      - red_taller_software
+
+  # Databases
 
   influxdb:
     image: influxdb:2.7
-    container_name: influxdb
+    container_name: influxdb-solarweb
     ports:
       - "8086:8086"
     volumes:
@@ -53,7 +66,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: minio
+    container_name: minio-solarweb
     restart: unless-stopped
     environment:
       MINIO_ROOT_USER: "${MINIO_USER}"
@@ -65,11 +78,14 @@ services:
       - miniodb2:/data
     command: server /data --console-address ":9001"
 
+
+  # Uploaders
+
   minio-uploader:
     build:
       context: ./databases/minio
       dockerfile: Dockerfile
-    container_name: minio-uploader
+    container_name: minio-uploader-solarweb
     environment:
       - MINIO_ENDPOINT=${MINIO_ENDPOINT}
       - MINIO_ROOT_USER=${MINIO_USER}
@@ -84,7 +100,7 @@ services:
     build:
       context: ./databases/influxdb
       dockerfile: Dockerfile
-    container_name: influxdb-uploader
+    container_name: influxdb-uploader-solarweb
     environment:
       - INFLUX_ENDPOINT=${INFLUX_ENDPOINT}
       - INFLUX_TOKEN=${INFLUX_TOKEN}
@@ -98,3 +114,7 @@ services:
 volumes:
   influxdb2:
   miniodb2:
+
+networks:
+  red_taller_software:
+    external: false
