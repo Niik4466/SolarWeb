@@ -1,0 +1,28 @@
+FROM python:3.11-slim
+
+# Establecer variables de entorno para que Python no escriba .pyc
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+WORKDIR /app
+
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar el archivo de requerimientos primero para aprovechar el cache de Docker
+COPY ./requirements.txt /app/requirements.txt
+
+# Instalar los requerimientos. Se asume que en requirements.txt ya tienes gunicorn y uvicorn
+RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
+
+# Copiar el código de la aplicación
+COPY . /app
+
+# Exponer el puerto
+EXPOSE 8000
+
+# Comando para producción: usar Gunicorn con Uvicorn como worker
+CMD ["gunicorn", "main:app", "--bind", "0.0.0.0:8000", "-w", "2", "--worker-class", "uvicorn.workers.UvicornWorker", "--log-level", "info"]

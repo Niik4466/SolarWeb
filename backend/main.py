@@ -5,14 +5,19 @@ from api.v1 import irradiance, images
 app = FastAPI(title="Solar API", version="1.0.0")
 
 # 👇 Aquí configuras CORS
-origins = [
-    "http://localhost:4200",   # Angular local
+ALLOWED_ORIGINS = [
+    "http://localhost:3002",
+    "http://127.0.0.1:3002",
+    "http://localhost:4200",     # solo si accedes directamente a 4200 sin redirección
     "http://127.0.0.1:4200",
+    "http://frontend:4200",
+    "http://frontend-solarweb:4200"
 ]
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,      # o ["*"] si quieres permitir todos los orígenes
+    allow_origins=ALLOWED_ORIGINS,      # o ["*"] si quieres permitir todos los orígenes
     allow_credentials=True,
     allow_methods=["*"],        # puedes limitar a ["GET"]
     allow_headers=["*"],
