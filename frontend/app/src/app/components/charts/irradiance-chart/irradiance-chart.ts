@@ -44,7 +44,8 @@ export class IrradianceChartComponent implements OnChanges {
     type: 'line',
     height: 420,
     toolbar: { show: false },
-    animations: { enabled: false } // 🔥 importante si hay muchos puntos
+    animations: { enabled: false }, // 🔥 importante si hay muchos puntos
+    fontFamily: 'Sansation, sans-serif'
   };
   stroke: ApexStroke = { curve: 'straight', width: 2 }; // straight rinde mejor con muchos puntos
   dataLabels: ApexDataLabels = { enabled: false };

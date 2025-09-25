@@ -5,14 +5,20 @@
                'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji';
 }
 
-html { font-size: 16px; }
+html { font-size: 18px; }
 body {
   margin: 0;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: $color-gris-claro;
+  font-size: 1rem; // texto normal = 18px
 }
 
-h1,h2,h3 { font-weight: 700; } /* usa el 700 que cargaste */
-nav, .tab { font-weight: 600; letter-spacing: .2px; } /* opcional */
+h1 { font-size: 2.2rem; }   // ≈ 40px
+h2 { font-size: 1.8rem; }   // ≈ 32px
+h3 { font-size: 1.5rem; }   // ≈ 27px
+p, label, input, button { font-size: 1rem; } // base (18px)
+small { font-size: 0.85rem; } // ≈ 15px
+
+nav, .tab { font-size: 1.25rem; font-weight: 600; letter-spacing: .2px; } /* opcional */

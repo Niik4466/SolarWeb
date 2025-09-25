@@ -19,8 +19,10 @@
 
 .brand { display: flex; align-items: center; gap: .5rem; }
 .logo  { font-size: 1.25rem; line-height: 1; }
-.title { font-weight: 700; letter-spacing: .3px; }
-
+.title {
+  font-size: 1.25rem;
+  font-weight: 700; // para destacar el título
+}
 /* ===== Tabs ===== */
 .tabs { display: flex; gap: 1.25rem; margin-left: 2rem; }
 
