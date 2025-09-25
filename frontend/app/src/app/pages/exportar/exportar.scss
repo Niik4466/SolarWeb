@@ -1,3 +1,5 @@
+@use '../../../styles/colors' as *;
+
 .title { text-align: center; margin: 1rem 0 2rem; font-size: 1.5rem; }
 
 .layout {
@@ -7,10 +9,10 @@
 }
 
 .left {
-  background: #f7f7f9; border: 1px solid #e1e3ea; border-radius: 12px; padding: 1rem;
+  background: $color-blanco-nieve; border: 1px solid #e1e3ea; border-radius: 12px; padding: 1rem;
 }
 .right .panel {
-  background: #eceff6; border: 1px solid #d4daeb; border-radius: 16px; padding: 1rem 1rem 1.25rem;
+  background: $color-blanco-nieve; border: 1px solid #d4daeb; border-radius: 16px; padding: 1rem 1rem 1.25rem;
 }
 
 .panel-title { font-weight: 700; margin-bottom: .5rem; }

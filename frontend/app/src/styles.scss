@@ -1,4 +1,4 @@
-@import 'styles/colors';
+@use 'styles/colors' as *;
 
 :root{
   --font-sans: 'Sansation', system-ui, -apple-system, 'Segoe UI', Roboto,
@@ -11,6 +11,7 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: $color-gris-claro;
 }
 
 h1,h2,h3 { font-weight: 700; } /* usa el 700 que cargaste */
