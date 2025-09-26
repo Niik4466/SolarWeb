@@ -2,13 +2,15 @@ services:
   frontend-local:
     build:
       context: ./frontend
-      dockerfile: Dockerfile-test
+      dockerfile: Dockerfile-local
     container_name: frontend-solarweb
     ports:
       - "3002:4200"
     restart: unless-stopped
     env_file:
       - .env
+    depends_on:
+      - backend
 
   frontend-production:
     build:
@@ -30,9 +32,11 @@ services:
       dockerfile: Dockerfile
     container_name: backend-solarweb
     ports:
-      - "4002:8000"
+      - "8000:8000"
     volumes: 
       - ./.env:/app/backend/.env
+    env_file:
+      - .env
 
   backend-production:
     build:
@@ -40,7 +44,7 @@ services:
       dockerfile: Dockerfile-production
     container_name: backend-solarweb
     ports:
-      - "4002:8000"
+      - "8000:8000"
     env_file:
       - .env
     networks:
@@ -72,7 +76,7 @@ services:
       MINIO_ROOT_USER: "${MINIO_USER}"
       MINIO_ROOT_PASSWORD: "${MINIO_PASSWORD}"
     ports:
-      - "4466:9000"
+      - "9000:9000"
       - "9001:9001"
     volumes:
       - miniodb2:/data

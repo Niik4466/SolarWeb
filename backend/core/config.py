@@ -23,7 +23,7 @@ class Settings(BaseSettings):
 
     # Config Pydantic Settings
     model_config = SettingsConfigDict(
-        env_file="/.env",          # buscará .env en el directorio donde ejecutas Python
+        env_file="../.env",          # buscará .env en el directorio donde ejecutas Python
         env_file_encoding="utf-8",
         case_sensitive=True
     )
