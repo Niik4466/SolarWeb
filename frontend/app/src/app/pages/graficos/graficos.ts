@@ -23,7 +23,7 @@ export class GraficosComponent implements OnInit {
   series: Serie[] = [];
 
   // Imágenes: flujo asíncrono desde el servicio
-  readonly dayISO = '2025-08-02';
+  readonly dayISO = '2025-02-08';
   frames$!: Observable<SkyFrame[]>;
 
   constructor(
