@@ -5,7 +5,7 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 
 directorio = "/datos"
 
-URL = os.getenv("INFLUX_ENDPOINT", "http://influxdb:8086")
+URL = os.getenv("INFLUX_ENDPOINT", "http://influxdb-solarweb:8086")
 TOKEN = os.getenv("INFLUX_TOKEN", "super-secret-token")
 ORG = os.getenv("INFLUX_ORG", "miOrg")
 BUCKET = os.getenv("INFLUX_BUCKET", "miBucket")

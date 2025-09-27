@@ -56,7 +56,7 @@ services:
     image: influxdb:2.7
     container_name: influxdb-solarweb
     ports:
-      - "8086:8086"
+      - "4466:8086"
     volumes:
       - influxdb2:/var/lib/influxdb2
     environment:
@@ -87,7 +87,7 @@ services:
 
   minio-uploader:
     build:
-      context: ./databases/minio
+      context: ./databases/minio/upload
       dockerfile: Dockerfile
     container_name: minio-uploader-solarweb
     environment:
@@ -96,7 +96,7 @@ services:
       - MINIO_ROOT_PASSWORD=${MINIO_PASSWORD}
       - PYTHONUNBUFFERED=1
     volumes:
-      - ~/Pictures/DatosCamera/2025_02_08-2025_02_08/:/app/images
+      - ~/Pictures/DatosCamera:/app/images
     depends_on:
       - minio
 
@@ -110,6 +110,7 @@ services:
       - INFLUX_TOKEN=${INFLUX_TOKEN}
       - INFLUX_ORG=${INFLUX_ORG}
       - INFLUX_BUCKET=${INFLUX_BUCKET}
+      - PYTHONUNBUFFERED=1
     volumes:
       - ~/Downloads/csv:/datos
     depends_on:
