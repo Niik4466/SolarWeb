@@ -14,16 +14,17 @@
 
       <div class="chips" *ngIf="fechasDiarias().length">
         <div class="chips-title">Vista previa de fechas seleccionadas:</div>
-        <button
-          type="button"
-          class="chip"
-          *ngFor="let f of fechasDiarias()"
-          (click)="removeFechaDiaria(f)"
-          aria-label="Quitar {{ f }}"
-          title="Quitar {{ f }}"
-        >
-          {{ f }} <span aria-hidden="true">×</span>
-        </button>
+        @for (f of fechasDiarias(); track f) {
+          <button
+            type="button"
+            class="chip"
+            (click)="removeFechaDiaria(f)"
+            aria-label="Quitar {{ f }}"
+            title="Quitar {{ f }}"
+          >
+            {{ f }} <span aria-hidden="true">×</span>
+          </button>
+        }
       </div>
     </div>
     <div *ngIf="granularidad() === 'rango'" class="range-block">
@@ -66,9 +67,9 @@
 
       <div class="group">
         <div class="label">Variables</div>
-        <label class="row"><input type="radio" formControlName="variable" value="GHI" /> GHI</label>
-        <label class="row"><input type="radio" formControlName="variable" value="DNI" /> DNI</label>
-        <label class="row"><input type="radio" formControlName="variable" value="DHI" /> DHI</label>
+        <label class="row"><input type="checkbox" formControlName="variable" value="GHI" /> GHI</label>
+        <label class="row"><input type="checkbox" formControlName="variable" value="DNI" /> DNI</label>
+        <label class="row"><input type="checkbox" formControlName="variable" value="DHI" /> DHI</label>
       </div>
 
       <div class="group">
@@ -102,8 +103,8 @@
       <div class="row between group">
         <div>
           <div class="label">Formato</div>
-          <label class="row"><input type="radio" formControlName="formato" value="csv" /> CSV</label>
-          <label class="row"><input type="radio" formControlName="formato" value="json" /> JSON</label>
+          <label class="row"><input type="checkbox" formControlName="formato" value="csv" /> CSV</label>
+          <label class="row"><input type="checkbox" formControlName="formato" value="json" /> JSON</label>
         </div>
 
         <div>
