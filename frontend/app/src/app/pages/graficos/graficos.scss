@@ -1,30 +1,65 @@
-@use '../../../styles/colors' as *;
-
-.panel{
-  max-width: 1100px;
-  margin: 16px auto 32px;
+/* contenedor centrado y con ancho máximo */
+.panel {
+  --gap: 1.25rem;
+  max-width: 1200px;
+  margin: 1.25rem auto;
+  padding: 0 var(--gap);
   display: grid;
-  gap: 12px;
-  grid-template-columns: 1fr;          /* móvil: apilado */
-}
-@media (min-width: 980px){
-  .panel{
-    grid-template-columns: 1.4fr 1.0fr;  /* desktop: chart | fotos */
-    align-items: start;
-  }
-}
-.col{
-  min-width: 0; /* evita overflow del chart */
-  background: $color-blanco-nieve;
-  border: 1px solid #e6e8ef;
-  border-radius: 12px;
-  padding: 12px;
-  /* opcional: destacar un poco sobre el fondo gris */
-  box-shadow: 0 2px 6px rgba(0,0,0,.06);
+  grid-template-columns: 1fr 1fr;      /* 2 columnas iguales */
+  grid-template-areas:
+    "controls controls"
+    "photos   chart";
+  gap: var(--gap);
 }
 
-/* Asegura que el chart use todo el ancho del panel */
-.col.chart apx-chart{
+/* fila de controles arriba */
+.controls {
+  grid-area: controls;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+  padding: .5rem 0;
+}
+
+.controls label { font-weight: 600; }
+.controls .btn {
+  border: 1px solid #cfd3d7;
+  border-radius: .5rem;
+  padding: .4rem .9rem;
+  background: #f6f7f9;
+  cursor: pointer;
+}
+
+/* columnas */
+.photos { grid-area: photos; }
+.chart  { grid-area: chart; }
+
+/* tarjetas visualmente coherentes */
+.photos, .chart {
+  background: #fff;
+  border-radius: .75rem;
+  box-shadow: 0 2px 14px rgba(0,0,0,.06);
+  padding: 1rem;
+}
+
+/* ocupa el ancho del contenedor interno */
+app-irradiance-chart,
+app-imagenes-por-hora {
   display: block;
   width: 100%;
+}
+
+/* hints y estados */
+.hint { opacity: .7; padding: .5rem 0; }
+
+/* Responsivo: en móviles todo en una columna */
+@media (max-width: 900px) {
+  .panel {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "controls"
+      "chart"
+      "photos";
+  }
 }

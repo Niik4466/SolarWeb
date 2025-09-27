@@ -1,51 +1,11 @@
 import {
-  Component,
-  ChangeDetectionStrategy,
-  Input,
-  Output,
-  EventEmitter,
-  signal,
-  computed,
-  OnInit,
-  OnDestroy
+  Component, ChangeDetectionStrategy, Input, Output, EventEmitter,
+  signal, computed, OnInit, OnDestroy, OnChanges, SimpleChanges
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
-export type SkyFrame = {
-  /** Puede ser '06:00', '12:10', '2025-07-21T12:00:00', etc. */
-  time: string | Date;
-  /** URL de la imagen (local en /assets o remota) */
-  src: string;
-  /** Texto alternativo accesible */
-  alt?: string;
-};
+export type SkyFrame = { time: string | Date; src: string; alt?: string; };
 
-/**
- * Component that displays a series of images organized by hour, with optional autoplay functionality
- * and customizable display settings.
- *
- * @remarks
- * This component is designed to display a collection of images (`SkyFrame[]`) in a slider-like interface.
- * It supports autoplay, custom aspect ratios, and emits events when the selected image changes.
- *
- * @example
- * ```html
- * <app-imagenes-por-hora
- *   [frames]="framesArray"
- *   [showHeader]="true"
- *   [autoplay]="true"
- *   [intervalMs]="5000"
- *   [maxHeight]="240"
- *   [ratio]="'16 / 9'"
- *   (frameChange)="onFrameChange($event)">
- * </app-imagenes-por-hora>
- * ```
- *
- * @export
- * @class ImagenesPorHoraComponent
- * @implements {OnInit}
- * @implements {OnDestroy}
- */
 @Component({
   selector: 'app-imagenes-por-hora',
   standalone: true,
@@ -54,72 +14,81 @@ export type SkyFrame = {
   styleUrls: ['./imagenes.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ImagenesPorHoraComponent implements OnInit, OnDestroy {
-  /** Arreglo ordenado por hora */
-  @Input({ required: true }) frames: SkyFrame[] = [];
-  /** Muestra reloj/etiqueta arriba de la imagen */
+export class ImagenesPorHoraComponent implements OnInit, OnDestroy, OnChanges {
+
+  // ----- inputs -----
+  private _frames = signal<SkyFrame[]>([]);
+  @Input({ required: true })
+  set frames(v: SkyFrame[]) { this._frames.set(v ?? []); }       // <— ahora es signal
+  get frames(): SkyFrame[] { return this._frames(); }
+
   @Input() showHeader = true;
-  /** Autoplay (avanza solo) */
   @Input() autoplay = false;
-  /** Cada cuánto avanza en autoplay */
   @Input() intervalMs = 10_000;
+  @Input() startIndex = 0;
+  @Input() maxHeight = 300;
+  @Input() ratio: string = '4 / 3';
+  @Input() resetKey?: number;   // para forzar reinicio externo si quieres
 
-  
-  @Input() maxHeight = 300;     // alto máximo en px (puedes pasar 220/240/260)
-  
-  @Input() ratio: string = '4 / 3'; // relación de aspecto CSS (ej: '3 / 2', '16 / 9')
-
-
-  /** Emite el frame actual cuando cambia */
   @Output() frameChange = new EventEmitter<SkyFrame>();
 
-  /** Índice seleccionado en el slider */
+  // ----- estado -----
   index = signal(0);
-  current = computed(() => this.frames[this.index()] ?? null);
-
-  // Cada cuántos ticks mostrar etiqueta (evita usar Math en el HTML)
-  step = computed(() => Math.max(1, Math.ceil(this.frames.length / 6)));
-
+  current = computed(() => this._frames()[this.index()] ?? null);               // <—
+  step    = computed(() => Math.max(1, Math.ceil(this._frames().length / 6))); // <—
 
   private _timer: any = null;
 
+  // ----- ciclo de vida -----
   ngOnInit(): void {
-    // Pre-carga básica de imágenes
-    for (const f of this.frames) {
-      const img = new Image();
-      img.src = f.src;
-    }
-    if (this.autoplay && this.frames.length > 1) {
-      this._timer = setInterval(() => this.next(), this.intervalMs);
+    this.resetTo(this.startIndex);
+    this.startAutoplayIfNeeded();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['startIndex'] || changes['resetKey'] || changes['frames']) {
+      this.resetTo(this.startIndex);      // cuando llegan nuevos frames, recalcula
+      this.restartAutoplayIfNeeded();
     }
   }
 
-  ngOnDestroy(): void {
-    if (this._timer) clearInterval(this._timer);
-  }
+  ngOnDestroy(): void { this.stopAutoplay(); }
 
+  // ----- UI API -----
   onSlide(i: number) {
     this.index.set(i);
     const c = this.current();
-    if (c) this.frameChange.emit(c);
+    if (c) { this.frameChange.emit(c); this.prefetchAdjacent(); }
   }
+  prev() { if (!this.frames.length) return; this.onSlide((this.index() - 1 + this.frames.length) % this.frames.length); }
+  next() { if (!this.frames.length) return; this.onSlide((this.index() + 1) % this.frames.length); }
 
-  prev() {
-    if (!this.frames.length) return;
-    const i = (this.index() - 1 + this.frames.length) % this.frames.length;
-    this.onSlide(i);
+  // ----- helpers -----
+  private resetTo(i: number) {
+    const n = this._frames().length;
+    const safe = Math.min(Math.max(i || 0, 0), Math.max(n - 1, 0));
+    this.index.set(safe);
+    const c = this.current();
+    if (c) { this.frameChange.emit(c); this.prefetchAdjacent(); }
   }
+  private startAutoplayIfNeeded() {
+    if (this.autoplay && this._frames().length > 1) {
+      this.stopAutoplay();
+      this._timer = setInterval(() => this.next(), this.intervalMs);
+    }
+  }
+  private restartAutoplayIfNeeded() { this.stopAutoplay(); this.startAutoplayIfNeeded(); }
+  private stopAutoplay() { if (this._timer) { clearInterval(this._timer); this._timer = null; } }
 
-  next() {
-    if (!this.frames.length) return;
-    const i = (this.index() + 1) % this.frames.length;
-    this.onSlide(i);
+  /** precarga ligera sólo ±1 */
+  private prefetchAdjacent() {
+    const n = this._frames().length; if (n <= 1) return;
+    const i = this.index(); const idxs = [ (i - 1 + n) % n, (i + 1) % n ];
+    for (const j of idxs) { const url = this._frames()[j]?.src; if (url) { const img = new Image(); img.decoding='async'; img.src = url; } }
   }
 
   labelFor(time: string | Date) {
     const d = typeof time === 'string' ? new Date(time) : time;
-    // Si no es parseable como Date, se devuelve la cadena tal cual (ej: "06:00")
-    if (isNaN((d as any).valueOf())) return String(time);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return isNaN((d as any).valueOf()) ? String(time) : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 }

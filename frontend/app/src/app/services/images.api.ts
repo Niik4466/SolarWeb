@@ -31,6 +31,7 @@ export class ImagesService {
 
     const url = `${this.API_BASE}/images`;
 
+    // ImagesService.getDayFrames(dayISO)
     return this.http.get<MinioListResponse>(url, { params }).pipe(
       map(resp => Array.isArray(resp?.objects) ? resp.objects : []),
       map((objects: MinioObject[]) =>
@@ -38,13 +39,10 @@ export class ImagesService {
           .map(o => minioObjectToSkyFrame(o, this.BUCKET, this.API_BASE))
           .filter((f): f is SkyFrame => !!f)
       ),
-      map(frames => sortFramesByTime(frames)),
-      catchError((err) => {
-        // dejamos el error “hacia arriba” como un array vacío; el componente hará el mensaje
-        console.error('[ImagesService] getDayFrames error:', err);
-        return of<SkyFrame[]>([]);
-      }),
-      shareReplay(1)
+      map(frames => sortFramesByTime(frames)),   // <-- importante para que aparezcan todas en orden
+      catchError(err => { console.error(err); return of<SkyFrame[]>([]); }),
+      shareReplay({ bufferSize: 1, refCount: true })
     );
+
   }
 }

@@ -1,22 +1,36 @@
 <section class="panel">
-  <div class="col chart">
+  <!-- Controles arriba, a todo el ancho -->
+  <div class="controls">
+    <label for="day">Selecciona un día</label>
+    <input id="day" type="date" [(ngModel)]="selectedDay" (keyup.enter)="onBuscar()">
+    <button class="btn" type="button" (click)="onBuscar()" [disabled]="isLoading">
+      {{ isLoading ? 'Cargando…' : 'Buscar' }}
+    </button>
+  </div>
+
+  <!-- Gráfico columna derecha -->
+  <div class="chart">
     <app-irradiance-chart
       [timeSeries]="true"
-      [series]="series">
+      [series]="(series$ | async) ?? []">
     </app-irradiance-chart>
   </div>
 
-  <div class="col photos">
+  <!-- Imágenes columna izquierda -->
+  <div class="photos">
     <ng-container *ngIf="frames$ | async as frames; else cargando">
       <app-imagenes-por-hora
         [frames]="frames"
-        [autoplay]="true"
+        [startIndex]="0"
+        [resetKey]="resetCounter"
+        [autoplay]="false"
         [intervalMs]="10000"
         [showHeader]="true"
-        [maxHeight]="290"
+        [maxHeight]="320"
         [ratio]="'16 / 9'"
         (frameChange)="onFrameChange($event)">
       </app-imagenes-por-hora>
+
 
       <div *ngIf="frames.length === 0" class="hint">No hay imágenes para mostrar.</div>
     </ng-container>
