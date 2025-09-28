@@ -1,0 +1,34 @@
+services:
+  frontend-solarweb-production:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile-production
+    container_name: frontend-solarweb
+    # SOLO PARA DEBUG
+    # ports:
+    #   - "3002:80"
+    restart: unless-stopped
+    volumes:
+      - ./frontend/Caddyfile:/etc/caddy/Caddyfile
+    networks:
+      - red_taller_software
+
+  backend-solarweb:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend-solarweb
+    # SOLO PARA DEBUG
+    # ports:
+    #   - "4002:4002"
+    volumes:
+      - ./.env:/app/backend/.env
+    env_file:
+      - .env
+    networks:
+      - red_taller_software
+
+# Configuracion de red
+networks:
+  red_taller_software:
+    external: true

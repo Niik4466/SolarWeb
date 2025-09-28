@@ -1,0 +1,68 @@
+services:
+  # Databases
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb-solarweb
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb2:/var/lib/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUX_USER}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUX_PASS}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUX_ORG}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUX_BUCKET}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_TOKEN}
+      - DOCKER_INFLUXDB_INIT_RETENTION=0
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio-solarweb
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: "${MINIO_USER}"
+      MINIO_ROOT_PASSWORD: "${MINIO_PASSWORD}"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodb2:/data
+    command: server /data --console-address ":9001"
+
+
+  # Uploaders
+  minio-uploader:
+    build:
+      context: ./databases/minio/upload
+      dockerfile: Dockerfile
+    container_name: minio-uploader-solarweb
+    environment:
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+      - MINIO_ROOT_USER=${MINIO_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_PASSWORD}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ${MINIO_UPLOAD_IMAGES_DIR}:/app/images
+    depends_on:
+      - minio
+
+  influxdb-uploader:
+    build:
+      context: ./databases/influxdb
+      dockerfile: Dockerfile
+    container_name: influxdb-uploader-solarweb
+    environment:
+      - INFLUX_ENDPOINT=${INFLUX_ENDPOINT}
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
+      - INFLUX_ORG=${INFLUX_ORG}
+      - INFLUX_BUCKET=${INFLUX_BUCKET}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ${INFLUXDB_UPLOAD_CSV_DIR}:/datos
+    depends_on:
+      - influxdb
+
+volumes:
+  influxdb2:
+  miniodb2:

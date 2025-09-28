@@ -1,106 +1,63 @@
-# Genesis del proyecto de angular
-## Instalacion de Node.js
-    Descarga e instala Node.js desde su [sitio oficial](https://nodejs.org/).
-## Instalacion de Angular CLI y creacion del proyecto
-    Abre una terminal y ejecuta los siguientes comandos:
+# SolarWeb
+
+![logo](/docs/images/logo.png)
+
+## Descripción del Proyecto
+
+SolarWeb es una plataforma web desarrollada para investigadores, con el objetivo de **visualizar, analizar y exportar datos de irradiancia solar e imágenes del cielo**. La aplicación busca proporcionar una herramienta eficiente y clara para el análisis de las condiciones atmosféricas y su impacto en la radiación solar.
+
+---
+
+## Características Principales
+
+### Para Investigadores
+
+- **Visualización de Datos:** Un panel de control intuitivo para ver gráficos de irradiancia global, directa y difusa del día actual.
+- **Análisis Dinámico:** Capacidad para filtrar los tipos de irradiancia, seleccionar fechas específicas y ver los valores de cada punto en el gráfico al pasar el cursor.
+- **Exportación de Datos:** Funcionalidad para exportar datos e imágenes de un rango de fechas específico. puede filtrar por tipo de irradiación y métricas y elegir el formato de exportación (ej. CSV, Excel, JSON)
+- **Gestión de Cuentas:** Capacidad para solicitar un registro y acceder al sitio una vez la solicitud ha sido aprobada
+
+### Para Administradores
+
+- **Gestión de Usuarios:** Herramientas para visualizar y gestionar solicitudes de registro, aprobar o rechazar usuarios, y gestionar roles (administrador/usuario)
+- **Monitoreo y Auditoría:** Acceso a un historial de descargas por cada usuario y un registro de los usuarios eliminados.
+- **Notificaciones del Sistema:** El sistema notifica al administrador sobre problemas clave, como el sensor sin tomar datos o el espacio del disco duro bajo.
+
+---
+
+## Configuración y Despliegue
+
+### Requisitos Técnicos
+
+- **Docker** para despliegue
+
+### Configuración del entorno
+
+- Crear un archivo `.env` en la raíz del proyecto. Consulta la documentación del [Manual DevOps](docs/devops-manual/README.md) para ver las variables necesarias para la conexión con la base de datos y otros servicios.
+
+### Guía de Inicio Rápido
+
+1.  **Clonar el repositorio:**
     ```bash
-    npm install -g @angular/cli // Instala Angular CLI globalmente
-    ng new SolarWeb // Crea un nuevo proyecto llamado SolarWeb
-    cd SolarWeb // Navega al directorio del proyecto
-    ng serve    // Inicia el servidor de desarrollo
-    ng build --prod // Compila el proyecto para producción
-    ```
-    Referencia: https://angular.dev/installation
-
-
-# Cómo ejecutar la página con Angular
-
-Sigue estos pasos para ejecutar tu aplicación Angular:
-
-1. **Instalar dependencias**  
-    Asegúrate de tener Node.js y npm instalados. Luego, ejecuta:
-    ```bash
-    npm install
-    ```
-
-2. **Iniciar el servidor de desarrollo**  
-    Usa el siguiente comando para iniciar el servidor:
-    ```bash
-    ng serve
-    ```
-
-3. **Abrir en el navegador**  
-    Por defecto, la aplicación estará disponible en [http://localhost:4200](http://localhost:4200).
-
-4. **Compilar para producción (opcional)**  
-    Si necesitas generar una versión optimizada:
-    ```bash
-    ng build --prod
-    ```
-
-¡Listo! Ahora puedes trabajar con tu aplicación Angular.
-
-
-## Crear un entorno virtual (venv) en Python
-
-Si necesitas trabajar con Python en tu proyecto, puedes crear un entorno virtual para aislar las dependencias. Sigue estos pasos:
-
-1. **Instalar Python**  
-    Asegúrate de tener Python instalado en tu sistema. Puedes verificarlo con:
-    ```bash
-    python --version
+    git clone https://github.com/Niik4466/SolarWeb
     ```
 
-2. **Crear el entorno virtual**  
-    Ejecuta el siguiente comando en la terminal:
+2.  **Iniciar los servicios:**
+    Desde el directorio raíz del proyecto, ejecuta el siguiente comando para construir e iniciar todos los servicios definidos en el `docker-compose.yml`:
     ```bash
-    python -m venv venv
-    ```
-    Esto creará una carpeta llamada `venv` en tu proyecto.
-
-3. **Activar el entorno virtual**  
-    - En Windows:
-      ```bash
-      venv\Scripts\activate
-      ```
-    - En macOS/Linux:
-      ```bash
-      source venv/bin/activate
-      ```
-
-4. **Instalar dependencias**  
-    Una vez activado el entorno, instala las dependencias necesarias con:
-    ```bash
-    pip install -r requirements.txt
+    docker compose up --build
     ```
 
-5. **Desactivar el entorno virtual**  
-    Cuando termines, puedes desactivar el entorno con:
-    ```bash
-    deactivate
-    ```
+3.  **Acceder a la aplicación:**
+    Una vez que los contenedores estén activos, podrás acceder a la interfaz de usuario en su formato local en [http://localhost:3002](http://localhost:3002).
 
-¡Listo! Ahora tienes un entorno virtual configurado para tu proyecto.
+Para mayor detalles de despliegue en producción visitar [Manual DevOps para despliegue](./docs/devops-manual/deployment.md)
 
+---
 
-## Cómo ejecutar una aplicación con FastAPI
+## Documentación Detallada
 
-Sigue estos pasos para ejecutar tu aplicación FastAPI:
+Para información más profunda sobre el uso, la arquitectura y el mantenimiento del proyecto, consultar los siguientes documentos:
 
-1. **Instalar dependencias**  
-    Asegúrate de tener Python instalado. Luego, instala FastAPI y un servidor ASGI como `uvicorn`:
-    ```bash
-    pip install fastapi uvicorn
-    ```
-    
-3. **Ejecutar el servidor**  
-    Usa el siguiente comando para iniciar el servidor:
-    ```bash
-    uvicorn main:app --reload
-    ```
-
-4. **Abrir en el navegador**  
-    Por defecto, la aplicación estará disponible en [http://127.0.0.1:8000](http://127.0.0.1:8000).  
-    También puedes acceder a la documentación interactiva en [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
-
-¡Listo! Ahora puedes trabajar con tu aplicación FastAPI.
+**[Manual de Usuario](./docs/user-manual.md):** Guía completa para el usuario final sobre cómo interactuar con cada funcionalidad del sitio web.
+**[Manual DevOps](./docs/devops-manual/README.md):** Documentación técnica para los desarrolladores y el equipo de operaciones sobre la infraestructura, despliegue, automatización y mantenimiento del sistema.
