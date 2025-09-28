@@ -72,5 +72,7 @@ Más información sobre configuración para despliegue en [deployment de DevOps]
 
 La documentación detallada se encuentra en esta misma carpeta para mantenerla organizada y versionada.
 
-  * `setup.md`: Guía de configuración inicial del entorno, variables de entorno y dependencias.
-  * `deployment.md`: Pasos para el despliegue en un servidor de producción.
+  * [setup-local.md](setup-local.md) : Guía de configuración inicial del entorno, variables de entorno y dependencias para el desarrollo local.
+  * [deployment.md](deployment.md): Pasos para el despliegue en producción.
+  * [database_management.md](database_management.md): Información sobre manejo de bd's en el nodo de datos.
+  * [genesis_ng.md](genesis_ng.md): Genesis del proyecto en ángular.

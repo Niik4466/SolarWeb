@@ -4,7 +4,7 @@ Este documento detalla los pasos y requisitos para configurar el entorno de desa
 
 -----
 
-### 1\. Requisitos del Sistema
+### Requisitos del Sistema
 
 Para poder ejecutar el proyecto, necesitas tener instaladas las siguientes herramientas en tu máquina local:
 
@@ -14,7 +14,7 @@ Para poder ejecutar el proyecto, necesitas tener instaladas las siguientes herra
 
 -----
 
-### 2\. Pasos de Configuración
+### Pasos de Configuración
 
 Sigue estos pasos para poner el proyecto en marcha:
 
