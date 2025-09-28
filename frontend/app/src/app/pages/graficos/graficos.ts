@@ -38,6 +38,10 @@ export class GraficosComponent {
   selectedDay = this.defaultDay;
   private day$ = new BehaviorSubject<string>(this.defaultDay);
 
+  // Día actualmente mostrado (solo cambia cuando presionas "Buscar")
+  readonly viewingDay$ = this.day$.asObservable();
+
+
   // Limites de protección para imágenes (ajusta si quieres)
   private readonly FRAME_SAMPLE_EVERY = 10; // 1 cada 10 min si tienes 1/min
   private readonly FRAME_MAX = 20000;         // tope duro
@@ -114,6 +118,12 @@ export class GraficosComponent {
     this.resetCounter++; // fuerza reset de gráficos
     // liberamos loading cuando la UI reciba el primer tick de cualquiera de los streams
     setTimeout(() => (this.isLoading = false), 0);
+  }
+
+  // Formato DD/MM/YYYY para mostrar el dia actual
+  prettyDay(d: string): string {
+    const m = d?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : d;
   }
 
   onFrameChange(_f: SkyFrame) {}

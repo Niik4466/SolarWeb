@@ -5,10 +5,11 @@
   margin: 1.25rem auto;
   padding: 0 var(--gap);
   display: grid;
-  grid-template-columns: 1fr 1fr;      /* 2 columnas iguales */
+  grid-template-columns: 1fr 1fr;
   grid-template-areas:
     "controls controls"
-    "photos   chart";
+    "legend   legend"
+    "chart   photos";
   gap: var(--gap);
 }
 
@@ -59,7 +60,26 @@ app-imagenes-por-hora {
     grid-template-columns: 1fr;
     grid-template-areas:
       "controls"
+      "legend"
       "chart"
       "photos";
   }
 }
+
+/* bloque de leyenda */
+
+.legend {
+  grid-area: legend;
+  text-align: center;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: .75rem;
+  padding: .75rem 1rem;
+  box-shadow: 0 2px 10px rgba(0,0,0,.04);
+  font-size: .95rem;
+  color: #374151;
+}
+/*  enfatizar el strong */
+.legend strong { color: #111827; }
+
+

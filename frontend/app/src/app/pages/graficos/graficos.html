@@ -7,6 +7,13 @@
       {{ isLoading ? 'Cargando…' : 'Buscar' }}
     </button>
   </div>
+  
+  <!-- leyenda con la fecha actualmente mostrada -->
+  <div class="legend">
+    <ng-container *ngIf="(viewingDay$ | async) as viewingDay">
+      Mostrando datos para el día <strong>{{ prettyDay(viewingDay) }}</strong>
+    </ng-container>
+  </div>
 
   <!-- Gráfico columna derecha -->
   <div class="chart">
