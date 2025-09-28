@@ -1,4 +1,17 @@
+//exportar.scss
+
 @use '../../../styles/colors' as *;
+
+:root {
+  --space-1: clamp(0.25rem, 0.2rem + 0.2vw, 0.5rem);
+  --space-2: clamp(0.5rem, 0.4rem + 0.4vw, 0.9rem);
+  --space-3: clamp(0.75rem, 0.6rem + 0.6vw, 1.25rem);
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 16px;
+  --max-content: 1200px;
+  --shadow-1: 0 1px 2px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04);
+}
 
 .title { text-align: center; margin: 1rem 0 2rem; font-size: 1.5rem; }
 
@@ -48,3 +61,80 @@
 }
 
 .muted { color: #6b7280; font-size: .9rem; }
+
+/* ===== Forzar apilado en pantallas pequeñas ===== */
+@media (max-width: 900px) {
+  /* 1) Layout en una sola columna */
+  .layout {
+    grid-template-columns: 1fr !important;
+    gap: 1rem;
+  }
+
+  /* 2) Filas en columna (apiladas) */
+  .row {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    align-items: stretch !important;
+    gap: .5rem;
+  }
+
+  /* 3) "add-date" primero (ya está antes en el DOM) y full width */
+  .row.add-date {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+  .row.add-date > * { width: 100% !important; }
+
+  /* 4) "range-row" debajo y también en columna */
+  .row.range-row {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+  .row.range-row > * { width: 100% !important; }
+
+  /* 5) Inputs y botón cómodos en touch */
+  input[type="date"],
+  input[type="text"],
+  select { width: 100% !important; min-height: 40px; }
+  .btn.cta { width: 100% !important; }
+
+  /* 6) Opcional: desactivar sticky del panel derecho en móvil */
+  .right .panel { position: static !important; }
+
+    label.row {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: .5rem;
+    grid-template-columns: unset !important; /* anula grid de .row */
+    width: auto !important;
+    white-space: nowrap;
+  }
+
+  label.row input[type="checkbox"],
+  label.row input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    
+  }
+
+  /* Espacio horizontal entre opciones (mismo renglón) */
+  .group > label.row {
+    display: inline-flex;           /* asegura etiqueta + checkbox en línea */
+    align-items: center;
+    gap: .5rem;                     /* espacio entre el checkbox y su texto */
+    margin-right: 1rem;             /* ← espacio hacia el siguiente label */
+  }
+
+  .group > label.row:last-of-type { margin-right: 0; }
+
+  /* También aplica a los que están dentro de un <div> dentro de .group
+     (p. ej., "Formato" y "¿Incluir imágenes?") */
+  .group > div > label.row {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    margin-right: 1rem;
+  }
+  .group > div > label.row:last-of-type { margin-right: 0; }
+}

@@ -1,10 +1,11 @@
+//exportar.ts
+
 import { Component, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 type Granularity = 'diario' | 'rango';
 type VariableKey = 'GHI' | 'DNI' | 'DHI';
-type MetricKey = 'promedio' | 'suma' | 'minimo' | 'maximo';
 type FormatKey = 'csv' | 'json';
 
 @Component({
@@ -27,7 +28,6 @@ export class ExportarPage {
   // Form principal (opciones de exportación)
   form = this.fb.nonNullable.group({
     variable: this.fb.nonNullable.control<VariableKey>('GHI', { validators: [Validators.required] }),
-    metrics: this.fb.nonNullable.control<MetricKey[]>([]),
     formato: this.fb.nonNullable.control<FormatKey>('csv', { validators: [Validators.required] }),
     incluirImagenes: this.fb.nonNullable.control<boolean>(false),
 
@@ -40,10 +40,6 @@ export class ExportarPage {
   // Validez mínima para habilitar "Exportar"
   puedeExportar = computed(() => {
     const g = this.granularidad();
-    const metricsOk = (this.form.value.metrics?.length ?? 0) > 0;
-
-    if (!metricsOk) return false;
-
     if (g === 'diario') {
       return this.fechasDiarias().length > 0;
     } else {
@@ -71,12 +67,6 @@ export class ExportarPage {
     this.fechasDiarias.set(this.fechasDiarias().filter(f => f !== value));
   }
 
-  toggleMetric(key: MetricKey, checked: boolean) {
-    const current = new Set(this.form.value.metrics ?? []);
-    checked ? current.add(key) : current.delete(key);
-    this.form.patchValue({ metrics: Array.from(current) });
-  }
-
   // Payload final (solo consola por ahora)
   exportar() {
     if (!this.puedeExportar()) return;
@@ -84,7 +74,6 @@ export class ExportarPage {
     const payload = {
       granularidad: this.granularidad(),
       variable: this.form.value.variable!,
-      metrics: this.form.value.metrics!,
       formato: this.form.value.formato!,
       incluirImagenes: !!this.form.value.incluirImagenes,
       fechas:
