@@ -2,20 +2,35 @@
 
 <h1 class="title">Exportar datos</h1>
 
+<!--
+  Layout principal con reactive forms:
+  - [formGroup]="form" enlaza todo el subtree a tu FormGroup de exportar.ts.
+  - Se divide visualmente en dos paneles: left (fechas) y right (opciones).
+-->
 <section class="layout" [formGroup]="form">
-  <!-- Panel izquierdo: calendario / selección de fechas -->
+  <!-- =========================================
+       Panel izquierdo: Calendario / selección
+       - Muestra uno de dos bloques según granularidad (signal())
+     ========================================= -->
   <div class="left">
 
-    <!-- Diario -->
+    <!-- ======================
+         Modo: Diario
+         - Input date + botón "Agregar".
+         - Lista de chips con las fechas seleccionadas (fechasDiarias()).
+       ====================== -->
     <div *ngIf="granularidad() === 'diario'" class="calendar-block">
       <label for="fechaDiaria">Selecciona un día</label>
       <div class="row add-date">
+        <!-- [formControl] para vincular el control fechaDiaria -->
         <input id="fechaDiaria" type="date" [formControl]="form.controls.fechaDiaria" />
         <button type="button" class="btn" (click)="addFechaDiaria()">Agregar</button>
       </div>
 
+      <!-- Chips de fechas agregadas -->
       <div class="chips" *ngIf="fechasDiarias().length">
         <div class="chips-title">Vista previa de fechas seleccionadas:</div>
+        <!-- Angular v17 '@for' con track por valor para mejor rendimiento -->
         @for (f of fechasDiarias(); track f) {
           <button
             type="button"
@@ -29,6 +44,12 @@
         }
       </div>
     </div>
+
+    <!-- ======================
+         Modo: Rango
+         - Dos inputs date: inicio/fin
+         - Mensaje de validación si inicio > fin
+       ====================== -->
     <div *ngIf="granularidad() === 'rango'" class="range-block">
       <div class="row range-row">
         <div class="field">
@@ -40,15 +61,23 @@
           <input id="rangoFin" type="date" [formControl]="form.controls.rangoFin" />
         </div>
       </div>
+
+      <!-- Validación simple en plantilla (orden de fechas) -->
       <p class="muted" *ngIf="form.value.rangoInicio && form.value.rangoFin && form.value.rangoInicio! > form.value.rangoFin!">
         El inicio no puede ser posterior al fin.
       </p>
     </div>
   </div>
 
-  <!-- Panel derecho: opciones -->
+  <!-- =========================================
+       Panel derecho: Opciones de exportación
+       - Granularidad (toggle), Variables, Formato, Incluir imágenes, CTA
+     ========================================= -->
   <aside class="right">
     <div class="panel">
+      <!-- Selector de granularidad con botones segmentados
+           - Usa signals (granularidad()) para estado y clases activas.
+           - aria-pressed comunica estado a tecnologías asistivas. -->
       <div class="panel-title">Granularidad</div>
       <div class="segmented" role="group" aria-label="Granularidad">
         <button type="button"
@@ -67,6 +96,8 @@
         </button>
       </div>
 
+      <!-- Variables (checkboxes independientes)
+           - Enlazadas directamente a los FormControls varGHI/varDNI/varDHI -->
       <div class="group">
         <div class="label">Variables</div>
         <label class="row"><input type="checkbox" [formControl]="form.controls.varGHI" /> GHI</label>
@@ -74,6 +105,9 @@
         <label class="row"><input type="checkbox" [formControl]="form.controls.varDHI" /> DHI</label>
       </div>
 
+      <!-- Formato e Incluir imágenes
+           - Formato: radios ligados por formControlName="formato"
+           - Incluir imágenes: tiene efecto sólo en modo Rango (el componente TS lo respeta) -->
       <div class="row between group">
         <div>
           <div class="label">Formato</div>
@@ -100,14 +134,19 @@
           <label class="row">
             <input type="checkbox" formControlName="incluirImagenes" /> Sí
           </label>
+          <!-- Nota: En modo 'diario' este valor se ignora según la lógica de exportar.ts -->
         </div>
       </div>
+
+      <!-- CTA Exportar
+           - Se habilita sólo si puedeExportar() es true (validaciones mínimas).
+           - Llama a exportar() en click. -->
       <div class="actions">
-      <button type="button" class="btn primary cta"
-              [disabled]="!puedeExportar()"
-              (click)="exportar()">
-        EXPORTAR
-      </button>
+        <button type="button" class="btn primary cta"
+                [disabled]="!puedeExportar()"
+                (click)="exportar()">
+          EXPORTAR
+        </button>
       </div>
     </div>
   </aside>

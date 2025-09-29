@@ -1,7 +1,13 @@
-//exportar.scss
+// exportar.scss
 
+// Importa paleta de colores desde el archivo global de estilos
 @use '../../../styles/colors' as *;
 
+// ===============================
+// Variables CSS globales
+// - Escalas de espacio fluidas con clamp()
+// - Radios, ancho máximo y sombra reutilizable
+// ===============================
 :root {
   --space-1: clamp(0.25rem, 0.2rem + 0.2vw, 0.5rem);
   --space-2: clamp(0.5rem, 0.4rem + 0.4vw, 0.9rem);
@@ -13,31 +19,71 @@
   --shadow-1: 0 1px 2px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04);
 }
 
-.title { text-align: center; margin: 1rem 0 2rem; font-size: 1.5rem; }
+// Título principal de la página Exportar
+.title {
+  text-align: center;
+  margin: 1rem 0 2rem;
+  font-size: 1.5rem;
+}
 
+// ===============================
+// Layout principal: grid de 2 columnas
+// - Columna izquierda: calendario
+// - Columna derecha: panel de opciones
+// ===============================
 .layout {
   display: grid;
   grid-template-columns: 1fr 380px;
   gap: 1.25rem;
 }
 
+// Panel izquierdo: bloque de calendario / fechas
 .left {
-  background: $color-blanco-nieve; border: 1px solid #e1e3ea; border-radius: 12px; padding: 1rem;
-}
-.right .panel {
-  background: $color-blanco-nieve; border: 1px solid #d4daeb; border-radius: 16px; padding: 1rem 1rem 1.25rem;
+  background: $color-blanco-nieve;
+  border: 1px solid #e1e3ea;
+  border-radius: 12px;
+  padding: 1rem;
 }
 
+// Panel derecho: opciones de exportación
+.right .panel {
+  background: $color-blanco-nieve;
+  border: 1px solid #d4daeb;
+  border-radius: 16px;
+  padding: 1rem 1rem 1.25rem;
+}
+
+// Título dentro de cada panel
 .panel-title { font-weight: 700; margin-bottom: .5rem; }
 
+// ===============================
+// Segmentación de botones (granularidad)
+// - Botonera estilo pill, botones redondeados
+// ===============================
 .segmented {
-  display: inline-flex; background: #cfd6ea; border-radius: 999px; padding: .25rem;
+  display: inline-flex;
+  background: #cfd6ea;
+  border-radius: 999px;
+  padding: .25rem;
+
   .seg-btn {
-    border: 0; background: transparent; padding: .4rem .9rem; border-radius: 999px; cursor: pointer;
-    &.active { background: #8192c0; color: #fff; font-weight: 700; }
+    border: 0;
+    background: transparent;
+    padding: .4rem .9rem;
+    border-radius: 999px;
+    cursor: pointer;
+
+    &.active {
+      background: #8192c0;
+      color: #fff;
+      font-weight: 700;
+    }
   }
 }
 
+// ===============================
+// Utilidades y bloques comunes
+// ===============================
 .group { margin-top: 1rem; }
 .label { font-weight: 600; margin-bottom: .25rem; }
 .row { display: flex; align-items: center; gap: .5rem; }
@@ -46,23 +92,58 @@
 .calendar-block, .range-block { display: grid; gap: .75rem; }
 .field { display: grid; gap: .25rem; }
 
+// ===============================
+// Chips de fechas seleccionadas
+// - Botones pill con la fecha y un "×"
+// ===============================
 .chips { margin-top: .75rem; display: grid; gap: .5rem; }
 .chips-title { font-size: .9rem; color: #475569; }
 .chip {
-  display: inline-flex; align-items: center; gap: .4rem; margin: .25rem;
-  background: #d4daeb; border: none; border-radius: 999px; padding: .35rem .6rem; font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  margin: .25rem;
+  background: #d4daeb;
+  border: none;
+  border-radius: 999px;
+  padding: .35rem .6rem;
+  font-weight: 600;
   cursor: pointer;
 }
 
+// ===============================
+// Botones generales
+// - Variante .primary para CTA principal
+// ===============================
 .btn {
-  border: 1px solid #c0c7dc; background: #fff; padding: .5rem .9rem; border-radius: 8px; cursor: pointer;
-  &.primary { background: #6c82b7; color: #fff; border-color: #6c82b7; font-weight: 700; }
-  &:disabled { opacity: .5; cursor: not-allowed; }
+  border: 1px solid #c0c7dc;
+  background: #fff;
+  padding: .5rem .9rem;
+  border-radius: 8px;
+  cursor: pointer;
+
+  &.primary {
+    background: #6c82b7;
+    color: #fff;
+    border-color: #6c82b7;
+    font-weight: 700;
+  }
+
+  &:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+  }
 }
 
+// Texto secundario / mensajes
 .muted { color: #6b7280; font-size: .9rem; }
 
-/* ===== Forzar apilado en pantallas pequeñas ===== */
+// ===============================
+// Responsividad (pantallas <= 900px)
+// - Apila el layout
+// - Hace inputs y botones más cómodos para touch
+// - Ajusta checkboxes y radios para mejor lectura
+// ===============================
 @media (max-width: 900px) {
   /* 1) Layout en una sola columna */
   .layout {
@@ -70,7 +151,7 @@
     gap: 1rem;
   }
 
-  /* 2) Filas en columna (apiladas) */
+  /* 2) Filas apiladas en columna */
   .row {
     display: grid !important;
     grid-template-columns: 1fr !important;
@@ -78,58 +159,57 @@
     gap: .5rem;
   }
 
-  /* 3) "add-date" primero (ya está antes en el DOM) y full width */
+  /* 3) add-date ocupa todo el ancho */
   .row.add-date {
     display: grid !important;
     grid-template-columns: 1fr !important;
   }
   .row.add-date > * { width: 100% !important; }
 
-  /* 4) "range-row" debajo y también en columna */
+  /* 4) range-row también en columna */
   .row.range-row {
     display: grid !important;
     grid-template-columns: 1fr !important;
   }
   .row.range-row > * { width: 100% !important; }
 
-  /* 5) Inputs y botón cómodos en touch */
+  /* 5) Inputs y botones adaptados a touch */
   input[type="date"],
   input[type="text"],
   select { width: 100% !important; min-height: 40px; }
   .btn.cta { width: 100% !important; }
 
-  /* 6) Opcional: desactivar sticky del panel derecho en móvil */
+  /* 6) Panel derecho pierde sticky en móvil */
   .right .panel { position: static !important; }
 
-    label.row {
+  /* Ajuste de labels en móviles para mejor alineación */
+  label.row {
     display: inline-flex !important;
     align-items: center !important;
     gap: .5rem;
-    grid-template-columns: unset !important; /* anula grid de .row */
+    grid-template-columns: unset !important;
     width: auto !important;
     white-space: nowrap;
   }
 
+  /* Tamaño cómodo para inputs check/radio */
   label.row input[type="checkbox"],
   label.row input[type="radio"] {
     width: 18px;
     height: 18px;
     flex: 0 0 auto;
-    
   }
 
-  /* Espacio horizontal entre opciones (mismo renglón) */
+  /* Espaciado horizontal entre opciones */
   .group > label.row {
-    display: inline-flex;           /* asegura etiqueta + checkbox en línea */
+    display: inline-flex;
     align-items: center;
-    gap: .5rem;                     /* espacio entre el checkbox y su texto */
-    margin-right: 1rem;             /* ← espacio hacia el siguiente label */
+    gap: .5rem;
+    margin-right: 1rem;
   }
-
   .group > label.row:last-of-type { margin-right: 0; }
 
-  /* También aplica a los que están dentro de un <div> dentro de .group
-     (p. ej., "Formato" y "¿Incluir imágenes?") */
+  /* También aplica para labels dentro de divs (Formato / Incluir imágenes) */
   .group > div > label.row {
     display: inline-flex;
     align-items: center;

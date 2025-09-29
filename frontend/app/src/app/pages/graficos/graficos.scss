@@ -1,19 +1,28 @@
-/* contenedor centrado y con ancho máximo */
+/* ===========================
+   Layout general del panel
+   - Contenedor centrado con ancho máximo
+   - Grid de 2 columnas para desktop
+   - Áreas nombradas para ordenar el contenido
+   =========================== */
 .panel {
-  --gap: 1.25rem;
-  max-width: 1200px;
-  margin: 1.25rem auto;
-  padding: 0 var(--gap);
+  --gap: 1.25rem;                /* espaciado base reutilizable */
+  max-width: 1200px;             /* límite de ancho para líneas legibles */
+  margin: 1.25rem auto;          /* margen vertical + centrado horizontal */
+  padding: 0 var(--gap);         /* respiración lateral */
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-areas:
     "controls controls"
     "legend   legend"
-    "chart   photos";
-  gap: var(--gap);
+    "chart   photos";            /* dos columnas: gráfico + fotos */
+  gap: var(--gap);               /* separación uniforme entre bloques */
 }
 
-/* fila de controles arriba */
+/* ===========================
+   Fila de controles superior
+   - Flex para alinear input y botón
+   - Wrap para no desbordar en pantallas estrechas
+   =========================== */
 .controls {
   grid-area: controls;
   display: flex;
@@ -24,19 +33,28 @@
 }
 
 .controls label { font-weight: 600; }
+
+/* Botón simple (puedes mapear a variables de _colors.scss si lo deseas) */
 .controls .btn {
   border: 1px solid #cfd3d7;
   border-radius: .5rem;
   padding: .4rem .9rem;
   background: #f6f7f9;
   cursor: pointer;
+  /* TIP a11y: considera :focus-visible para outline accesible */
 }
 
-/* columnas */
+/* ===========================
+   Columnas principales
+   =========================== */
 .photos { grid-area: photos; }
 .chart  { grid-area: chart; }
 
-/* tarjetas visualmente coherentes */
+/* ===========================
+   Tarjetas visualmente coherentes
+   - Fondo blanco, bordes redondeados, sombra suave
+   - Padding interno uniforme
+   =========================== */
 .photos, .chart {
   background: #fff;
   border-radius: .75rem;
@@ -44,17 +62,25 @@
   padding: 1rem;
 }
 
-/* ocupa el ancho del contenedor interno */
+/* ===========================
+   Asegurar que los componentes ocupen el ancho disponible
+   =========================== */
 app-irradiance-chart,
 app-imagenes-por-hora {
   display: block;
   width: 100%;
 }
 
-/* hints y estados */
+/* ===========================
+   Textos auxiliares (estados/hints)
+   =========================== */
 .hint { opacity: .7; padding: .5rem 0; }
 
-/* Responsivo: en móviles todo en una columna */
+/* ===========================
+   Responsivo (<= 900px)
+   - Cambia a una sola columna
+   - Mantiene el orden lógico: controles → leyenda → gráfico → fotos
+   =========================== */
 @media (max-width: 900px) {
   .panel {
     grid-template-columns: 1fr;
@@ -66,8 +92,11 @@ app-imagenes-por-hora {
   }
 }
 
-/* bloque de leyenda */
-
+/* ===========================
+   Bloque de leyenda
+   - Caja sutil con fondo claro y borde
+   - Centrada para destacar el día visualizado
+   =========================== */
 .legend {
   grid-area: legend;
   text-align: center;
@@ -77,9 +106,8 @@ app-imagenes-por-hora {
   padding: .75rem 1rem;
   box-shadow: 0 2px 10px rgba(0,0,0,.04);
   font-size: .95rem;
-  color: #374151;
+  color: #374151;       /* texto base */
 }
-/*  enfatizar el strong */
+
+/* Enfatiza la fecha mostrada dentro de la leyenda */
 .legend strong { color: #111827; }
-
-

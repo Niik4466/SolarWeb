@@ -1,21 +1,47 @@
 <section class="panel">
-  <!-- Controles arriba, a todo el ancho -->
+  <!--
+    Barra de controles (fecha + botón de búsqueda).
+    - Ocupa el ancho completo.
+    - [(ngModel)] enlaza bidireccionalmente con selectedDay (string 'YYYY-MM-DD').
+    - (keyup.enter) permite disparar la búsqueda al presionar Enter dentro del input.
+    - [disabled]="isLoading" previene múltiples solicitudes simultáneas.
+  -->
   <div class="controls">
     <label for="day">Selecciona un día</label>
-    <input id="day" type="date" [(ngModel)]="selectedDay" (keyup.enter)="onBuscar()">
-    <button class="btn" type="button" (click)="onBuscar()" [disabled]="isLoading">
+    <input
+      id="day"
+      type="date"
+      [(ngModel)]="selectedDay"
+      (keyup.enter)="onBuscar()"
+    >
+    <button
+      class="btn"
+      type="button"
+      (click)="onBuscar()"
+      [disabled]="isLoading"
+      >
       {{ isLoading ? 'Cargando…' : 'Buscar' }}
     </button>
   </div>
   
-  <!-- leyenda con la fecha actualmente mostrada -->
+  <!--
+    Leyenda con la fecha actualmente mostrada.
+    - Usa el async pipe para suscribirse a viewingDay$ sin gestionar manualmente la suscripción.
+    - El ng-container evita generar un nodo extra en el DOM.
+    - prettyDay transforma 'YYYY-MM-DD' -> 'DD/MM/YYYY' para presentación.
+  -->
   <div class="legend">
     <ng-container *ngIf="(viewingDay$ | async) as viewingDay">
       Mostrando datos para el día <strong>{{ prettyDay(viewingDay) }}</strong>
     </ng-container>
   </div>
 
-  <!-- Gráfico columna derecha -->
+  <!--
+    Gráfico (columna derecha).
+    - app-irradiance-chart es un componente standalone (ApexCharts).
+    - [timeSeries]="true" indica escala temporal en X.
+    - [series] consume el stream series$ (con fallback a []) para evitar undefined.
+  -->
   <div class="chart">
     <app-irradiance-chart
       [timeSeries]="true"
@@ -23,7 +49,14 @@
     </app-irradiance-chart>
   </div>
 
-  <!-- Imágenes columna izquierda -->
+  <!--
+    Galería de imágenes (columna izquierda).
+    - *ngIf="frames$ | async as frames; else cargando" suscribe a frames$ y
+      expone el resultado como 'frames'. Si aún no hay datos, muestra el template #cargando.
+    - app-imagenes-por-hora renderiza fotogramas por hora con controles.
+    - [resetKey]="resetCounter" fuerza re-montaje cuando cambia (útil tras nueva búsqueda).
+    - (frameChange) emite el frame actual hacia el método onFrameChange del componente padre.
+  -->
   <div class="photos">
     <ng-container *ngIf="frames$ | async as frames; else cargando">
       <app-imagenes-por-hora
@@ -38,10 +71,11 @@
         (frameChange)="onFrameChange($event)">
       </app-imagenes-por-hora>
 
-
+      <!-- Mensaje vacío: se muestra cuando el arreglo 'frames' llega pero sin elementos -->
       <div *ngIf="frames.length === 0" class="hint">No hay imágenes para mostrar.</div>
     </ng-container>
 
+    <!-- Template de carga: visible mientras el observable frames$ no ha emitido -->
     <ng-template #cargando>
       <div class="hint">Cargando imágenes…</div>
     </ng-template>
