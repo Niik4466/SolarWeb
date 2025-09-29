@@ -34,8 +34,8 @@ En ambos nodos se debe tener:
       MINIO_ENDPOINT=http://minio-solarweb:9000
 
       # Variables para los servicios de carga de datos (Uploaders)
-      MINIO_UPLOAD_IMAGES_DIR=~/Downloads/csv
-      INFLUXDB_UPLOAD_CSV_DIR=~/Pictures/DatosCamera
+      MINIO_UPLOAD_IMAGES_DIR=~/Pictures/DatosCamera
+      INFLUXDB_UPLOAD_CSV_DIR=~/Downloads/csv
       ```
 
 ## Proceso de Despliegue por Nodo
@@ -93,5 +93,6 @@ Una vez que el Nodo de Datos esté operativo, configuramos el Nodo de Despliegue
     ```bash
     docker compose -f docker-compose-deploy.yml up --build -d
     ```
+
 
     Una vez que los contenedores estén activos, la aplicación estará disponible en los puertos especificados en el `docker-compose-deploy.yml` (ej. `:8000` para la API, `:80` para el frontend).
