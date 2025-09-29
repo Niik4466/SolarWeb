@@ -171,7 +171,6 @@ export class ExportarPage {
       const dias = this.fechasDiarias();
       if (!dias.length) return;
 
-      // En diario NO comprimimos nunca (ignora incluirImagenes)
       const include_images = !!this.form.value.incluirImagenes; 
 
       for (const day of dias) {
