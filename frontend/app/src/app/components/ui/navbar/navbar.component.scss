@@ -1,64 +1,152 @@
-
-/* navbar.component.scss (arriba del todo, antes de cualquier regla) */
-@use 'sass:color';
-@use '../../../../styles/colors' as *; // carga variables de la paleta
+/* navbar.component.scss */
+@use '../../../../styles/colors' as *; // variables: $color-azul-profundo, $color-blanco-nieve, $color-amarillo-solar
 
 /* ===== Navbar ===== */
 .nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: .5rem 1rem;
-  background: $color-azul-profundo;   /* antes: #294e7b */
-  color: $color-blanco-nieve;
-  box-shadow: 0 2px 6px rgba(0,0,0,.15);
   position: sticky;
   top: 0;
   z-index: 50;
+
+  /* Grid en 2 filas y 2 columnas */
+  display: grid;
+  grid-template-columns: 1fr 320px;  /* izquierda: brand/tabs, derecha: reservado */
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "brand right"
+    "tabs  right";
+
+  column-gap: 1rem;
+  row-gap: .25rem;
+
+  padding: 1.5rem 1rem .75rem;
+
+  background: linear-gradient(
+    90deg,
+    darken($color-azul-profundo, 6%) 0%,
+    $color-azul-profundo 45%,
+    darken($color-azul-profundo, 10%) 100%
+  );
+  color: $color-blanco-nieve;
+
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  box-shadow: 0 4px 16px rgba(0,0,0,.18);
 }
 
-.brand { display: flex; align-items: center; gap: .5rem; }
-.logo  { font-size: 1.25rem; line-height: 1; }
-.title {
-  font-size: 1.25rem;
-  font-weight: 700; // para destacar el título
+/* ===== Brand ===== */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;             /* un poquito más de espacio entre logo y texto */
+  min-width: 0;
 }
-/* ===== Tabs ===== */
-.tabs { display: flex; gap: 1.25rem; margin-left: 2rem; }
+.logo {
+  font-size: 2.4rem;   /* más grande que el original (2.2rem), pero moderado */
+  line-height: 1;
+  color: $color-amarillo-solar;
+  filter: drop-shadow(0 1px 4px rgba(0,0,0,.25));
+  text-shadow: 0 1px 0 rgba(0,0,0,.15);
+}
+
+.title {
+  font-size: clamp(1.8rem, 2.5vw + 1rem, 2.6rem); /* un poco más grande que el inicio (≈2rem) */
+  font-weight: 800;
+  letter-spacing: .5px;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+
+
+/* ===== Tabs debajo del brand ===== */
+/* ===== Tabs debajo del brand ===== */
+.tabs {
+  grid-area: tabs;
+  justify-self: start;
+
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0;
+
+  font-size: 0.9rem;  /* 👈 más pequeño */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
 
 .tab {
-  color: rgba($color-blanco-nieve, .9);
+  position: relative;
+  color: rgba($color-blanco-nieve, .92);
   text-decoration: none;
-  padding: .4rem 0;
-  border-bottom: 2px solid transparent;
-  transition: color .15s ease, border-color .15s ease, background-color .15s ease;
+
+  padding: .35rem .2rem;   /* 👈 más compacto */
+  border-bottom: 1.5px solid transparent;
+  border-radius: .5rem;
+
+  transition: color .18s ease, background-color .18s ease;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0; bottom: 0;
+    height: 1.5px; width: 0%;
+    background: $color-amarillo-solar;
+    transition: width .2s ease;
+  }
 
   &:hover {
     color: $color-blanco-nieve;
-    border-bottom-color: lighten($color-amarillo-solar, 6%); /* feedback sutil */
+    background: rgba(255,255,255,.06);
+    &::after { width: 100%; }
   }
 
   &.active {
     color: $color-blanco-nieve;
-    border-bottom-color: $color-amarillo-solar;              /* acento amarillo */
-    /* opcional: pill suave
-    background: rgba($color-blanco-nieve, .06);
-    border-radius: 6px;
-    padding: .4rem .5rem;
-    */
+    background: rgba(255,255,255,.10);
+    border-bottom-color: transparent;
+    padding: .4rem .5rem;   /* pill más pequeño */
+    border-radius: 999px;
+    &::after { width: 100%; }
+    box-shadow: 0 2px 10px rgba(0,0,0,.12) inset;
   }
 
-  /* Accesibilidad teclado */
   &:focus-visible {
     outline: 2px solid $color-amarillo-solar;
     outline-offset: 3px;
-    border-radius: 4px;
+    border-radius: 8px;
   }
 }
 
-/* ===== (Opcional) versión “compacta” en pantallas pequeñas ===== */
-@media (max-width: 640px) {
-  .tabs { gap: .75rem; margin-left: 1rem; }
-  .title { font-size: 1rem; }
+
+/* ===== Área derecha reservada ===== */
+.right {
+  grid-area: right;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .5rem;
+}
+
+/* ===== Compacto en pantallas pequeñas ===== */
+@media (max-width: 720px) {
+  .nav {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "brand"
+      "tabs";   /* .right se omite si no hay contenido */
+    row-gap: .4rem;
+    padding: .75rem .75rem .5rem;
+  }
+  .title { font-size: clamp(1.2rem, 4vw + .6rem, 1.6rem); }
+  .tabs  { gap: .9rem; }
+}
+
+/* ===== (Opcional) modo shrink al scrolleo ===== */
+.nav.nav--compact {
+  padding: .35rem 1rem;
+
+  .logo  { font-size: 1.8rem; }
+  .title { font-size: clamp(1.1rem, 1.2vw + .6rem, 1.6rem); }
 }
 
