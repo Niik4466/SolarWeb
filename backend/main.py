@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.v1 import irradiance, images
+from api.v1 import irradiance, images, export
 
 app = FastAPI(title="Solar API", version="1.0.0")
 
@@ -19,7 +19,7 @@ ALLOWED_ORIGINS = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,      # o ["*"] si quieres permitir todos los orígenes
+    allow_origins=["*"],      # o ["*"] si quieres permitir todos los orígenes
     allow_credentials=True,
     allow_methods=["*"],        # puedes limitar a ["GET"]
     allow_headers=["*"],
@@ -28,6 +28,7 @@ app.add_middleware(
 # Montar routers
 app.include_router(irradiance.router)
 app.include_router(images.router)
+app.include_router(export.router)
 
 @app.get("/")
 def root():

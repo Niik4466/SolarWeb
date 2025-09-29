@@ -122,42 +122,47 @@ def export_daily(req: ExportDailyReq):
     start, stop = _day_bounds_utc(req.date)
     rows = _build_table(req.variables, start, stop)
 
+    # --- JSON plano (sin imágenes) ---
     if req.format == "json" and not req.include_images:
         filename = f"irradiance_{req.date}.json"
-        return JSONResponse(content=rows, media_type="application/json",
-                            headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+        # JSONResponse ya serializa correctamente
+        return JSONResponse(
+            content=rows,
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
 
-    # CSV o JSON + imágenes → bytes primero
+    # --- CSV plano (sin imágenes) ---
+    if req.format == "csv" and not req.include_images:
+        data_bytes = _make_csv(rows, req.variables)
+        data_name = f"irradiance_{req.date}.csv"
+        return StreamingResponse(
+            io.BytesIO(data_bytes),
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{data_name}"'}
+        )
+
+    # --- Con imágenes: empacar en ZIP ---
+    # (CSV + imágenes) o (JSON + imágenes)
     if req.format == "csv":
         data_bytes = _make_csv(rows, req.variables)
         data_name = f"irradiance_{req.date}.csv"
-        if not req.include_images:
-            return StreamingResponse(io.BytesIO(data_bytes),
-                media_type="text/csv",
-                headers={"Content-Disposition": f'attachment; filename="{data_name}"'})
     else:
         # JSON + imágenes
-        data_bytes = (io.BytesIO()
-                      or None)  # solo para type hints
-        data_bytes = io.BytesIO()
-        data_bytes.write((rows).__repr__().encode("utf-8"))  # no usar repr; mejor json.dumps
-        # corregimos: usar json.dumps
         import json
-        data_bytes = io.BytesIO(json.dumps(rows).encode("utf-8"))
+        data_bytes = json.dumps(rows).encode("utf-8")
         data_name = f"irradiance_{req.date}.json"
-        if not req.include_images:
-            return StreamingResponse(data_bytes,
-                media_type="application/json",
-                headers={"Content-Disposition": f'attachment; filename="{data_name}"'})
 
-    # ZIP (datos + imágenes)
     bucket_imgs = req.images_bucket or "imagenes-cielo"
     zip_buf = _zip_with_images(
-        data_bytes=(data_bytes if isinstance(data_bytes, (bytes, bytearray)) else data_bytes.getvalue()),
+        data_bytes=data_bytes,
         data_name=data_name,
         day=req.date,
         bucket_name=bucket_imgs
     )
     zip_name = f"export_{req.date}.zip"
-    return StreamingResponse(zip_buf, media_type="application/zip",
-                             headers={"Content-Disposition": f'attachment; filename="{zip_name}"'})
+    return StreamingResponse(
+        zip_buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{zip_name}"'}
+    )

@@ -1,4 +1,4 @@
-//exportar.ts
+// exportar.ts
 
 import { Component, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -28,8 +28,12 @@ export class ExportarPage {
 
   // Form principal (opciones de exportación)
   form = this.fb.nonNullable.group({
-    variable: this.fb.nonNullable.control<VariableKey>('GHI', { validators: [Validators.required] }),
-    // métricas se ignoran en esta versión
+    // ✅ variables como checkboxes (booleanos independientes)
+    varGHI: this.fb.nonNullable.control<boolean>(true),
+    varDNI: this.fb.nonNullable.control<boolean>(false),
+    varDHI: this.fb.nonNullable.control<boolean>(false),
+
+    // formato (radio en HTML)
     formato: this.fb.nonNullable.control<FormatKey>('csv', { validators: [Validators.required] }),
     incluirImagenes: this.fb.nonNullable.control<boolean>(false),
 
@@ -39,8 +43,20 @@ export class ExportarPage {
     rangoFin: this.fb.control<string | null>(null),
   });
 
+  // 🔎 variables seleccionadas -> ['GHI','DNI',...]
+  private getSelectedVariables(): VariableKey[] {
+    const v: VariableKey[] = [];
+    if (this.form.value.varGHI) v.push('GHI');
+    if (this.form.value.varDNI) v.push('DNI');
+    if (this.form.value.varDHI) v.push('DHI');
+    return v;
+  }
+
   // Validez mínima para habilitar "Exportar"
   puedeExportar = computed(() => {
+    const anyVar = this.getSelectedVariables().length > 0;  
+    if (!anyVar) return false;
+
     const g = this.granularidad();
     if (g === 'diario') {
       return this.fechasDiarias().length > 0;
@@ -52,8 +68,11 @@ export class ExportarPage {
   });
 
   // --- Acciones UI ---
-  setGranularidad(g: Granularity) {
+  setGranularidad(g: 'diario'|'rango') {
     this.granularidad.set(g);
+    if (g === 'diario') {
+      this.form.patchValue({ rangoInicio: null, rangoFin: null });
+    }
   }
 
   addFechaDiaria() {
@@ -82,36 +101,58 @@ export class ExportarPage {
   exportar() {
     if (!this.puedeExportar()) return;
 
-    if (this.granularidad() !== 'diario') {
-      alert('Por ahora solo está implementado el modo "Diario".');
-      return;
-    }
-
-    const variable = this.form.value.variable!;
+    const variables = this.getSelectedVariables();
     const format = this.form.value.formato!;
-    const include_images = !!this.form.value.incluirImagenes;
 
-    const dias = this.fechasDiarias();
-    if (!dias.length) return;
+    if (this.granularidad() === 'diario') {
+      const dias = this.fechasDiarias();
+      if (!dias.length) return;
 
-    // Una descarga por día seleccionado
-    for (const day of dias) {
-      this.exporter.exportDaily({
-        date: day,
-        variables: [variable],
+      // En diario NO comprimimos nunca (ignora incluirImagenes)
+      const include_images = false;
+
+      for (const day of dias) {
+        this.exporter.exportDaily({
+          date: day,
+          variables,
+          format,
+          include_images
+        }).subscribe({
+          next: (blob) => {
+            const ext = (format === 'csv') ? 'csv' : 'json';
+            const filename = `export_${day}.${ext}`;
+            this.downloadBlob(blob, filename);
+          },
+          error: (err) => {
+            console.error('[Exportar] error', err);
+            alert(`No se pudo exportar el día ${day}. Revisa la consola para más detalles.`);
+          }
+        });
+      }
+
+    } else {
+      // Rango: ZIP
+      const inicio = this.form.value.rangoInicio!;
+      const fin = this.form.value.rangoFin!;
+      const include_images = !!this.form.value.incluirImagenes; // opcional en rango
+
+      this.exporter.exportRange({
+        inicio,
+        fin,
+        variables,
         format,
         include_images
       }).subscribe({
         next: (blob) => {
-          const ext = include_images ? 'zip' : (format === 'csv' ? 'csv' : 'json');
-          const filename = `export_${day}.${ext}`;
+          const filename = `export_${inicio}_${fin}.zip`;
           this.downloadBlob(blob, filename);
         },
         error: (err) => {
           console.error('[Exportar] error', err);
-          alert(`No se pudo exportar el día ${day}. Revisa la consola para más detalles.`);
+          alert(`No se pudo exportar el rango ${inicio} a ${fin}.`);
         }
       });
     }
   }
+
 }

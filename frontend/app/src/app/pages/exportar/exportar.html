@@ -2,7 +2,7 @@
 
 <h1 class="title">Exportar datos</h1>
 
-<section class="layout">
+<section class="layout" [formGroup]="form">
   <!-- Panel izquierdo: calendario / selección de fechas -->
   <div class="left">
 
@@ -69,16 +69,30 @@
 
       <div class="group">
         <div class="label">Variables</div>
-        <label class="row"><input type="checkbox" formControlName="variable" value="GHI" /> GHI</label>
-        <label class="row"><input type="checkbox" formControlName="variable" value="DNI" /> DNI</label>
-        <label class="row"><input type="checkbox" formControlName="variable" value="DHI" /> DHI</label>
+        <label class="row"><input type="checkbox" [formControl]="form.controls.varGHI" /> GHI</label>
+        <label class="row"><input type="checkbox" [formControl]="form.controls.varDNI" /> DNI</label>
+        <label class="row"><input type="checkbox" [formControl]="form.controls.varDHI" /> DHI</label>
       </div>
 
       <div class="row between group">
         <div>
           <div class="label">Formato</div>
-          <label class="row"><input type="checkbox" formControlName="formato" value="csv" /> CSV</label>
-          <label class="row"><input type="checkbox" formControlName="formato" value="json" /> JSON</label>
+          <label class="row">
+            <input
+              type="radio"
+              name="formato"
+              formControlName="formato"
+              value="csv"
+            /> CSV
+          </label>
+          <label class="row">
+            <input
+              type="radio"
+              name="formato"
+              formControlName="formato"
+              value="json"
+            /> JSON
+          </label>
         </div>
 
         <div>

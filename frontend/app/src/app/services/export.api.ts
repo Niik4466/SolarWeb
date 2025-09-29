@@ -5,11 +5,20 @@ import { HttpClient } from '@angular/common/http';
 const API_BASE = 'http://127.0.0.1:8000/api/v1';
 
 export type ExportDailyBody = {
-  date: string;                         // "YYYY-MM-DD"
+  date: string;                            // "YYYY-MM-DD"
   variables: ('GHI'|'DNI'|'DHI')[];
   format: 'csv'|'json';
   include_images: boolean;
-  images_bucket?: string;               // opcional
+  images_bucket?: string;                  // opcional
+};
+
+export type ExportRangeBody = {
+  inicio: string;                          // "YYYY-MM-DD"
+  fin: string;                             // "YYYY-MM-DD"
+  variables: ('GHI'|'DNI'|'DHI')[];
+  format: 'csv'|'json';
+  include_images: boolean;                 // en rango sí puedes comprimir/adjuntar imgs
+  images_bucket?: string;                  // opcional
 };
 
 @Injectable({ providedIn: 'root' })
@@ -18,7 +27,13 @@ export class ExportApi {
 
   exportDaily(body: ExportDailyBody) {
     return this.http.post(`${API_BASE}/export/daily`, body, {
-      responseType: 'blob'
+      responseType: 'blob' as const
+    });
+  }
+
+  exportRange(body: ExportRangeBody) {
+    return this.http.post(`${API_BASE}/export/range`, body, {
+      responseType: 'blob' as const
     });
   }
 }
