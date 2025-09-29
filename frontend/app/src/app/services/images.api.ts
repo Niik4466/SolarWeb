@@ -29,21 +29,48 @@ export type MinioListResponse = {
    ========================= */
 const API_BASE = 'http://127.0.0.1:8000'; // mueve a environments si quieres
 
+function pad2(n: number): string { return n < 10 ? '0' + n : String(n); }
+
 function minioObjectToSkyFrame(o: MinioObject, bucket: string): SkyFrame | null {
   const name = (o?.name ?? '').trim();
   if (!name) return null;
 
-  // intenta deducir HH:MM desde el nombre; si no, desde last_modified
-  let hh: string | undefined, mm: string | undefined;
+  // Trabaja con el último segmento del path (ignora YYYY/MM/DD/)
+  const last = name.split('/').pop() || name;
 
-  // matches: 14-20.jpg / 14:20.jpg / ..._14-20.png
-  const byName = name.match(/(\d{2})[:\-_\.](\d{2})\.(jpg|jpeg|png)$/i);
-  if (byName) { hh = byName[1]; mm = byName[2]; }
+  let hh: string | undefined;
+  let mm: string | undefined;
 
-  if (!hh || !mm) {
-    const lm = (o.last_modified ?? '').toString().match(/T(\d{2}):(\d{2})/);
-    if (lm) { hh = lm[1]; mm = lm[2]; }
+  // 1) Intento por nombre de archivo (varios patrones comunes)
+  //    a) HH-MM-SS.jpg | HH_MM_SS.png | HH.MM.SS.jpeg
+  let m =
+    last.match(/^(\d{2})[-_:](\d{2})[-_.](\d{2})\.(?:jpg|jpeg|png)$/i) ||
+    //    b) HH-MM.jpg | HH_MM.png | HH.MM.jpeg
+    last.match(/^(\d{2})[-_:](\d{2})\.(?:jpg|jpeg|png)$/i) ||
+    //    c) ..._HHMMSS.jpg  (ej: frame_142003.jpg)
+    last.match(/(?:^|[_-])(\d{2})(\d{2})(\d{2})\.(?:jpg|jpeg|png)$/i);
+
+  if (m) {
+    hh = m[1];
+    mm = m[2];
   }
+
+  // 2) Si no salió del nombre, uso last_modified -> hora LOCAL
+  if (!hh || !mm) {
+    const iso = (o.last_modified ?? '').toString();
+    if (iso) {
+      const dt = new Date(iso); // respeta offset si viene con zona; si es 'Z', convierte a local
+      if (!isNaN(dt.getTime())) {
+        hh = pad2(dt.getHours());   // LOCAL
+        mm = pad2(dt.getMinutes()); // LOCAL
+      } else {
+        // Fallback ultra simple por regex si el Date fallara
+        const t = iso.match(/T(\d{2}):(\d{2})/);
+        if (t) { hh = t[1]; mm = t[2]; }
+      }
+    }
+  }
+
   if (!hh || !mm) return null;
 
   const time = `${hh}:${mm}`;
@@ -53,11 +80,15 @@ function minioObjectToSkyFrame(o: MinioObject, bucket: string): SkyFrame | null 
   return { time, src, alt };
 }
 
-function sortFramesByTime(frames: SkyFrame[]): SkyFrame[] {
-  return [...frames].sort((a, b) =>
-    a.time.localeCompare(b.time, 'es', { numeric: true })
-  );
+function toMinutes(t: string): number {
+  const [h, m] = t.split(':').map(n => parseInt(n, 10));
+  return (h * 60) + (m || 0);
 }
+
+function sortFramesByTime(frames: SkyFrame[]): SkyFrame[] {
+  return [...frames].sort((a, b) => toMinutes(a.time) - toMinutes(b.time));
+}
+
 
 /* =========================
    SERVICIO (HTTP + RxJS)
