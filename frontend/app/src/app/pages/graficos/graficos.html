@@ -31,9 +31,9 @@
     - prettyDay transforma 'YYYY-MM-DD' -> 'DD/MM/YYYY' para presentación.
   -->
   <div class="legend">
-    <ng-container *ngIf="(viewingDay$ | async) as viewingDay">
+    @if (viewingDay$ | async; as viewingDay) {
       Mostrando datos para el día <strong>{{ prettyDay(viewingDay) }}</strong>
-    </ng-container>
+    }
   </div>
 
   <!--
@@ -58,7 +58,7 @@
     - (frameChange) emite el frame actual hacia el método onFrameChange del componente padre.
   -->
   <div class="photos">
-    <ng-container *ngIf="frames$ | async as frames; else cargando">
+    @if (frames$ | async; as frames) {
       <app-imagenes-por-hora
         [frames]="frames"
         [startIndex]="0"
@@ -72,12 +72,11 @@
       </app-imagenes-por-hora>
 
       <!-- Mensaje vacío: se muestra cuando el arreglo 'frames' llega pero sin elementos -->
-      <div *ngIf="frames.length === 0" class="hint">No hay imágenes para mostrar.</div>
-    </ng-container>
-
-    <!-- Template de carga: visible mientras el observable frames$ no ha emitido -->
-    <ng-template #cargando>
+      @if (frames.length === 0) {
+        <div class="hint">No hay imágenes para mostrar.</div>
+      }
+    } @else {
       <div class="hint">Cargando imágenes…</div>
-    </ng-template>
+    }
   </div>
 </section>
