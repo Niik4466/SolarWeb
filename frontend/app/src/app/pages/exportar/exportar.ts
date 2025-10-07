@@ -4,6 +4,9 @@ import { Component, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ExportApi } from '../../services/export.api';
+import { from, of } from 'rxjs';
+import { concatMap, tap, finalize, catchError } from 'rxjs/operators';
+
 
 type Granularity = 'diario' | 'rango';
 type VariableKey = 'GHI' | 'DNI' | 'DHI';
@@ -46,7 +49,7 @@ export class ExportarPage {
    * - fechaDiaria/rangoInicio/rangoFin: controles de calendario.
    */
   form = this.fb.nonNullable.group({
-    // ✅ variables como checkboxes (booleanos independientes)
+    // variables como checkboxes (booleanos independientes)
     varGHI: this.fb.nonNullable.control<boolean>(true),
     varDNI: this.fb.nonNullable.control<boolean>(false),
     varDHI: this.fb.nonNullable.control<boolean>(false),
@@ -133,6 +136,41 @@ export class ExportarPage {
     this.fechasDiarias.set(this.fechasDiarias().filter(f => f !== value));
   }
 
+
+  // 👇 NUEVO: estado UI de exportación
+  exporting = signal(false);
+  statusMsg = signal<string | null>(null);
+  progress = signal<{ total: number; done: number }>({ total: 0, done: 0 });
+  private runningSub?: import('rxjs').Subscription;
+
+
+  // 👇 helper: actualizar progreso
+  private startProgress(total: number, msg?: string) {
+    this.progress.set({ total, done: 0 });
+    this.statusMsg.set(msg ?? null);
+    this.exporting.set(true);
+  }
+  private tickProgress(msg?: string) {
+    const p = this.progress();
+    this.progress.set({ total: p.total, done: Math.min(p.done + 1, p.total) });
+    if (msg) this.statusMsg.set(msg);
+  }
+  private endProgress() {
+    this.exporting.set(false);
+    this.statusMsg.set(null);
+    this.progress.set({ total: 0, done: 0 });
+    this.runningSub = undefined;
+  }
+
+  // 👇 opcional: cancelar (para múltiples días)
+  cancelExport() {
+    if (this.runningSub && !this.runningSub.closed) {
+      this.runningSub.unsubscribe();
+    }
+    this.endProgress();
+  }
+
+
   // ===========================
   // Utilidad de descarga
   // ===========================
@@ -162,56 +200,104 @@ export class ExportarPage {
    * Manejo de errores: muestra alert y loguea en consola.
    */
   exportar() {
-    if (!this.puedeExportar()) return;
+    if (!this.puedeExportar() || this.exporting()) return;
 
     const variables = this.getSelectedVariables();
     const format = this.form.value.formato!;
 
-    if (this.granularidad() === 'diario') {
-      const dias = this.fechasDiarias();
-      if (!dias.length) return;
+    // Limpia errores previos
+    this.statusMsg.set(null);
 
-      const include_images = !!this.form.value.incluirImagenes; 
+  if (this.granularidad() === 'diario') {
+    const dias = this.fechasDiarias();
+    if (!dias.length) return;
 
-      for (const day of dias) {
-        this.exporter.exportDaily({
-          date: day,
-          variables,
-          format,
-          include_images
-        }).subscribe({
-          next: (blob) => {
-            const ext = (format === 'csv') ? 'csv' : 'json';
-            const filename = `export_${day}.${ext}`;
-            this.downloadBlob(blob, filename);
-          },
-          error: (err) => {
-            console.error('[Exportar] error', err);
-            alert(`No se pudo exportar el día ${day}. Revisa la consola para más detalles.`);
-          }
-        });
-      }
+    const include_images = !!this.form.value.incluirImagenes;
 
-    } else {
-      // Rango: ZIP
-      const inicio = this.form.value.rangoInicio!;
-      const fin = this.form.value.rangoFin!;
-      const include_images = !!this.form.value.incluirImagenes; // opcional en rango
+    // ✅ Si hay > 1 fecha → usamos el endpoint batch para un único ZIP
+    if (dias.length > 1) {
+      this.startProgress(1, 'Exportando múltiples días…');
 
-      this.exporter.exportRange({
-        inicio,
-        fin,
+      this.runningSub = this.exporter.exportDailyBatch({
+        dates: dias,
         variables,
         format,
         include_images
-      }).subscribe({
-        next: (blob) => {
-          const filename = `export_${inicio}_${fin}.zip`;
-          this.downloadBlob(blob, filename);
-        },
+      }).pipe(
+        tap((blob: Blob) => {
+          const first = dias[0];
+          const last  = dias[dias.length - 1];
+          this.downloadBlob(blob, `export_${first}_${last}.zip`);
+          this.tickProgress('ZIP descargado');
+        }),
+        finalize(() => {
+          this.statusMsg.set('¡Exportación diaria (batch) completada!');
+          setTimeout(() => this.endProgress(), 700);
+        })
+      ).subscribe({
+        error: (err) => {
+          console.error('[Exportar batch] error', err);
+          alert('No se pudo exportar el batch de días seleccionados.');
+          this.endProgress();
+        }
+      });
+
+      return; // 👈 importante: no seguir con el flujo por-día
+    }
+
+    // 🗓️ Si hay exactamente 1 fecha → mantiene tu flujo actual (CSV/JSON o ZIP con imágenes)
+    this.startProgress(1, 'Exportando día único…');
+
+    const day = dias[0];
+    this.runningSub = this.exporter.exportDailyBatch({
+      dates: [day],
+      variables,
+      format,
+      include_images
+    }).pipe(
+      tap((blob: Blob) => {
+        // Si marcaste imágenes, el backend devuelve ZIP por día; si no, CSV/JSON
+        const ext = include_images ? 'zip' : (format === 'csv' ? 'csv' : 'json');
+        this.downloadBlob(blob, `export_${day}.${ext}`);
+        this.tickProgress(`Descargado ${day}`);
+      }),
+      finalize(() => {
+        this.statusMsg.set('¡Exportación diaria completada!');
+        setTimeout(() => this.endProgress(), 700);
+      })
+    ).subscribe({
+      error: (err) => {
+        console.error('[Exportar día] error', err);
+        alert(`No se pudo exportar el día ${day}.`);
+        this.endProgress();
+      }
+    });
+
+  } else {
+
+      // Rango → un solo ZIP
+      const inicio = this.form.value.rangoInicio!;
+      const fin = this.form.value.rangoFin!;
+      const include_images = !!this.form.value.incluirImagenes;
+
+      this.startProgress(1, `Exportando rango ${inicio} → ${fin}…`);
+
+      this.runningSub = this.exporter.exportRange({
+        inicio, fin, variables, format, include_images
+      }).pipe(
+        tap((blob: Blob) => {
+          this.downloadBlob(blob, `export_${inicio}_${fin}.zip`);
+          this.tickProgress('ZIP descargado');
+        }),
+        finalize(() => {
+          this.statusMsg.set('¡Exportación de rango completada!');
+          setTimeout(() => this.endProgress(), 700);
+        })
+      ).subscribe({
         error: (err) => {
           console.error('[Exportar] error', err);
           alert(`No se pudo exportar el rango ${inicio} a ${fin}.`);
+          this.endProgress();
         }
       });
     }

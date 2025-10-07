@@ -14,12 +14,15 @@ const API_BASE = 'http://127.0.0.1:8000/api/v1';
 /**
  * Cuerpo de la petición para exportar datos de **un solo día**.
  */
-export type ExportDailyBody = {
+export type exportDailyBatchBody = {
   /** Fecha en formato `YYYY-MM-DD`. */
-  date: string;
+  dates: string[];
 
   /** Variables de irradiancia a exportar. */
   variables: ('GHI'|'DNI'|'DHI')[];
+
+  /** Fechas a exportar (formato `YYYY-MM-DD`). */
+
 
   /** Formato de exportación (`csv` o `json`). */
   format: 'csv'|'json';
@@ -37,6 +40,10 @@ export type ExportDailyBody = {
 export type ExportRangeBody = {
   /** Fecha inicial en formato `YYYY-MM-DD`. */
   inicio: string;
+  
+  /**
+   * Fechas intermedias en formato `YYYY-MM-DD`.
+   */
 
   /** Fecha final en formato `YYYY-MM-DD`. */
   fin: string;
@@ -81,8 +88,8 @@ export class ExportApi {
    * @param body Objeto con fecha, variables y formato de exportación.
    * @returns Observable con un `Blob` (archivo descargable).
    */
-  exportDaily(body: ExportDailyBody) {
-    return this.http.post(`${API_BASE}/export/daily`, body, {
+  exportDailyBatch(body: exportDailyBatchBody) {
+    return this.http.post(`${API_BASE}/export/daily/batch`, body, {
       responseType: 'blob' as const
     });
   }

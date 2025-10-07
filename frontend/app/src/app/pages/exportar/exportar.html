@@ -142,12 +142,48 @@
            - Se habilita sólo si puedeExportar() es true (validaciones mínimas).
            - Llama a exportar() en click. -->
       <div class="actions">
-        <button type="button" class="btn primary cta"
-                [disabled]="!puedeExportar()"
-                (click)="exportar()">
-          EXPORTAR
+        <button
+          type="button"
+          class="btn primary cta"
+          (click)="exportar()"
+          [disabled]="!puedeExportar() || exporting()"
+          [attr.aria-busy]="exporting()"
+        >
+          <ng-container *ngIf="!exporting(); else exportingTpl">EXPORTAR</ng-container>
         </button>
+
+        <!-- Botón cancelar (opcional, útil cuando hay varias fechas) -->
+        <button
+          type="button"
+          class="btn"
+          *ngIf="exporting() && progress().total > 1"
+          (click)="cancelExport()"
+        >
+          Cancelar
+        </button>
+
+        <ng-template #exportingTpl>
+          <span class="spinner" aria-hidden="true"></span>
+          <span>
+            Exportando…
+            <ng-container *ngIf="progress().total > 1">
+              {{ progress().done }} / {{ progress().total }}
+            </ng-container>
+          </span>
+        </ng-template>
       </div>
+
+      <!-- Bloque de feedback: barra + mensaje -->
+      <div class="export-status" role="status" aria-live="polite" *ngIf="exporting() || statusMsg()">
+        <div class="bar" *ngIf="exporting()">
+          <div
+            class="fill"
+            [style.width.%]="(progress().total ? (100 * progress().done / progress().total) : 0)"
+          ></div>
+        </div>
+        <div class="msg">{{ statusMsg() }}</div>
+      </div>
+
     </div>
   </aside>
 </section>
