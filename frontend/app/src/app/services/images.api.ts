@@ -1,50 +1,23 @@
 // src/app/services/images.service.ts
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
-import { map, catchError, shareReplay } from 'rxjs/operators';
+import { Observable, of, Subject } from 'rxjs';
+import { map, catchError, shareReplay, bufferTime, filter } from 'rxjs/operators';
 
 /* =========================
    MODELOS (tipos compartidos)
    ========================= */
 
-/**
- * Representa un frame (imagen) del cielo.
- * Usado por la UI para mostrar imágenes en un slider/galería.
- */
 export interface SkyFrame {
-  /** Hora local en formato "HH:MM". */
-  time: string;
-
-  /** URL de la imagen servida por el backend. */
+  time: string; // "HH:MM"
   src: string;
-
-  /** Texto alternativo para accesibilidad. */
   alt: string;
 }
 
-/**
- * Objeto tal cual lo entrega MinIO (o el backend).
- */
-export type MinioObject = {
-  /** Nombre del archivo (incluye path relativo). */
-  name: string;
+export type MinioObject = { name: string };
 
-  /** Tamaño en bytes del archivo. */
-  size: number;
-
-  /** Marca de tiempo opcional (ISO8601). */
-  last_modified?: string;
-};
-
-/**
- * Respuesta de la API para un listado de objetos en un bucket.
- */
 export type MinioListResponse = {
-  /** Nombre del bucket. */
   bucket: string;
-
-  /** Lista de objetos contenidos. */
   objects: MinioObject[];
 };
 
@@ -52,82 +25,41 @@ export type MinioListResponse = {
    UTILS (funciones puras)
    ========================= */
 
-/**
- * Base de la API (mueve a environments para producción).
- */
+// Mueve a environments en prod
 const API_BASE = 'http://127.0.0.1:8000';
 
-/** Devuelve siempre dos dígitos (ej: 8 → "08"). */
 function pad2(n: number): string { return n < 10 ? '0' + n : String(n); }
 
-/**
- * Transforma un objeto MinIO en un `SkyFrame`.
- * - Intenta extraer la hora desde el nombre de archivo (regex).
- * - Si no encuentra, usa `last_modified` convertido a hora local.
- * - Construye la URL para servir la imagen.
- *
- * @param o Objeto MinIO
- * @param bucket Nombre del bucket donde está almacenado
- * @returns Un `SkyFrame` válido o `null` si no se pudo extraer hora
- */
 function minioObjectToSkyFrame(o: MinioObject, bucket: string): SkyFrame | null {
   const name = (o?.name ?? '').trim();
   if (!name) return null;
 
-  // último segmento del path (ignora YYYY/MM/DD/)
   const last = name.split('/').pop() || name;
 
   let hh: string | undefined;
   let mm: string | undefined;
 
-  // 1) Extrae hora desde el nombre con regex
-  let m =
-    last.match(/^(\d{2})[-_:](\d{2})[-_.](\d{2})\.(?:jpg|jpeg|png)$/i) || // HH-MM-SS
-    last.match(/^(\d{2})[-_:](\d{2})\.(?:jpg|jpeg|png)$/i) ||             // HH-MM
-    last.match(/(?:^|[_-])(\d{2})(\d{2})(\d{2})\.(?:jpg|jpeg|png)$/i);   // HHMMSS
+  const m =
+    last.match(/^(\d{2})[-_:](\d{2})[-_.](\d{2})\.(?:jpg|jpeg|png)$/i) ||
+    last.match(/^(\d{2})[-_:](\d{2})\.(?:jpg|jpeg|png)$/i) ||
+    last.match(/(?:^|[_-])(\d{2})(\d{2})(\d{2})\.(?:jpg|jpeg|png)$/i);
 
   if (m) {
-    hh = m[1];
-    mm = m[2];
+    hh = m[1]; mm = m[2];
   }
-
-  // 2) Si no salió del nombre, usa last_modified → hora local
-  if (!hh || !mm) {
-    const iso = (o.last_modified ?? '').toString();
-    if (iso) {
-      const dt = new Date(iso);
-      if (!isNaN(dt.getTime())) {
-        hh = pad2(dt.getHours());
-        mm = pad2(dt.getMinutes());
-      } else {
-        // fallback regex en caso de fecha inválida
-        const t = iso.match(/T(\d{2}):(\d{2})/);
-        if (t) { hh = t[1]; mm = t[2]; }
-      }
-    }
-  }
-
   if (!hh || !mm) return null;
 
   const time = `${hh}:${mm}`;
   const src  = `${API_BASE}/images/view?bucket=${encodeURIComponent(bucket)}&object_name=${encodeURIComponent(name)}`;
   const alt  = `Cielo ${time}`;
-
   return { time, src, alt };
 }
 
-/** Convierte "HH:MM" a minutos absolutos del día (ej: "02:30" → 150). */
 function toMinutes(t: string): number {
   const [h, m] = t.split(':').map(n => parseInt(n, 10));
   return (h * 60) + (m || 0);
 }
 
-/**
- * Ordena frames por su hora ascendente.
- *
- * @param frames Arreglo de SkyFrame
- * @returns Frames ordenados cronológicamente
- */
 function sortFramesByTime(frames: SkyFrame[]): SkyFrame[] {
   return [...frames].sort((a, b) => toMinutes(a.time) - toMinutes(b.time));
 }
@@ -136,27 +68,19 @@ function sortFramesByTime(frames: SkyFrame[]): SkyFrame[] {
    SERVICIO (HTTP + RxJS)
    ========================= */
 
-/**
- * Servicio Angular para interactuar con la API de imágenes del cielo.
- *
- * Se encarga de:
- * - Llamar al endpoint `/images` con `bucket` y `prefix`.
- * - Transformar objetos MinIO (`MinioObject`) en modelos de UI (`SkyFrame`).
- * - Manejar errores y cachear resultados recientes.
- */
 @Injectable({ providedIn: 'root' })
-export class ImagesService {                                                        
+export class ImagesService {
   private http = inject(HttpClient);
   private readonly BUCKET = 'imagenes-cielo';
 
+  // ===== Abortador del stream actual =====
+  private currentStreamAbort?: AbortController;
+
   /**
-   * Obtiene todos los frames de un día específico.
-   *
-   * @param dayISO Fecha en formato `YYYY-MM-DD`
-   * @returns Observable con un arreglo de `SkyFrame[]`, ordenados por hora.
+   * Lista "clásica" (respuesta JSON completa).
    */
   getDayFrames(dayISO: string): Observable<SkyFrame[]> {
-    const prefix = dayISO.replaceAll('-', '/') + '/'; // "YYYY/MM/DD/"
+    const prefix = dayISO.replaceAll('-', '/') + '/';
 
     const params = new HttpParams()
       .set('bucket', this.BUCKET)
@@ -175,5 +99,111 @@ export class ImagesService {
       }),
       shareReplay({ bufferSize: 1, refCount: true })
     );
+  }
+
+  /**
+   * Stream NDJSON: emite SkyFrame a medida que llegan líneas.
+   * - Usa AbortController para cancelar al cambiar de día.
+   * - Aplica parámetros de muestreo/rango en el servidor.
+   */
+  streamDayFrames(dayISO: string, opts?: {
+    startHHMM?: string;   // '08:00'
+    endHHMM?: string;     // '18:00'
+    sampleEvery?: number; // 10
+    limit?: number;       // 5000
+    startAfter?: string;  // cursor opcional
+  }): Observable<SkyFrame> {
+    // Cancela el stream anterior si está vivo
+    this.cancelCurrentStream();
+
+    const prefix = dayISO.replaceAll('-', '/') + '/';
+    const params = new URLSearchParams({
+      bucket: this.BUCKET,
+      prefix,
+      sample_every: String(opts?.sampleEvery ?? 10),
+      limit: String(opts?.limit ?? 5000),
+    });
+    if (opts?.startHHMM) params.set('start_hhmm', opts.startHHMM);
+    if (opts?.endHHMM)   params.set('end_hhmm',  opts.endHHMM);
+    if (opts?.startAfter)params.set('start_after', opts.startAfter);
+
+    const url = `${API_BASE}/images/stream?${params.toString()}`;
+    const controller = new AbortController();
+    this.currentStreamAbort = controller;
+
+    return new Observable<SkyFrame>(observer => {
+      fetch(url, { signal: controller.signal })
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          if (!res.body) throw new Error('Response has no readable body');
+          const reader  = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buf = '';
+
+          const pump = (): any =>
+            reader.read().then(({ done, value }) => {
+              if (done) { observer.complete(); return; }
+              buf += decoder.decode(value, { stream: true });
+
+              // Procesa líneas completas NDJSON
+              let idx: number;
+              while ((idx = buf.indexOf('\n')) >= 0) {
+                const line = buf.slice(0, idx).trim();
+                buf = buf.slice(idx + 1);
+                if (!line) continue;
+                try {
+                  const obj = JSON.parse(line) as MinioObject | { error?: string };
+                  if ((obj as any).error) {
+                    console.warn('[ImagesService] stream error line:', (obj as any).error);
+                    continue;
+                  }
+                  const frame = minioObjectToSkyFrame(obj as MinioObject, this.BUCKET);
+                  if (frame) observer.next(frame);
+                } catch (e) {
+                  console.warn('[ImagesService] NDJSON parse error', e);
+                }
+              }
+              return pump();
+            })
+            .catch(err => observer.error(err));
+
+          return pump();
+        })
+        .catch(err => observer.error(err));
+
+      // Teardown: aborta el fetch cuando se unsubscribe
+      return () => controller.abort();
+    });
+  }
+
+  /**
+   * Variante en lotes: emite arrays de SkyFrame cada ~100ms (si hay elementos).
+   * Útil para reducir repaints en listas/galerías grandes.
+   */
+  streamDayFramesBatched(dayISO: string, opts?: {
+    startHHMM?: string;
+    endHHMM?: string;
+    sampleEvery?: number;
+    limit?: number;
+    startAfter?: string;
+    bufferMs?: number;     // default 100ms
+  }): Observable<SkyFrame[]> {
+    const bufferMs = opts?.bufferMs ?? 100;
+    return this.streamDayFrames(dayISO, opts).pipe(
+      bufferTime(bufferMs),
+      // emite solo si hay elementos en el lote
+      map(batch => batch.filter(Boolean)),
+      filter(batch => batch.length > 0)
+    );
+  }
+
+  /**
+   * Cancela el stream NDJSON en curso (si existe).
+   */
+  cancelCurrentStream(): void {
+    try {
+      this.currentStreamAbort?.abort();
+    } catch { /* no-op */ }
+    this.currentStreamAbort = undefined;
   }
 }

@@ -5,7 +5,7 @@ import { CommonModule } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { BehaviorSubject, forkJoin, of } from 'rxjs';
-import { switchMap, map, catchError, shareReplay } from 'rxjs/operators';
+import { switchMap, map, catchError, shareReplay, scan, startWith, finalize } from 'rxjs/operators';
 
 import { IrradianceChartComponent, Serie } from '../../components/charts/irradiance-chart/irradiance-chart';
 import { ImagenesPorHoraComponent, SkyFrame } from '../../components/imagenes/imagenes.component';
@@ -21,6 +21,17 @@ function todayLocalISO(): string {
   const d = new Date();
   const off = d.getTimezoneOffset();
   return new Date(d.getTime() - off * 60_000).toISOString().slice(0, 10); // yyyy-MM-dd
+}
+
+/** Convierte "HH:MM" a minutos absolutos del día (ej: "02:30" → 150). */
+function toMinutes(t: string): number {
+  const [h, m] = t.split(':').map(n => parseInt(n, 10));
+  return (h * 60) + (m || 0);
+}
+
+/** Ordena frames por su hora ascendente. */
+function sortFramesByTime(frames: SkyFrame[]): SkyFrame[] {
+  return [...frames].sort((a, b) => toMinutes(String(a.time)) - toMinutes(String(b.time)));
 }
 
 @Component({
@@ -63,29 +74,49 @@ export class GraficosComponent {
   // =====================
   // Configuración de imágenes
   // =====================
-  private readonly FRAME_SAMPLE_EVERY = 10;  // tomar 1 frame cada 10 (submuestreo)
+  private readonly FRAME_SAMPLE_EVERY = 10;  // submuestreo (se aplica en el backend)
   private readonly FRAME_MAX = 20000;        // límite máximo de frames cargados
+  private readonly START_HHMM = '08:00';     // ajusta si quieres
+  private readonly END_HHMM   = '18:00';     // ajusta si quieres
+  private readonly BATCH_MS   = 100;         // agrupa eventos cada 100 ms
 
   /**
    * Stream reactivo de imágenes del día seleccionado.
-   * - Filtra y submuestrea las imágenes según la configuración.
-   * - Maneja errores devolviendo un arreglo vacío.
+   * - Ahora consume el endpoint de streaming NDJSON vía ImagesService.
+   * - Acumula progresivamente los frames y los ordena por hora.
+   * - Aplica límite máximo de elementos.
    */
   frames$ = this.day$.pipe(
     switchMap(day => {
       // valida formato de fecha
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return of<SkyFrame[]>([]);
-      return this.images.getDayFrames(day).pipe(
-        map(frames =>
-          frames
-            .filter((_, i) => i % this.FRAME_SAMPLE_EVERY === 0) // muestreo
-            .slice(0, this.FRAME_MAX)                           // límite máximo
-        ),
+
+      this.errorMsg = '';
+      this.isLoading = true;
+
+      return this.images.streamDayFramesBatched(day, {
+        startHHMM: this.START_HHMM,
+        endHHMM:   this.END_HHMM,
+        sampleEvery: this.FRAME_SAMPLE_EVERY,
+        limit: this.FRAME_MAX,
+        bufferMs: this.BATCH_MS
+      }).pipe(
+        // Acumula y recorta a FRAME_MAX
+        scan((acc, batch) => {
+          const next = acc.concat(batch);
+          // si quisieras mantener solo los últimos FRAME_MAX:
+          // return next.length > this.FRAME_MAX ? next.slice(-this.FRAME_MAX) : next;
+          return next.length > this.FRAME_MAX ? next.slice(0, this.FRAME_MAX) : next;
+        }, [] as SkyFrame[]),
+        // Ordena por hora para estabilidad visual
+        map(list => sortFramesByTime(list)),
         catchError(err => {
-          console.error('[Graficos] frames error', err);
-          this.errorMsg = 'No fue posible cargar las imágenes.';
+          console.error('[Graficos] frames stream error', err);
+          this.errorMsg = 'No fue posible cargar las imágenes (stream).';
           return of<SkyFrame[]>([]);
-        })
+        }),
+        finalize(() => { this.isLoading = false; }),
+        startWith([] as SkyFrame[])
       );
     }),
     shareReplay(1) // memoriza el último valor para nuevos suscriptores
@@ -93,9 +124,7 @@ export class GraficosComponent {
 
   /*
    * Stream reactivo de series de irradiancia (GHI, DNI, DHI).
-   * - Consulta la API con agregación de 5 minutos.
-   * - Convierte los datos a formato XY para el gráfico.
-   * - Maneja errores devolviendo un arreglo vacío.
+   * - Igual que antes.
    */
   series$ = this.day$.pipe(
     switchMap(day => {
@@ -109,7 +138,6 @@ export class GraficosComponent {
         this.irrApi.getSeries({ startISO, stopISO, field: 'DHI', granularity: this.selectedRange, limit: 200000 }),
       ]).pipe(
         map(([ghi, dni, dhi]) => {
-          // Helper para convertir cada serie a XY
           const toXY = (s?: SeriesOut) =>
             (s?.points ?? [])
               .map(p => ({ x: Date.parse(p.time), y: Number(p.value) }))
@@ -133,12 +161,12 @@ export class GraficosComponent {
 
   constructor(
     private irrApi: IrradianceApi,   // servicio para datos de irradiancia
-    private images: ImagesService,   // servicio para imágenes
+    private images: ImagesService,   // servicio para imágenes (con stream)
   ) {}
 
   /**
    * Acción de búsqueda: valida la fecha y actualiza el stream `day$`.
-   * También reinicia los gráficos y gestiona el estado de carga.
+   * También reinicia los gráficos (resetCounter).
    */
   onBuscar(): void {
     const day = this.selectedDay?.trim();
@@ -147,6 +175,7 @@ export class GraficosComponent {
       return;
     }
     if (this.isLoading) return;
+
     this.errorMsg = '';
     this.isLoading = true;
 
@@ -154,8 +183,10 @@ export class GraficosComponent {
     this.range$.next(this.selectedRange) // se emite el rango junto con el dia
 
     this.resetCounter++;     // fuerza reset de gráficos
-    // libera el "loading" en el próximo ciclo del event loop
-    setTimeout(() => (this.isLoading = false), 0);
+
+    // El finalize del stream pone isLoading=false al terminar.
+    // Si quieres liberar "loading" inmediato para la UI, déjalo:
+    // setTimeout(() => (this.isLoading = false), 0);
   }
 
   /**

@@ -13,8 +13,6 @@ def list_images(bucket: str, prefix: str = "") -> MinioListResponse:
     object_list = [
         MinioObject(
             name=obj.object_name,
-            size=obj.size,
-            last_modified=obj.last_modified
         )
         for obj in objects
     ]
