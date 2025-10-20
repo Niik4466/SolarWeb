@@ -1,0 +1,142 @@
+CREATE EXTENSION IF NOT EXISTS citext; -- sirve para que el correo no distinga mayúsculas/minúsculas
+CREATE SCHEMA IF NOT EXISTS app AUTHORIZATION CURRENT_USER; -- sirve para organizar tablas y evitar conflictos de nombres
+SET search_path TO app, public; -- le dice a Postgres que use el esquema app por defecto
+
+-- 1) Tipos ENUM (ajusta valores si lo necesitas)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'usuario_estado') THEN
+    CREATE TYPE usuario_estado AS ENUM ('pendiente','aprobado','eliminado');
+  END IF;
+END$$;
+
+-- 2) Tabla USUARIO
+CREATE TABLE IF NOT EXISTS usuario (
+  id               BIGSERIAL PRIMARY KEY,
+  correo           CITEXT        NOT NULL,         -- case-insensitive
+  nombre           VARCHAR(100)  NOT NULL,
+  apellido         VARCHAR(100),
+  password_hash    TEXT          NOT NULL,
+  es_admin         BOOLEAN       NOT NULL DEFAULT FALSE,
+  estado           usuario_estado NOT NULL DEFAULT 'pendiente',
+  creado_en        TIMESTAMP      NOT NULL DEFAULT now(),
+  aprobado_en      TIMESTAMP
+);
+
+-- Unicidad de correo global (si quieres permitir reutilizar correo tras eliminación,
+-- cámbialo por un índice parcial sobre estado<>'eliminado')
+ALTER TABLE usuario
+  ADD CONSTRAINT ux_usuario_correo UNIQUE (correo);
+
+-- Trigger para mantener actualizado_en
+CREATE OR REPLACE FUNCTION set_actualizado_en()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.actualizado_en := now();
+  RETURN NEW;
+END$$;
+
+DROP TRIGGER IF EXISTS trg_usuario_touch ON usuario;
+
+CREATE TRIGGER trg_usuario_touch
+BEFORE UPDATE ON usuario
+FOR EACH ROW EXECUTE FUNCTION set_actualizado_en();
+
+-- 3) Bitácora: quién elimina a quién + motivo + fecha
+CREATE TABLE IF NOT EXISTS usuario_eliminacion_log (
+  id                 BIGSERIAL PRIMARY KEY,
+  usuario_id         BIGINT  NOT NULL REFERENCES usuario(id),  -- el eliminado
+  eliminado_por_id   BIGINT  NOT NULL REFERENCES usuario(id),  -- admin/operador
+  motivo             TEXT,
+  eliminado_en  TIMESTAMP NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ix_u_elim_log_usuario       ON usuario_eliminacion_log(usuario_id);
+CREATE INDEX IF NOT EXISTS ix_u_elim_log_eliminado_por ON usuario_eliminacion_log(eliminado_por_id);
+CREATE INDEX IF NOT EXISTS ix_u_elim_log_fecha         ON usuario_eliminacion_log(eliminado_en);
+
+-- 4) Tabla SOLICITUD (N por usuario)
+-- 'tipo' lo dejamos como TEXT para flexibilidad; si lo prefieres, crea un ENUM catálogo.
+CREATE TABLE IF NOT EXISTS solicitud (
+  id             BIGSERIAL PRIMARY KEY,
+  usuario_id     BIGINT      NOT NULL REFERENCES usuario(id),
+  justificacion  TEXT,
+  solicita_admin BOOLEAN     NOT NULL DEFAULT FALSE,
+  creado_en      TIMESTAMP   NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ix_solicitud_usuario  ON solicitud(usuario_id);
+CREATE INDEX IF NOT EXISTS ix_solicitud_admin     ON solicitud(solicita_admin);
+
+-- 5) Tabla TRANSACCION (N por usuario)
+CREATE TABLE IF NOT EXISTS transaccion (
+    id                 BIGSERIAL PRIMARY KEY,
+    usuario_id         BIGINT     NOT NULL REFERENCES usuario(id),
+    archivos           TEXT[]     NULL,
+    exportado_en  TIMESTAMP  NULL,
+    imagenes           BOOLEAN    NOT NULL DEFAULT FALSE,
+    var_ghi                BOOLEAN    NOT NULL DEFAULT FALSE,
+    var_dni                BOOLEAN    NOT NULL DEFAULT FALSE,
+    var_global             BOOLEAN    NOT NULL DEFAULT FALSE,
+    creado_en          TIMESTAMP  NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ix_transaccion_usuario ON transaccion(usuario_id);
+CREATE INDEX IF NOT EXISTS ix_transaccion_fecha   ON transaccion(exportado_en);
+
+-- 6) Funciones de negocio (opcionales pero útiles)
+
+-- Aprobar usuario
+CREATE OR REPLACE FUNCTION aprobar_usuario(p_usuario_id BIGINT, p_admin_id BIGINT)
+RETURNS VOID LANGUAGE plpgsql AS $$
+DECLARE v_admin BOOLEAN;
+BEGIN
+  SELECT es_admin INTO v_admin FROM usuario
+  WHERE id = p_admin_id AND estado <> 'eliminado';
+  IF v_admin IS DISTINCT FROM TRUE THEN
+    RAISE EXCEPTION 'Solo un administrador activo puede aprobar.';
+  END IF;
+
+  UPDATE usuario
+     SET estado='aprobado', aprobado_en=now()
+   WHERE id = p_usuario_id;
+END$$;
+
+-- Eliminar usuario (actualiza estado y deja bitácora)
+CREATE OR REPLACE FUNCTION eliminar_usuario(p_usuario_id BIGINT,
+                                            p_admin_id   BIGINT,
+                                            p_motivo     TEXT DEFAULT NULL)
+RETURNS VOID LANGUAGE plpgsql AS $$
+DECLARE v_admin BOOLEAN;
+BEGIN
+  IF p_usuario_id = p_admin_id THEN
+    RAISE EXCEPTION 'Un usuario no puede auto-eliminarse.';
+  END IF;
+
+  SELECT es_admin INTO v_admin FROM usuario
+  WHERE id = p_admin_id AND estado <> 'eliminado';
+  IF v_admin IS DISTINCT FROM TRUE THEN
+    RAISE EXCEPTION 'Solo un administrador activo puede eliminar usuarios.';
+  END IF;
+
+  UPDATE usuario
+     SET estado='eliminado'
+   WHERE id = p_usuario_id;
+
+  INSERT INTO usuario_eliminacion_log (usuario_id, eliminado_por_id, motivo)
+  VALUES (p_usuario_id, p_admin_id, p_motivo);
+END$$;
+
+-- 7) Vistas rápidas
+CREATE OR REPLACE VIEW v_usuarios_activos AS
+SELECT * FROM usuario WHERE estado IN ('pendiente','aprobado');
+
+CREATE OR REPLACE VIEW v_usuarios_aprobados AS
+SELECT * FROM usuario WHERE estado = 'aprobado';
+
+CREATE OR REPLACE VIEW v_eliminaciones AS
+SELECT u.id   AS usuario_id,
+       u.correo,
+       l.eliminado_por_id,
+       l.motivo,
+       l.eliminado_en
+FROM usuario_eliminacion_log l
+JOIN usuario u ON u.id = l.usuario_id
+ORDER BY l.eliminado_en DESC;
