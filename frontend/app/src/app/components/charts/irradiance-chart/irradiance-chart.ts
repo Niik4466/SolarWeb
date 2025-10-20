@@ -44,19 +44,25 @@ export class IrradianceChartComponent implements OnChanges {
     type: 'line',
     height: 420,
     toolbar: { show: false },
-    animations: { enabled: false }, // 🔥 importante si hay muchos puntos
+    animations: { enabled: false }, // importante si hay muchos puntos
     fontFamily: 'Sansation, sans-serif'
   };
   stroke: ApexStroke = { curve: 'straight', width: 2 }; // straight rinde mejor con muchos puntos
   dataLabels: ApexDataLabels = { enabled: false };
   xaxis: ApexXAxis = { categories: this.categories, title: { text: 'Hora' } };
-  yaxis: ApexYAxis = { title: { text: 'Irradiancia (W/m²)' }, min: 0 };
+  yaxis: ApexYAxis = {
+    title: { text: 'Irradiancia (W/m²)' },
+    min: 0,
+    labels: {
+      formatter: (v: number) => v.toFixed(0), // Redondear sin decimales
+    },
+  };
   title: ApexTitleSubtitle = { text: 'Irradiancia vs. Tiempo', align: 'center' };
   legend: ApexLegend = { position: 'right' };
   grid: ApexGrid = { padding: { right: 20 } };
   tooltip: ApexTooltip = {
     x: { formatter: (v: number) => this.timeSeries ? new Date(v).toLocaleTimeString() : String(v) },
-    y: { formatter: (v: number) => `${Math.round(v)} W/m²` }
+    y: { formatter: (v: number) => `${v.toFixed(1)} W/m²` }
   };
   markers: ApexMarkers = { size: 0, hover: { size: 0 } }; // 0 para rendimiento
   annotations: ApexAnnotations = { points: [] };

@@ -34,6 +34,38 @@ function sortFramesByTime(frames: SkyFrame[]): SkyFrame[] {
   return [...frames].sort((a, b) => toMinutes(String(a.time)) - toMinutes(String(b.time)));
 }
 
+/** Transforma un valor de granularidad ej:'10s' a ms**/
+function granularityToMs(granularity: string): number {
+  const match = /^(\d+)([smhd])$/.exec(granularity);
+  if (!match) return 1000; // fallback 1s
+  const value = Number(match[1]);
+  const unit = match[2];
+  switch (unit) {
+    case 's': return value * 1000;
+    case 'm': return value * 60_000;
+    case 'h': return value * 3_600_000;
+    case 'd': return value * 86_400_000;
+    default: return 1000;
+  }
+}
+
+/** Rellena valores faltantes en una serie de tiempo con 0's'**/
+function fillMissingTimestamps(
+  points: { x: number; y: number }[],
+  start: number,
+  stop: number,
+  stepMs: number
+) {
+  const filled: { x: number; y: number }[] = [];
+  const existing = new Map(points.map(p => [p.x, p.y]));
+
+  for (let t = start; t <= stop; t += stepMs) {
+    filled.push({ x: t, y: existing.get(t) ?? 0 });
+  }
+
+  return filled;
+}
+
 @Component({
   selector: 'app-graficos',
   standalone: true,
@@ -143,10 +175,14 @@ export class GraficosComponent {
               .map(p => ({ x: Date.parse(p.time), y: Number(p.value) }))
               .filter(pt => Number.isFinite(pt.y));
 
+          const start = Date.parse(startISO);
+          const stop  = Date.parse(stopISO);
+          const stepMs = granularityToMs(this.selectedRange || '1s');
+
           return [
-            { name: 'Global',  data: toXY(ghi) as any },
-            { name: 'Directa', data: toXY(dni) as any },
-            { name: 'Difusa',  data: toXY(dhi) as any },
+            { name: 'Global',  data: fillMissingTimestamps(toXY(ghi) as any, start, stop, stepMs) },
+            { name: 'Directa', data: fillMissingTimestamps(toXY(dni) as any, start, stop, stepMs) },
+            { name: 'Difusa',  data: fillMissingTimestamps(toXY(dhi) as any, start, stop, stepMs) },
           ] as Serie[];
         }),
         catchError(err => {
