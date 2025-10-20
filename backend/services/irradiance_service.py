@@ -9,14 +9,23 @@ from schemas.irradiance import SeriesOut, IrrPoint, FieldName
 
 MEASUREMENT = "radiacion_solar"  # el measurement que hay en influx
 
-def get_series(start: str, stop: str, field: FieldName = "GHI") -> SeriesOut:
+def get_series(start: str, stop: str, field: FieldName = "GHI", granularity: str | None = None) -> SeriesOut:
     # OJO: start/stop deben venir en formato RFC3339/ISO (ej: 2025-09-16T00:00:00Z)
     flux = f'''
     from(bucket: "{settings.INFLUX_BUCKET}")
-      |> range(start: {start}, stop: {stop})
-      |> filter(fn: (r) => r._measurement == "{MEASUREMENT}")
-      |> filter(fn: (r) => r._field == "{field}")
-      |> keep(columns: ["_time","_value","_field"])
+        |> range(start: {start}, stop: {stop})
+        |> filter(fn: (r) => r._measurement == "{MEASUREMENT}")
+        |> filter(fn: (r) => r._field == "{field}")
+        |> filter(fn: (r) => r._value != 0)
+    '''
+
+    if granularity:
+        flux += f'''
+            |> aggregateWindow(every: {granularity}, fn: mean, createEmpty: false)
+        '''
+
+    flux+=f'''
+        |> keep(columns: ["_time","_value","_field"])
     '''
 
     # Ejecuta la consulta
