@@ -8,22 +8,28 @@
   -->
   <div class="controls">
     <label for="day">Selecciona un día</label>
-    <input
-      id="day"
-      type="date"
-      [(ngModel)]="selectedDay"
-      (keyup.enter)="onBuscar()"
-    >
+    <input id="day" type="date" [(ngModel)]="selectedDay" (keyup.enter)="onBuscar()">
+
+    <select [(ngModel)]="selectedRange">
+      <option value="1s">1 segundo</option>
+      <option value="10s">10 segundos</option>
+      <option value="30s">30 segundos</option>
+      <option value="1m">1 minuto</option>
+      <option value="5m">5 minutos</option>
+      <option value="30m">30 minutos</option>
+      <option value="1h">1 hora</option>
+    </select>
+
     <button
       class="btn"
       type="button"
       (click)="onBuscar()"
-      [disabled]="isLoading"
-      >
+      [disabled]="isLoading">
       {{ isLoading ? 'Cargando…' : 'Buscar' }}
     </button>
   </div>
-  
+
+
   <!--
     Leyenda con la fecha actualmente mostrada.
     - Usa el async pipe para suscribirse a viewingDay$ sin gestionar manualmente la suscripción.

@@ -47,6 +47,12 @@ export class GraficosComponent {
   resetCounter = 0;      // contador para forzar reset de los gráficos
 
   // =====================
+  // Gestion de granularidad
+  // =====================
+  selectedRange = "5m";  // granularidad seleccionada en la UI
+  readonly range$ = new BehaviorSubject<string>(this.selectedRange);
+
+  // =====================
   // Gestión de fechas
   // =====================
   readonly defaultDay = todayLocalISO();   // día por defecto = HOY
@@ -85,7 +91,7 @@ export class GraficosComponent {
     shareReplay(1) // memoriza el último valor para nuevos suscriptores
   );
 
-  /**
+  /*
    * Stream reactivo de series de irradiancia (GHI, DNI, DHI).
    * - Consulta la API con agregación de 5 minutos.
    * - Convierte los datos a formato XY para el gráfico.
@@ -96,12 +102,11 @@ export class GraficosComponent {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return of<Serie[]>([]);
       const startISO = `${day}T00:00:00Z`;
       const stopISO  = `${day}T23:59:59Z`;
-      const agg: string | undefined = '5m';
 
       return forkJoin([
-        this.irrApi.getSeries({ startISO, stopISO, field: 'GHI', aggregate_every: agg, limit: 200000 }),
-        this.irrApi.getSeries({ startISO, stopISO, field: 'DNI', aggregate_every: agg, limit: 200000 }),
-        this.irrApi.getSeries({ startISO, stopISO, field: 'DHI', aggregate_every: agg, limit: 200000 }),
+        this.irrApi.getSeries({ startISO, stopISO, field: 'GHI', granularity: this.selectedRange, limit: 200000 }),
+        this.irrApi.getSeries({ startISO, stopISO, field: 'DNI', granularity: this.selectedRange, limit: 200000 }),
+        this.irrApi.getSeries({ startISO, stopISO, field: 'DHI', granularity: this.selectedRange, limit: 200000 }),
       ]).pipe(
         map(([ghi, dni, dhi]) => {
           // Helper para convertir cada serie a XY
@@ -144,7 +149,10 @@ export class GraficosComponent {
     if (this.isLoading) return;
     this.errorMsg = '';
     this.isLoading = true;
+
     this.day$.next(day);     // dispara carga de datos
+    this.range$.next(this.selectedRange) // se emite el rango junto con el dia
+
     this.resetCounter++;     // fuerza reset de gráficos
     // libera el "loading" en el próximo ciclo del event loop
     setTimeout(() => (this.isLoading = false), 0);

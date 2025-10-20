@@ -39,7 +39,7 @@ export type SeriesOut = {
 
 /**
  * Servicio Angular para interactuar con la API de irradiancia.
- * 
+ *
  * Provee métodos para solicitar series de irradiancia individuales o
  * las tres series (GHI, DNI y DHI) en conjunto, con opciones de
  * agregación temporal y límites de datos.
@@ -50,15 +50,15 @@ export class IrradianceApi {
 
   /**
    * Obtiene una serie de irradiancia desde la API.
-   * 
+   *
    * @param params Parámetros de consulta:
    *  - `startISO`: fecha/hora inicial en formato ISO (ej: "2025-09-28T00:00:00Z").
    *  - `stopISO`: fecha/hora final en formato ISO.
    *  - `field`: tipo de serie (`GHI`, `DNI` o `DHI`).
    *  - `limit`: número máximo de puntos a devolver (default: 20000).
-   *  - `aggregate_every`: intervalo de agregación (ej: `"5m"`, `"1h"`).
+   *  - `granularity`: intervalo de agregación (ej: `"5m"`, `"1h"`).
    *  - `bucket`: nombre del bucket (opcional).
-   * 
+   *
    * @returns Observable con la serie solicitada (`SeriesOut`).
    */
   getSeries(params: {
@@ -66,7 +66,7 @@ export class IrradianceApi {
     stopISO: string;
     field: FieldName;
     limit?: number;
-    aggregate_every?: string;   // p.ej. '5m' | '1h'
+    granularity?: string;   // p.ej. '5m' | '1h'
     bucket?: string;
   }): Observable<SeriesOut> {
 
@@ -76,7 +76,7 @@ export class IrradianceApi {
       .set('field', params.field)
       .set('limit', String(params.limit ?? 20000));
 
-    if (params.aggregate_every) httpParams = httpParams.set('aggregate_every', params.aggregate_every);
+    if (params.granularity) httpParams = httpParams.set('granularity', params.granularity);
     if (params.bucket)          httpParams = httpParams.set('bucket', params.bucket);
 
     return this.http.get<SeriesOut>(`${API_BASE}/irradiance`, { params: httpParams });
@@ -84,16 +84,16 @@ export class IrradianceApi {
 
   /**
    * Obtiene las tres series (GHI, DNI y DHI) agregadas por hora para un día completo (UTC).
-   * 
+   *
    * @param dateISOyyyyMMdd Fecha en formato `YYYY-MM-DD` (UTC).
    * @param bucket (Opcional) bucket desde el cual leer los datos.
-   * 
+   *
    * @returns Observable con una tupla `[GHI, DNI, DHI]`, cada una de tipo `SeriesOut`.
    */
   getDaySeriesUTC(dateISOyyyyMMdd: string, bucket?: string): Observable<[SeriesOut, SeriesOut, SeriesOut]> {
     const startISO = `${dateISOyyyyMMdd}T00:00:00Z`;
     const stopISO  = `${dateISOyyyyMMdd}T23:59:59Z`;
-    const common = { startISO, stopISO, limit: 20000, aggregate_every: '1h', bucket };
+    const common = { startISO, stopISO, limit: 20000, bucket };
 
     return forkJoin([
       this.getSeries({ ...common, field: 'GHI' }),

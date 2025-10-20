@@ -12,8 +12,8 @@ def read_irradiance(
     # Parámetros de consulta (query string): ?start=...&stop=...&field=... &granularity=...
     start: str = Query(..., description="RFC3339, ej: 2025-09-16T00:00:00Z"),
     stop:  str = Query(..., description="RFC3339"),
-    granularity: str = Query(..., description="Granularity, ej: 1h, 5m, 10s"),
-    field: FieldName = "GHI"
+    field: FieldName = "GHI",
+    granularity: str = Query(..., description="Granularity, ej: 1h, 5m, 10s")
 ):
     # Llama al servicio y devuelve el resultado
-    return get_series(start, stop, field, granularity)
+    return get_series(start, stop, field, granularity=granularity)
