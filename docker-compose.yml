@@ -59,6 +59,38 @@ services:
       - miniodb2:/data
     command: server /data --console-address ":9001"
 
+  postgres:
+    image: postgres:16
+    container_name: postgres-solarweb
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresdb:/var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrator:
+    image: postgres:16
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./databases/postgres/db.sql:/migrations/01_schema.sql:ro
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    entrypoint: ["/bin/sh","-c"]
+    command: >
+      "psql -h postgres -U ${POSTGRES_USER} -d ${POSTGRES_DB} -v ON_ERROR_STOP=1 -f /migrations/01_schema.sql
+       && echo '✅ Migraciones aplicadas' || (echo '❌ Error en migraciones' && exit 1)"
 
   # Uploaders
 
@@ -96,6 +128,7 @@ services:
 volumes:
   influxdb2:
   miniodb2:
+  postgresdb:
 
 networks:
   red_taller_software:

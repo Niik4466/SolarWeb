@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS usuario (
   es_admin         BOOLEAN       NOT NULL DEFAULT FALSE,
   estado           usuario_estado NOT NULL DEFAULT 'pendiente',
   creado_en        TIMESTAMP      NOT NULL DEFAULT now(),
+  actualizado_en   TIMESTAMP      NOT NULL DEFAULT now(),
   aprobado_en      TIMESTAMP
 );
 
@@ -60,11 +61,9 @@ CREATE TABLE IF NOT EXISTS solicitud (
   id             BIGSERIAL PRIMARY KEY,
   usuario_id     BIGINT      NOT NULL REFERENCES usuario(id),
   justificacion  TEXT,
-  solicita_admin BOOLEAN     NOT NULL DEFAULT FALSE,
   creado_en      TIMESTAMP   NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS ix_solicitud_usuario  ON solicitud(usuario_id);
-CREATE INDEX IF NOT EXISTS ix_solicitud_admin     ON solicitud(solicita_admin);
 
 -- 5) Tabla TRANSACCION (N por usuario)
 CREATE TABLE IF NOT EXISTS transaccion (
