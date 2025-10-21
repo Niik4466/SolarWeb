@@ -15,7 +15,9 @@ export class NavbarComponent {
   isLogin = signal(false);
 
   constructor() {
-    const set = (url: string) => this.isLogin.set(url.startsWith('/login'));
+    const set = (url: string) =>
+      this.isLogin.set(/^\/(login|forgot-password|solicitar-registro)(\/|$)/.test(url));
+
     // evaluar al cargar
     set(this.router.url || '');
     // y en cada navegación
