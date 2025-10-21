@@ -6,6 +6,10 @@
   position: sticky;
   top: 0;
   z-index: 50;
+  width: 100vw;           /* ocupa todo el ancho visible */
+  margin: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;   
 
   /* Grid en 2 filas y 2 columnas */
   display: grid;
@@ -149,4 +153,3 @@
   .logo  { font-size: 1.8rem; }
   .title { font-size: clamp(1.1rem, 1.2vw + .6rem, 1.6rem); }
 }
-

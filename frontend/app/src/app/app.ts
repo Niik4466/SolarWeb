@@ -18,6 +18,13 @@ import { Footer } from './components/ui/footer/footer';
     </main>
     <app-footer></app-footer>
   `,
-  styles: [`.container{max-width:1200px;margin:0 auto;padding:1rem}`]
+  styles: [`
+  .container {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+`]
+
 })
 export class App {}

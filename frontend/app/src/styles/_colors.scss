@@ -4,3 +4,6 @@ $color-amarillo-solar: #FFD700 !default;
 $color-blanco-nieve: #FFFFFF !default;
 $color-gris-claro: #F2F2F2 !default;
 $color-gris-oscuro: #333333 !default;
+html, body {
+  overflow-x: hidden;
+}
