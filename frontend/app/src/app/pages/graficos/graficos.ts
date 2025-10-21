@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { BehaviorSubject, forkJoin, of } from 'rxjs';
+import { BehaviorSubject, forkJoin, of, combineLatest } from 'rxjs';
 import { switchMap, map, catchError, shareReplay, scan, startWith, finalize } from 'rxjs/operators';
 
 import { IrradianceChartComponent, Serie } from '../../components/charts/irradiance-chart/irradiance-chart';
@@ -232,6 +232,31 @@ export class GraficosComponent {
     const m = d?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     return m ? `${m[3]}/${m[2]}/${m[1]}` : d;
   }
+
+  // ¿El chart tiene al menos 1 punto?
+readonly seriesEmpty$ = this.series$.pipe(
+  map(series => !series?.some(s => (s?.data?.length ?? 0) > 0)),
+  shareReplay(1)
+);
+
+// ¿Hay al menos 1 frame?
+readonly framesEmpty$ = this.frames$.pipe(
+  map(frames => (frames?.length ?? 0) === 0),
+  shareReplay(1)
+);
+
+// No hay datos en NINGUNO de los dos
+readonly noData$ = combineLatest([this.seriesEmpty$, this.framesEmpty$]).pipe(
+  map(([seriesEmpty, framesEmpty]) => seriesEmpty && framesEmpty),
+  startWith(false),
+  shareReplay(1)
+);
+
+// (opcional) acción rápida
+resetToToday(): void {
+  this.selectedDay = this.defaultDay;
+  this.onBuscar();
+}
 
   /**
    * Handler para cuando cambia un frame en la UI (placeholder).

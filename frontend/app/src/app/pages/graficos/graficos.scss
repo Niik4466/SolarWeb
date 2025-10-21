@@ -45,6 +45,48 @@
 }
 
 /* ===========================
+   Granularidad (debajo del selector de fecha)
+   =========================== */
+.controls {
+  flex-direction: column; /* Apila verticalmente fecha+botón y granularidad */
+  align-items: flex-start; /* Alinea a la izquierda */
+}
+
+.controls .row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+.granularity {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .9rem;
+  color: #374151;
+  margin-top: .25rem;
+}
+
+.granularity select {
+  border: 1px solid #cfd3d7;
+  border-radius: .5rem;
+  padding: .3rem .6rem;
+  background: #fff;
+  cursor: pointer;
+}
+
+.granularity .hint-title {
+  font-weight: 600;
+  color: #111827;
+}
+
+.granularity .hint {
+  opacity: .7;
+  font-style: italic;
+}
+
+/* ===========================
    Columnas principales
    =========================== */
 .photos { grid-area: photos; }
@@ -111,3 +153,19 @@ app-imagenes-por-hora {
 
 /* Enfatiza la fecha mostrada dentro de la leyenda */
 .legend strong { color: #111827; }
+
+/* Hace que el bloque abarque ambas columnas del grid .panel */
+.fullrow { grid-column: 1 / -1; }
+
+.empty-state {
+  margin: 1.25rem 0;
+  padding: 1.25rem;
+  text-align: center;
+  border: 1px dashed rgba(0,0,0,.25);
+  border-radius: .75rem;
+  background: rgba(255, 248, 220, .35);
+}
+
+.empty-state h3 {
+  margin: 0 0 .5rem 0;
+}

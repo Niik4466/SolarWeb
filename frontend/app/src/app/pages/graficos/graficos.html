@@ -1,88 +1,102 @@
 <section class="panel">
-  <!--
-    Barra de controles (fecha + botón de búsqueda).
-    - Ocupa el ancho completo.
-    - [(ngModel)] enlaza bidireccionalmente con selectedDay (string 'YYYY-MM-DD').
-    - (keyup.enter) permite disparar la búsqueda al presionar Enter dentro del input.
-    - [disabled]="isLoading" previene múltiples solicitudes simultáneas.
-  -->
+  <!-- ─────────────────────────────
+       Controles (fecha + buscar)
+  ──────────────────────────────── -->
   <div class="controls">
     <label for="day">Selecciona un día</label>
-    <input id="day" type="date" [(ngModel)]="selectedDay" (keyup.enter)="onBuscar()">
 
-    <select [(ngModel)]="selectedRange">
-      <option value="1s">1 segundo</option>
-      <option value="10s">10 segundos</option>
-      <option value="30s">30 segundos</option>
-      <option value="1m">1 minuto</option>
-      <option value="5m">5 minutos</option>
-      <option value="30m">30 minutos</option>
-      <option value="1h">1 hora</option>
-    </select>
+    <div class="row">
+      <input id="day"
+            type="date"
+            [(ngModel)]="selectedDay"
+            (keyup.enter)="onBuscar()">
+      <button
+        class="btn"
+        type="button"
+        (click)="onBuscar()"
+        [disabled]="isLoading">
+        {{ isLoading ? 'Cargando…' : 'Buscar' }}
+      </button>
+    </div>
 
-    <button
-      class="btn"
-      type="button"
-      (click)="onBuscar()"
-      [disabled]="isLoading">
-      {{ isLoading ? 'Cargando…' : 'Buscar' }}
-    </button>
+    <div class="granularity">
+      <span class="hint-title">Granularidad:</span>
+      <select [(ngModel)]="selectedRange" aria-label="Granularidad" class="control small">
+        <option value="1s">1 segundo</option>
+        <option value="10s">10 segundos</option>
+        <option value="30s">30 segundos</option>
+        <option value="1m">1 minuto</option>
+        <option value="5m">5 minutos</option>
+        <option value="30m">30 minutos</option>
+        <option value="1h">1 hora</option>
+      </select>
+    </div>
   </div>
 
-
-  <!--
-    Leyenda con la fecha actualmente mostrada.
-    - Usa el async pipe para suscribirse a viewingDay$ sin gestionar manualmente la suscripción.
-    - El ng-container evita generar un nodo extra en el DOM.
-    - prettyDay transforma 'YYYY-MM-DD' -> 'DD/MM/YYYY' para presentación.
-  -->
+  <!-- ─────────────────────────────
+       Leyenda: SIEMPRE visible
+  ──────────────────────────────── -->
   <div class="legend">
     @if (viewingDay$ | async; as viewingDay) {
       Mostrando datos para el día <strong>{{ prettyDay(viewingDay) }}</strong>
     }
   </div>
 
-  <!--
-    Gráfico (columna derecha).
-    - app-irradiance-chart es un componente standalone (ApexCharts).
-    - [timeSeries]="true" indica escala temporal en X.
-    - [series] consume el stream series$ (con fallback a []) para evitar undefined.
-  -->
-  <div class="chart">
-    <app-irradiance-chart
-      [timeSeries]="true"
-      [series]="(series$ | async) ?? []">
-    </app-irradiance-chart>
-  </div>
+  <!-- ─────────────────────────────
+       Aviso "sin datos"
+       (ocupa el ancho de ambas columnas)
+  ──────────────────────────────── -->
+  @if ((noData$ | async) && !isLoading && !errorMsg) {
+    <div class="empty-state fullrow">
+      <h3>Sin datos para la fecha seleccionada</h3>
+      <p>No encontramos mediciones ni imágenes. Prueba cambiando la fecha.</p>
+    </div>
+  }
 
-  <!--
-    Galería de imágenes (columna izquierda).
-    - *ngIf="frames$ | async as frames; else cargando" suscribe a frames$ y
-      expone el resultado como 'frames'. Si aún no hay datos, muestra el template #cargando.
-    - app-imagenes-por-hora renderiza fotogramas por hora con controles.
-    - [resetKey]="resetCounter" fuerza re-montaje cuando cambia (útil tras nueva búsqueda).
-    - (frameChange) emite el frame actual hacia el método onFrameChange del componente padre.
-  -->
-  <div class="photos">
-    @if (frames$ | async; as frames) {
-      <app-imagenes-por-hora
-        [frames]="frames"
-        [startIndex]="0"
-        [resetKey]="resetCounter"
-        [autoplay]="false"
-        [intervalMs]="10000"
-        [showHeader]="true"
-        [maxHeight]="320"
-        [ratio]="'16 / 9'"
-        (frameChange)="onFrameChange($event)">
-      </app-imagenes-por-hora>
+  <!-- ─────────────────────────────
+       Contenido principal (solo si hay datos)
+  ──────────────────────────────── -->
+  @if (!(noData$ | async)) {
 
-      <!-- Mensaje vacío: se muestra cuando el arreglo 'frames' llega pero sin elementos -->
-      @if (frames.length === 0) {
-        <div class="hint">No hay imágenes para mostrar.</div>
+    <!-- Gráfico -->
+    <div class="chart">
+      <app-irradiance-chart
+        [timeSeries]="true"
+        [series]="(series$ | async) ?? []">
+      </app-irradiance-chart>
+    </div>
+
+    <!-- Galería de imágenes -->
+    <div class="photos">
+      @if (frames$ | async; as frames) {
+        <app-imagenes-por-hora
+          [frames]="frames"
+          [startIndex]="0"
+          [resetKey]="resetCounter"
+          [autoplay]="false"
+          [intervalMs]="10000"
+          [showHeader]="true"
+          [maxHeight]="320"
+          [ratio]="'16 / 9'"
+          (frameChange)="onFrameChange($event)">
+        </app-imagenes-por-hora>
+
+        @if (frames.length === 0) {
+          <div class="hint">No hay imágenes para mostrar.</div>
+        }
+      } @else {
+        <div class="hint">Cargando imágenes…</div>
       }
-    } @else {
-      <div class="hint">Cargando imágenes…</div>
-    }
-  </div>
+    </div>
+  }
+
+  <!-- ─────────────────────────────
+       Estados globales (opcionales)
+  ──────────────────────────────── -->
+  @if (isLoading) {
+    <div class="loading fullrow">Cargando…</div>
+  }
+  @if (errorMsg) {
+    <div class="error fullrow">{{ errorMsg }}</div>
+  }
 </section>
