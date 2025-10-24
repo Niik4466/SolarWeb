@@ -22,12 +22,12 @@ router = APIRouter()
 # =========================
 
 @router.get("/images", response_model=MinioListResponse)
-def get_images(bucket: str, prefix: str = ""):
+def get_images(bucket: str, prefix: str = "", granularity:str = "1s") -> MinioListResponse:
     """
     Listado clásico (respuesta JSON única).
     """
     try:
-        return list_images(bucket, prefix)
+        return list_images(bucket, prefix, granularity)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
