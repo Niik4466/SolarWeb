@@ -56,6 +56,8 @@ function fillMissingTimestamps(
   stop: number,
   stepMs: number
 ) {
+  if (points.length == 0) return points; // Si esta vacio, se deja tal cual
+
   const filled: { x: number; y: number }[] = [];
   const existing = new Map(points.map(p => [p.x, p.y]));
 
