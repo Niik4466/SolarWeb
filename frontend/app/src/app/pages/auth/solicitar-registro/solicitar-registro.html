@@ -1,0 +1,60 @@
+<div class="reg-container">
+  <form class="reg-card" [formGroup]="form" (ngSubmit)="enviar()" *ngIf="!enviado(); else okTpl">
+    <h1>Solicitar registro</h1>
+
+    <label>Nombre</label>
+    <input type="text" formControlName="nombre" placeholder="Ej. María" />
+
+    <label>Apellido</label>
+    <input type="text" formControlName="apellido" placeholder="Ej. Torres" />
+
+    <label>Correo electrónico</label>
+    <input type="email" formControlName="email" placeholder="usuario@ejemplo.cl" />
+
+    <!-- Contraseña -->
+    <label>Contraseña</label>
+    <input
+    [type]="mostrarPassword() ? 'text' : 'password'"
+    formControlName="password"
+    placeholder="••••••••"
+    />
+
+    <!-- Checkbox mostrar contraseña -->
+    <div class="password-toggle">
+    <input
+        type="checkbox"
+        id="showPass"
+        [checked]="mostrarPassword()"
+        (change)="mostrarPassword.set($event.target.checked)"
+    />
+    <label for="showPass">Mostrar contraseña</label>
+    </div>
+
+
+    <label>Motivo de registro</label>
+    <textarea
+      formControlName="motivo"
+      rows="3"
+      placeholder="Describe brevemente las razones por las que quieres acceder a SolarWeb"
+    ></textarea>
+
+    <button type="submit">Enviar solicitud</button>
+
+    <p class="back">
+      <a routerLink="/login">Volver al inicio de sesión</a>
+    </p>
+  </form>
+
+  <ng-template #okTpl>
+    <div class="reg-card">
+      <h1>¡Solicitud enviada!</h1>
+      <p>
+        Hemos recibido tu solicitud. Te contactaremos al correo indicado cuando el
+        administrador la revise.
+      </p>
+      <p class="back">
+        <a routerLink="/login">Volver al inicio de sesión</a>
+      </p>
+    </div>
+  </ng-template>
+</div>

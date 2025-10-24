@@ -1,12 +1,13 @@
 @use '../../../../styles/colors' as *;
+@use "sass:color";
 
 .footer {
   background: linear-gradient(
-    90deg,
-    darken($color-azul-profundo, 8%) 0%,
-    $color-azul-profundo 45%,
-    darken($color-azul-profundo, 12%) 100%
-  );
+  90deg,
+  color.adjust($color-azul-profundo, $lightness: -8%) 0%,
+  color.adjust($color-azul-profundo, $lightness: -12%) 100%
+);
+
   color: $color-blanco-nieve;
   border-top: 1px solid rgba(255,255,255,.1);
   box-shadow: 0 -2px 12px rgba(0,0,0,.15);
