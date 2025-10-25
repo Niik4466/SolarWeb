@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     MINIO_PASSWORD: str
     MINIO_ENDPOINT: str
 
+    # ==== PostgreSQL ====
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str
+    POSTGRES_DB: str
+    POSTGRES_HOST: str
+    POSTGRES_PORT: str
+
     # ==== API / CORS (opcionales) ====
     API_KEY: Optional[str] = None
     ALLOW_ORIGINS: List[str] = ["*"]

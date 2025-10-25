@@ -6,3 +6,6 @@ minio
 python-dotenv
 pydantic
 pydantic-settings
+pydantic[email]
+SQLAlchemy>=2.0
+psycopg2
