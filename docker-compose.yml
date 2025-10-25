@@ -89,8 +89,7 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
     entrypoint: ["/bin/sh","-c"]
     command: >
-      "psql -h postgres -U ${POSTGRES_USER} -d ${POSTGRES_DB} -v ON_ERROR_STOP=1 -f /migrations/01_schema.sql
-       && echo '✅ Migraciones aplicadas' || (echo '❌ Error en migraciones' && exit 1)"
+      "psql -h postgres -U ${POSTGRES_USER} -d ${POSTGRES_DB} -v ON_ERROR_STOP=1 -f /migrations/01_schema.sql && echo '✅ Migraciones aplicadas' || (echo '❌ Error en migraciones' && exit 1)"
 
   # Uploaders
 
