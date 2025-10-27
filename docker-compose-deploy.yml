@@ -27,6 +27,30 @@ services:
       - .env
     networks:
       - red_taller_software
+    
+  postgres:
+    image: postgres:16
+    container_name: postgres-solarweb
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      PGPORT: 5002
+    ports:
+      - "5002:5002"
+    volumes:
+      - postgresdb:/var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -p 5002"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    
+volumes:
+  postgresdb:
+
 
 # Configuracion de red
 networks:
