@@ -16,6 +16,7 @@ html, body {
   overflow: hidden;
 }
 
+/* ====== CONTENEDOR GENERAL ====== */
 .login-container {
   flex: 1;
   width: 100%;
@@ -28,6 +29,7 @@ html, body {
   background-attachment: fixed;
 }
 
+/* ====== TARJETA DE LOGIN ====== */
 .login-card {
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(8px);
@@ -81,23 +83,29 @@ html, body {
     &:hover {
       background: #014d94;
     }
+
+    &:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
   }
 }
 
+/* ====== ENLACES ====== */
 .login-card .forgot {
   text-align: center;
-  margin-top: .75rem;
+  margin-top: 0.75rem;
 }
 
 .login-card .forgot a {
-  color: #002855;        /* o #fff si prefieres */
+  color: #002855;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
-}
 
-.login-card .forgot a:hover {
-  text-decoration: underline;
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .register {
@@ -117,6 +125,7 @@ html, body {
   }
 }
 
+/* ====== TOGGLE PASSWORD ====== */
 .password-toggle {
   display: flex;
   align-items: center;
@@ -136,4 +145,37 @@ html, body {
     cursor: pointer;
     color: #002855;
   }
+}
+
+/* ====== ALERTA DE ERROR GENERAL ====== */
+.alert.error {
+  background: #fdecea;
+  color: #b71c1c;
+  border: 1px solid #f5c6c6;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  text-align: center;
+  animation: fadeIn 0.3s ease;
+}
+
+/* ====== ERRORES EN CAMPOS ====== */
+.field-error {
+  color: #b00020;
+  font-size: 0.85rem;
+  margin-top: 0.2rem;
+  display: block;
+}
+
+/* Resalta el input cuando hay error */
+input.ng-invalid.ng-touched {
+  border-color: #e53935;
+  background: #fff7f7;
+}
+
+/* ====== ANIMACIÓN SUAVE PARA EL FEEDBACK ====== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
 }

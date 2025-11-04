@@ -2,8 +2,20 @@
   <form class="login-card" [formGroup]="form" (ngSubmit)="onSubmit()">
     <h1>Iniciar sesión</h1>
 
+    <!-- Banner de error general -->
+    <div class="alert error" *ngIf="errorMsg()" aria-live="polite">{{ errorMsg() }}</div>
+
     <label for="email">Correo electrónico</label>
     <input id="email" type="email" formControlName="email" placeholder="usuario@ejemplo.cl" />
+    <small class="field-error" *ngIf="form.get('email')?.touched && form.get('email')?.hasError('required')">
+      El correo es obligatorio.
+    </small>
+    <small class="field-error" *ngIf="form.get('email')?.touched && form.get('email')?.hasError('email')">
+      Formato de correo inválido.
+    </small>
+    <small class="field-error" *ngIf="form.get('email')?.touched && form.get('email')?.hasError('notFound')">
+      No existe una cuenta con ese correo.
+    </small>
 
     <label for="password">Contraseña</label>
     <input
@@ -12,8 +24,14 @@
       formControlName="password"
       placeholder="••••••••"
     />
+    <small class="field-error" *ngIf="form.get('password')?.touched && form.get('password')?.hasError('required')">
+      La contraseña es obligatoria.
+    </small>
+    <small class="field-error" *ngIf="form.get('password')?.touched && form.get('password')?.hasError('invalid')">
+      Contraseña incorrecta.
+    </small>
 
-    <!-- 👇 Checkbox mostrar contraseña -->
+    <!-- Mostrar contraseña -->
     <div class="password-toggle">
       <input
         type="checkbox"
@@ -24,7 +42,9 @@
       <label for="showPass">Mostrar contraseña</label>
     </div>
 
-    <button type="submit">Ingresar</button>
+    <button type="submit" [disabled]="loading()">
+      {{ loading() ? 'Ingresando...' : 'Ingresar' }}
+    </button>
 
     <p class="forgot">
       <a routerLink="/forgot-password">¿Olvidaste tu contraseña?</a>

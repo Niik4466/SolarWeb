@@ -40,9 +40,8 @@ class UsuarioOut(UsuarioBase):
     creado_en: datetime
     actualizado_en: datetime
     aprobado_en: Optional[datetime] = None
+    model_config = {"from_attributes": True}
 
-    class Config:
-        orm_mode = True
 
 
 # --- SOLICITUD ---
@@ -58,9 +57,8 @@ class SolicitudOut(SolicitudBase):
     id: int
     usuario_id: int
     creado_en: datetime
+    model_config = {"from_attributes": True}
 
-    class Config:
-        orm_mode = True
 
 
 # --- TRANSACCION ---
@@ -101,7 +99,5 @@ class UsuarioEliminacionLogOut(UsuarioEliminacionLogBase):
     usuario_id: int
     eliminado_por_id: int
     eliminado_en: datetime
-
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
