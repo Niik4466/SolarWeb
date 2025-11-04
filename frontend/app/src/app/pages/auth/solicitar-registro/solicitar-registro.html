@@ -88,3 +88,12 @@
     <button type="button" routerLink="/login" class="modal-primary">Volver a inicio</button>
   </div>
 </div>
+
+<!-- Mensaje de error general -->
+<div class="error" *ngIf="mostrandoError()">
+  {{ mostrandoError() }}
+</div>
+
+<button type="submit" [disabled]="loading() || form.invalid">
+  {{ loading() ? 'Enviando…' : 'Enviar solicitud' }}
+</button>

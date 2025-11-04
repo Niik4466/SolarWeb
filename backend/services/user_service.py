@@ -35,7 +35,7 @@ def update_user_power_query(db: Session, admin: bool, user: Usuario):
     """
     Actualiza el rol del usuario, si es admin o no.
     """
-    user.es_admin = True
+    user.es_admin = bool(admin)  # 👈 usar el parámetro
     db.add(user)
     db.commit()
     db.refresh(user)

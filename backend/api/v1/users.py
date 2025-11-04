@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 from db.postgres import get_db
 from services.user_service import *
 from schemas.user import *
 
 router = APIRouter(prefix="/users", tags=["users"])
-
+    
 @router.get("/")
 def list_users(db: Session = Depends(get_db)):
     """

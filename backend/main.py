@@ -29,8 +29,9 @@ app.add_middleware(
 app.include_router(irradiance.router)
 app.include_router(images.router)
 app.include_router(export.router)
-app.include_router(users.router)
+app.include_router(users.router, prefix="/api/v1")
 
 @app.get("/")
 def root():
     return {"message": "Solar API is running"}
+
