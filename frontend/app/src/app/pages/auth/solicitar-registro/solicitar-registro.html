@@ -1,43 +1,75 @@
 <div class="reg-container">
-  <form class="reg-card" [formGroup]="form" (ngSubmit)="enviar()" *ngIf="!enviado(); else okTpl">
+  <form class="reg-card" [formGroup]="form" (ngSubmit)="enviar()">
     <h1>Solicitar registro</h1>
 
+    <!-- Nombre -->
     <label>Nombre</label>
     <input type="text" formControlName="nombre" placeholder="Ej. María" />
+    <div class="error" *ngIf="form.get('nombre')?.touched && form.get('nombre')?.invalid">
+      <small *ngIf="form.get('nombre')?.errors?.['required']">El nombre es obligatorio.</small>
+    </div>
 
+    <!-- Apellido -->
     <label>Apellido</label>
     <input type="text" formControlName="apellido" placeholder="Ej. Torres" />
+    <div class="error" *ngIf="form.get('apellido')?.touched && form.get('apellido')?.invalid">
+      <small *ngIf="form.get('apellido')?.errors?.['required']">El apellido es obligatorio.</small>
+    </div>
 
+    <!-- Email -->
     <label>Correo electrónico</label>
     <input type="email" formControlName="email" placeholder="usuario@ejemplo.cl" />
+    <div class="error" *ngIf="form.get('email')?.touched && form.get('email')?.invalid">
+      <small *ngIf="form.get('email')?.errors?.['required']">El correo es obligatorio.</small>
+      <small *ngIf="form.get('email')?.errors?.['email']">Formato de correo inválido.</small>
+    </div>
 
-    <!-- Contraseña -->
+    <!-- Password -->
     <label>Contraseña</label>
     <input
-    [type]="mostrarPassword() ? 'text' : 'password'"
-    formControlName="password"
-    placeholder="••••••••"
+      [type]="mostrarPassword() ? 'text' : 'password'"
+      formControlName="password"
+      placeholder="••••••••"
     />
+    <div class="error" *ngIf="form.get('password')?.touched && form.get('password')?.invalid">
+      <small *ngIf="form.get('password')?.errors?.['required']">La contraseña es obligatoria.</small>
+      <small *ngIf="form.get('password')?.errors?.['minlength']">Debe tener al menos 8 caracteres.</small>
+    </div>
 
-    <!-- Checkbox mostrar contraseña -->
+    <!-- Mostrar contraseña -->
     <div class="password-toggle">
-    <input
+      <input
         type="checkbox"
         id="showPass"
         [checked]="mostrarPassword()"
         (change)="mostrarPassword.set($event.target.checked)"
-    />
-    <label for="showPass">Mostrar contraseña</label>
+      />
+      <label for="showPass">Mostrar contraseña</label>
     </div>
 
+    <!-- Motivo -->
+  <label>Motivo de registro (Mínimo 150 carácteres)</label>
+  <textarea
+    formControlName="motivo"
+    rows="4"
+    maxlength="1000"
+    placeholder="Describe brevemente las razones por las que quieres acceder a SolarWeb"
+  ></textarea>
 
-    <label>Motivo de registro</label>
-    <textarea
-      formControlName="motivo"
-      rows="3"
-      placeholder="Describe brevemente las razones por las que quieres acceder a SolarWeb"
-    ></textarea>
+  <!-- Contador en vivo -->
+  <div class="helper">
+    <small>
+      {{ motivoLen }} / 1000
+      
+    </small>
+  </div>
 
+  <!-- Errores -->
+  <div class="error" *ngIf="motivoCtrl.touched && motivoCtrl.invalid">
+    <small *ngIf="motivoCtrl.errors?.['required']">El motivo es obligatorio.</small>
+    <small *ngIf="motivoCtrl.errors?.['minlength']">Debe tener al menos 150 caracteres.</small>
+    <small *ngIf="motivoCtrl.errors?.['maxlength']">Máximo 1000 caracteres.</small>
+  </div>
     <button type="submit">Enviar solicitud</button>
 
     <p class="back">
@@ -45,16 +77,14 @@
     </p>
   </form>
 
-  <ng-template #okTpl>
-    <div class="reg-card">
-      <h1>¡Solicitud enviada!</h1>
-      <p>
-        Hemos recibido tu solicitud. Te contactaremos al correo indicado cuando el
-        administrador la revise.
-      </p>
-      <p class="back">
-        <a routerLink="/login">Volver al inicio de sesión</a>
-      </p>
-    </div>
-  </ng-template>
+  <!-- Modal -->
+  <div class="modal-backdrop" *ngIf="enviado()"></div>
+  <div class="modal" *ngIf="enviado()">
+    <h2>Solicitud enviada</h2>
+    <p>
+      Su solicitud ha sido enviada exitosamente. Recibirá una respuesta por correo en un tiempo
+      estimado de 1 semana.
+    </p>
+    <button type="button" routerLink="/login" class="modal-primary">Volver a inicio</button>
+  </div>
 </div>

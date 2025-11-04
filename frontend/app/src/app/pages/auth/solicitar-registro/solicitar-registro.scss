@@ -136,3 +136,84 @@ html, body {
     padding: 1.8rem 1.5rem;
   }
 }
+
+
+/* Backdrop oscuro */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;                 /* top:0; right:0; bottom:0; left:0 */
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;            /* por encima del contenido */
+}
+
+/* Caja modal */
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  width: min(92vw, 420px);
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.35);
+  z-index: 1001;            /* por encima del backdrop */
+
+  padding: 1.25rem 1.25rem 1rem;
+  display: grid;
+  gap: .75rem;
+  text-align: center;
+
+  h2 {
+    margin: 0 0 .25rem;
+    font-size: 1.25rem;
+    color: #002855;         /* azul SolarWeb */
+  }
+
+  p {
+    margin: 0 0 .5rem;
+    color: #333;
+    line-height: 1.4;
+    font-size: .95rem;
+  }
+
+  .modal-primary {
+    background: #002855;
+    color: #fff;
+    border: 0;
+    border-radius: 10px;
+    padding: .6rem .9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s;
+  }
+  .modal-primary:hover {
+    background: #014d94;
+  }
+}
+
+.error {
+  color: #d60000;
+  font-size: 0.8rem;
+  margin-top: -0.4rem;
+}
+
+.helper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -0.3rem;
+  small {
+    color: #666;
+    font-size: 0.85rem;
+  }
+}
+
+.error {
+  color: #d60000;
+  font-size: 0.8rem;
+  margin-top: -0.2rem;
+}
+
+textarea.ng-touched.ng-invalid {
+  border-color: #d60000;
+}

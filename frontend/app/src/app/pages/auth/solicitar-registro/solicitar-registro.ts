@@ -16,20 +16,24 @@ export class SolicitarRegistroComponent {
   mostrarPassword = signal(false); // 👈 para alternar la visibilidad de la contraseña
 
   form = this.fb.group({
-    nombre: ['', [Validators.required, Validators.minLength(3)]],
-    apellido: ['', [Validators.required, Validators.minLength(3)]],
+    nombre: ['', [Validators.required]],
+    apellido: ['', [Validators.required]],
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(6)]],
-    motivo: [''],
+    password: ['', [Validators.required, Validators.minLength(8)]], // 👈 Largo mínimo 8
+    motivo: ['', [Validators.required, Validators.minLength(150), Validators.maxLength(1000)]],  // 👈 También obligatorio
   });
-
+  // Helpers para el contador
+  get motivoCtrl() { return this.form.get('motivo')!; }
+  get motivoLen()  { return (this.motivoCtrl.value || '').length; }
+  
   enviar() {
     if (this.form.invalid) {
-      this.form.markAllAsTouched();
+      this.form.markAllAsTouched(); // Muestra errores si hay campos vacíos o inválidos
+      console.warn('Formulario inválido:', this.form.errors, this.form.value);
       return;
     }
 
-    console.log('Datos enviados:', this.form.value);
-    this.enviado.set(true);
+    console.log('Datos enviados correctamente:', this.form.value);
+    this.enviado.set(true); // ✅ Muestra el modal
   }
 }
