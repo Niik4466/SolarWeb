@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.v1 import irradiance, images, export, users
+from api.v1 import irradiance, images, export, users, mail
 
 app = FastAPI(title="Solar API", version="1.0.0")
 
@@ -29,7 +29,8 @@ app.add_middleware(
 app.include_router(irradiance.router)
 app.include_router(images.router)
 app.include_router(export.router)
-app.include_router(users.router, prefix="/api/v1")
+app.include_router(users.router)
+app.include_router(mail.router)
 
 @app.get("/")
 def root():

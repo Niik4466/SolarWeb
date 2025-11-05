@@ -1,3 +1,4 @@
+# backend/services/irradiance_service.py
 # Como funciona:
 # - arma la consulta Flux
 # - ejecuta contra Influx (usando db/query_flux)

@@ -14,7 +14,7 @@ import zipfile
 from minio import Minio
 from minio.error import S3Error
 
-router = APIRouter(prefix="/api/v1", tags=["export"])
+router = APIRouter(prefix="/export", tags=["export"])
 
 MEASUREMENT = "radiacion_solar"          # según tu punto (3)
 VALID_FIELDS = {"GHI", "DNI", "DHI"}

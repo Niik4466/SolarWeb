@@ -15,7 +15,7 @@ from services.image_service import (
 )
 from schemas.image import MinioListResponse
 
-router = APIRouter()
+router = APIRouter(prefix="/images", tags=["images"])
 
 # =========================
 # Endpoints existentes

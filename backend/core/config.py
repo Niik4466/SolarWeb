@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str
     POSTGRES_PORT: str
 
+    # ==== PostgreSQL ====
+    RESEND_API_KEY: str
+    RESEND_FROM: str
+
     # ==== API / CORS (opcionales) ====
     API_KEY: Optional[str] = None
     ALLOW_ORIGINS: List[str] = ["*"]

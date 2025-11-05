@@ -1,3 +1,4 @@
+# backend/api/v1/irradiance.py
 # El router define la URL y recibe parámetros.
 # SOLO delega al service; no toca la BD directamente.
 
@@ -5,7 +6,7 @@ from fastapi import APIRouter, Query
 from schemas.irradiance import SeriesOut, FieldName
 from services.irradiance_service import get_series
 
-router = APIRouter(prefix="/api/v1/irradiance", tags=["irradiance"])
+router = APIRouter(prefix="/irradiance", tags=["irradiance"])
 
 @router.get("", response_model=SeriesOut)
 def read_irradiance(

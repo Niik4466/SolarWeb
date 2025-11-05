@@ -9,3 +9,4 @@ pydantic-settings
 pydantic[email]
 SQLAlchemy>=2.0
 psycopg2
+resend
