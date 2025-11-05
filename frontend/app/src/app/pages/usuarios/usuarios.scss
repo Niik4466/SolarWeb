@@ -1,0 +1,110 @@
+.contenedor { padding: 1rem; }
+h1 {
+  margin: 0 0 .75rem;
+  text-align: left;
+  width: 90%;          /* igual que la tabla */
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+
+.toolbar {
+  margin-bottom: .8rem;
+  input {
+    width: 100%;
+    padding: .55rem .7rem;
+    border: 1px solid #d7dbe3;
+    border-radius: .6rem;
+  }
+}
+
+.tabla-wrapper { display: flex;
+  justify-content: center; }
+
+.tabla {
+  width: 90%;
+  max-width: 1200px;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: .75rem;
+  overflow: hidden;
+  box-shadow: 0 1px 8px rgba(0,0,0,.06);
+
+  th, td { padding: .6rem .75rem; border-bottom: 1px solid #eee; }
+  thead th { text-align: left; background: #e8f0ff; color: #23324a; font-weight: 600; }
+  tbody tr:hover { background: #fafafa; }
+  .cent { text-align: center; width: 96px; }
+  .vacio { text-align: center; color: #777; }
+}
+.tabla.compacta th, .tabla.compacta td { padding: .45rem .6rem; }
+
+.icono {
+  border: 1px solid rgba(0,0,0,.1);
+  width: 32px; height: 32px; border-radius: 50%;
+  display: inline-grid; place-items: center;
+  background: #fff; cursor: pointer;
+  &:hover { background: #f3f6fb; }
+  &.rojo { color: #c62828; border-color: rgba(198,40,40,.25); }
+}
+.mini {
+  padding: .25rem .5rem; border-radius: .5rem; border: 1px solid #ddd; background: #fff;
+  &.rojo { color: #c62828; border-color: rgba(198,40,40,.3); }
+}
+
+.eliminados { margin-top: 1rem; }
+button.ghost { background: #fff; border: 1px dashed #bbb; padding: .6rem .9rem; border-radius: .75rem; }
+
+.modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,.35);
+  display: grid; place-items: center; z-index: 1000;
+}
+.modal-card {
+  width: auto;
+  max-width: 90vw;
+  background: #fff;
+  border-radius: 1rem;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  display: inline-block;
+}
+.modal-card table {
+  margin: 0 auto;
+  width: auto;
+  min-width: 600px; /* opcional: asegura que no se comprima demasiado */
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .9rem 1rem; border-bottom: 1px solid #eee; background: #f8fafc;
+  h2 { margin: 0; font-size: 1.1rem; }
+}
+
+.modal-card.confirm { width: min(520px, 92vw); }
+.modal-body { padding: 1rem; line-height: 1.45; }
+.modal-actions {
+  display: flex; justify-content: flex-end; gap: .5rem;
+  padding: 0 1rem 1rem;
+}
+.btn {
+  padding: .5rem .9rem; border: 1px solid #dcdcdc; background: #fff; border-radius: .6rem; cursor: pointer;
+}
+.btn.peligro {
+  border-color: rgba(198,40,40,.35);
+  color: #fff; background: #c62828;
+}
+.btn.peligro:hover { filter: brightness(.96); }
+.modal-card.confirm { width: min(520px, 92vw); z-index: 1200; }
+/* ya tienes .tabla centrada; ahora iguala el bloque del botón */
+.eliminados {
+  width: 90%;
+  max-width: 1200px;
+  margin: 1rem auto 0;        /* centra el bloque y alinea con la tabla */
+  display: flex;
+  justify-content: flex-start; 
+}
+/* sólo para el modal de historial */
+.modal-card.confirm {
+  width: min(760px, 94vw);   /* antes: 520px */
+  /* si lo prefieres dinámico: max-width en lugar de width */
+  /* max-width: 94vw; width: auto; */
+}

@@ -5,6 +5,7 @@ import { SolicitarRegistroComponent } from './pages/auth/solicitar-registro/soli
 import { LoginComponent } from './pages/auth/login/login'; 
 import { ForgotPasswordComponent } from './pages/auth/forgot-password/forgot-password'; 
 import { SolicitudesComponent } from './pages/solicitudes/solicitudes'; 
+import { UsuariosComponent } from './pages/usuarios/usuarios';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'login' },
@@ -14,5 +15,6 @@ export const routes: Routes = [
   { path: 'graficos', component: GraficosComponent },
   { path: 'exportar', component: ExportarPage },   // <-- nueva ruta
   { path: 'solicitudes', component: SolicitudesComponent },
+  { path: 'usuarios', component: UsuariosComponent },
   { path: '**', redirectTo: 'login' }
 ];
