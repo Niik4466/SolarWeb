@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
-const API = 'http://localhost:8000/api/v1/users'; // ajusta si cambia
+const API = 'http://localhost:8000/users'; // ajusta si cambia
 
 export interface SolicitudRegistroForm {
   nombre: string;
