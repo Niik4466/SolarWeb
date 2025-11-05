@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from db.postgres import get_db
 from services.user_service import *
 from schemas.user import *
+from models.user import Usuario, Solicitud
 
 router = APIRouter(prefix="/users", tags=["users"])
     
@@ -82,3 +83,44 @@ def approve_user(user_id: int, admin: bool, db: Session = Depends(get_db)):
     updated_user = approve_user_query(db, user=user, admin=admin)
     return {"msg": "Usuario aprobado", "user": updated_user}
 
+@router.get("/pending_with_solicitudes")
+def pending_with_solicitudes(db: Session = Depends(get_db)):
+    """
+    Devuelve todos los usuarios en estado 'pendiente' con su última solicitud (si existe).
+    Estructura: { total, data: [ {id, correo, nombre, apellido, estado, justificacion, creado_en} ] }
+    """
+    usuarios = db.query(Usuario).filter(Usuario.estado == UsuarioEstado.pendiente).all()
+    if not usuarios:
+        return {"total": 0, "data": []}
+
+    ids = [u.id for u in usuarios]
+
+    # Trae todas las solicitudes de esos usuarios, ordenadas por fecha DESC
+    solicitudes = (
+        db.query(Solicitud)
+        .filter(Solicitud.usuario_id.in_(ids))
+        .order_by(Solicitud.usuario_id, Solicitud.creado_en.desc())
+        .all()
+    )
+
+    # Nos quedamos con la última por usuario
+    last_by_user = {}
+    for s in solicitudes:
+        if s.usuario_id not in last_by_user:
+            last_by_user[s.usuario_id] = s
+
+    data = []
+    for u in usuarios:
+        s = last_by_user.get(u.id)
+        data.append({
+            "id": u.id,
+            "correo": u.correo,
+            "nombre": u.nombre,
+            "apellido": u.apellido,
+            "estado": u.estado.value if hasattr(u.estado, "value") else u.estado,
+            "justificacion": (s.justificacion if s else None),
+            # preferimos la fecha de la solicitud si existe; si no, la creación del usuario
+            "creado_en": (s.creado_en.isoformat() if s and s.creado_en else (u.creado_en.isoformat() if u.creado_en else None)),
+        })
+
+    return {"total": len(data), "data": data}
