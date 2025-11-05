@@ -38,7 +38,78 @@ const SEED: Solicitud[] = [
     correo: 'valentina.soto@alumnos.uach.cl',
     justificacion: 'Comparar con mediciones in situ.',
     fecha: '2025-11-03'
+  },
+  {
+    id: '5',
+    nombre: 'Ignacio Rivas Paredes',
+    correo: 'ignacio.rivas@alumnos.uach.cl',
+    justificacion: 'Requiero acceso a los registros horarios de radiación GHI y DHI para calibrar un modelo de predicción de generación fotovoltaica en tiempo real, como parte del curso de Energías Renovables II. Los datos se integrarán a un simulador que compara la generación esperada versus la medida, con el objetivo de validar su precisión bajo condiciones atmosféricas variables.',
+    fecha: '2025-11-04'
+  },
+  {
+    id: '6',
+    nombre: 'Constanza Muñoz Araya',
+    correo: 'constanza.munoz@alumnos.uach.cl',
+    justificacion: 'Necesito información histórica de irradiancia y temperatura ambiente para analizar su influencia sobre los rendimientos de distintos tipos de inversores solares. Este análisis será incluido en un artículo académico sobre eficiencia energética distribuida.',
+    fecha: '2025-11-04'
+  },
+  {
+    id: '7',
+    nombre: 'Diego Paredes Olivares',
+    correo: 'diego.paredes@alumnos.uach.cl',
+    justificacion: 'Solicito los datos diarios de radiación solar y nubosidad con el fin de complementar un proyecto de modelación de energía disponible para calefacción solar pasiva en viviendas del sur de Chile. Los resultados se utilizarán para optimizar el diseño de estructuras con orientación norte.',
+    fecha: '2025-11-05'
+  },
+  {
+    id: '8',
+    nombre: 'María Fernanda Vásquez',
+    correo: 'maria.vasquez@uach.cl',
+    justificacion: 'Como asistente de investigación del Laboratorio de Energías Renovables, necesito acceder a los registros de irradiancia del último trimestre para revisar la consistencia de los sensores y preparar el informe semestral del proyecto Fondecyt 11220709.',
+    fecha: '2025-11-05'
+  },
+  {
+    id: '9',
+    nombre: 'Tomás Reyes Leiva',
+    correo: 'tomas.reyes@alumnos.uach.cl',
+    justificacion: 'Estoy desarrollando una aplicación educativa que muestra datos de radiación solar en tiempo real. Solicito acceso de solo lectura al dataset de irradiancia horaria y temperatura ambiente para integrarlo mediante la API pública de SolarWeb.',
+    fecha: '2025-11-05'
+  },
+  {
+    id: '10',
+    nombre: 'Camila Arancibia Soto',
+    correo: 'camila.arancibia@alumnos.uach.cl',
+    justificacion: 'Requiero los registros de radiación de los meses de junio a septiembre para realizar un análisis de estacionalidad y sombreado, como parte de un trabajo práctico de Análisis de Datos Ambientales. La información será usada únicamente con fines educativos.',
+    fecha: '2025-11-06'
+  },
+  {
+    id: '11',
+    nombre: 'Rodrigo Díaz Vergara',
+    correo: 'rodrigo.diaz@uach.cl',
+    justificacion: 'Solicito acceso completo a los datos diarios de irradiancia y humedad relativa para validar un modelo meteorológico WRF en desarrollo en el Instituto de Ciencias Ambientales y Evolutivas.',
+    fecha: '2025-11-06'
+  },
+  {
+    id: '12',
+    nombre: 'Isidora Contreras Alarcón',
+    correo: 'isidora.contreras@alumnos.uach.cl',
+    justificacion: 'Necesito datos de radiación y temperatura superficial para elaborar un estudio comparativo entre días despejados y nublados, en el contexto de mi memoria sobre predicción de energía solar con redes neuronales.',
+    fecha: '2025-11-07'
+  },
+  {
+    id: '13',
+    nombre: 'Sebastián Navarro Lagos',
+    correo: 'sebastian.navarro@alumnos.uach.cl',
+    justificacion: 'Requiero información histórica de irradiancia global para desarrollar una herramienta visual en Python que permita observar patrones de radiación a lo largo del año en la Región de Los Ríos.',
+    fecha: '2025-11-07'
+  },
+  {
+    id: '14',
+    nombre: 'Andrea Castillo Moraga',
+    correo: 'andrea.castillo@uach.cl',
+    justificacion: 'Como docente de la Facultad de Ciencias de la Ingeniería, solicito acceso temporal a la base de datos de irradiancia y temperatura superficial para utilizarla en actividades prácticas del ramo Energías Sustentables.',
+    fecha: '2025-11-07'
   }
+
 ];
 
 
