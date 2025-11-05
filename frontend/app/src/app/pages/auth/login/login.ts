@@ -5,7 +5,11 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Router } from '@angular/router';
 
-type LoginResponse = { success: boolean };
+type LoginResponse = {
+  success: boolean;
+  estado?: 'aprobado' | 'pendiente' | 'eliminado' | string | null;
+  message?: string; // opcional si el backend lo envía
+};
 
 export const environment = {
   production: false,
@@ -23,7 +27,6 @@ export class LoginComponent {
   private fb = inject(FormBuilder);
   private http = inject(HttpClient);
   private router = inject(Router);
-
 
   mostrarPassword = signal(false);
 
@@ -45,7 +48,6 @@ export class LoginComponent {
 
     const { email, password } = this.form.value as { email: string; password: string };
 
-    // Tu backend expone GET /users/log-in con query params
     const params = new HttpParams().set('email', email).set('password', password);
 
     this.loading.set(true);
@@ -54,13 +56,31 @@ export class LoginComponent {
       .subscribe({
         next: (res) => {
           this.loading.set(false);
-          if (res.success) {
-            // Guarda un flag simple (hasta que agreguen JWT)
+
+          // Caso de éxito (solo si estado aprobado)
+          if (res.success && res.estado == 'aprobado') {
             localStorage.setItem('isLoggedIn', 'true');
             localStorage.setItem('userEmail', email);
-            this.router.navigateByUrl('/graficos'); // o la ruta que corresponda
-          } else {
-            this.errorMsg.set('Credenciales inválidas o usuario no aprobado.');
+            this.router.navigateByUrl('/graficos');
+            return;
+          }
+
+          // Mensajes específicos según estado
+          switch (res.estado) {
+            case 'pendiente':
+              this.errorMsg.set('Su solicitud sigue en estado de espera en aprobación.');
+              break;
+            case 'eliminado':
+              this.errorMsg.set('Su solicitud ha sido rechazada.');
+              break;
+            case 'aprobado':
+              // Por si viniera success=false con estado aprobado (no debería)
+              this.errorMsg.set('No se pudo iniciar sesión. Intente nuevamente.');
+              break;
+            default:
+              // Usuario no existe o contraseña incorrecta
+              this.errorMsg.set('Credenciales inválidas.');
+              break;
           }
         },
         error: (err) => {

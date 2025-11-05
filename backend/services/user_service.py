@@ -54,21 +54,25 @@ def approve_user_query(db: Session, user: Usuario, admin: bool):
 
     return user
 
-def user_login_query(db: Session, email:str, password:str) -> bool:
-    """
-    Valida que un usuario exista y sea correcto para logearse en la pagina web
-    """
+def user_login_query(db: Session, email: str, password: str) -> dict:
     usuario = get_user_by_email_query(db, email)
     if not usuario:
-        return False
+        return {"success": False, "estado": None, "message": "credenciales invalidas"}
 
+    # TODO: reemplazar por bcrypt.verify en producción
     if usuario.password_hash != password:
-        return False
+        return {"success": False, "estado": None, "message": "credenciales invalidas"}
 
-    if usuario.estado != "aprobado":
-        return False
+    estado = getattr(usuario.estado, "value", usuario.estado)  # Enum -> str
 
-    return True
+    if estado == "aprobado":
+        return {"success": True, "estado": "aprobado", "message": "ok"}
+    if estado == "pendiente":
+        return {"success": False, "estado": "pendiente", "message": "su solicitud sigue en estado de espera en aprobacion"}
+    if estado == "eliminado":
+        return {"success": False, "estado": "eliminado", "message": "su solicitud ha sido rechazada"}
+
+    return {"success": False, "estado": estado, "message": "estado no permitido para login"}
 
 def get_users_by_status_query(db: Session, status: str = "aprobado"):
     """

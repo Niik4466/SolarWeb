@@ -36,11 +36,7 @@ def create_user(usuario: UsuarioCreate, db: Session = Depends(get_db)):
 
 @router.get("/log-in")
 def user_login(email: str, password: str, db: Session = Depends(get_db)):
-    """
-    Valida que un usuario exista y sea correcto para logearse en la pagina web
-    """
-    result = user_login_query(db, email, password)
-    return {"success": result}
+    return user_login_query(db, email, password)
 
 @router.put("/update_status/{user_id}")
 def update_user_status(user_id: int, data: UsuarioEstadoActualizar, db: Session = Depends(get_db)):
