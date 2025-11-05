@@ -1,8 +1,7 @@
 @use '../../../../styles/colors' as *;
 @use "sass:color";
 
-.footer {
-  position: fixed;    /* 👈 clave */
+.footer {   /* 👈 clave */
   left: 0;
   right: 0;
   bottom: 0;
