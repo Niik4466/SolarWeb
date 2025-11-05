@@ -1,17 +1,19 @@
-@use '../styles/colors' as *;
-
-body {
+html, body {
+  height: 100%;
   margin: 0;
-  font-family: 'Inter', sans-serif;
-  background-color: $color-gris-claro;
-  color: $color-gris-oscuro;
 }
 
-h1, h2, h3 { color: $color-azul-profundo; }
-
-a {
-  color: $color-azul-profundo;
-  text-decoration: none;
-  &:hover { text-decoration: underline; }
+app-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
+main.container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - var(--nav-h)); /* asegura ocupar el espacio restante */
+  box-sizing: border-box;
+  padding-bottom: 64px; /* opcional */
+}

@@ -1,0 +1,96 @@
+<div class="wrap">
+  <h1>Solicitudes</h1>
+
+  <div class="card">
+    <table class="tabla">
+      <thead>
+        <tr>
+          <th>Nombre solicitante</th>
+          <th>Correo</th>
+          <th>Justificación</th>
+          <th style="width:120px;">Acciones</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr *ngFor="let s of solicitudes()">
+          <td [attr.data-label]="'Nombre solicitante'">
+            <span class="val">{{ s.nombre }}</span>
+          </td>
+
+          <td class="email" [attr.data-label]="'Correo'">
+            <span class="val">{{ s.correo }}</span>
+          </td>
+
+
+          <td class="just" [attr.data-label]="'Justificación'">
+            
+            <button type="button" class="btn-ver" (click)="abrirJustificacion(s)">Ver</button>
+          </td>
+
+          <td class="acciones" [attr.data-label]="'Acciones'">
+            <button class="btn-rechazar" (click)="abrirRechazar(s)" title="Rechazar">✖</button>
+            <button class="btn-aprobar"  (click)="abrirAprobar(s)"  title="Aprobar">✔</button>
+          </td>
+        </tr>
+
+        <tr *ngIf="solicitudes().length === 0">
+          <td colspan="4" class="empty">No hay solicitudes pendientes.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Backdrop y modales (igual que ya tienes)… -->
+  <div class="backdrop" *ngIf="accion() || verJust()"></div>
+
+  <!-- Modal de aprobar/rechazar -->
+  <div class="modal" *ngIf="accion()">
+    <button class="close" (click)="cerrarModal()" aria-label="Cerrar">×</button>
+
+    <ng-container *ngIf="accion()==='aprobar'; else rejTpl">
+      <h2>Confirmar otorgamiento de acceso</h2>
+      <p>¿Está seguro de conceder acceso a <strong>{{ sel()?.nombre }}</strong>?</p>
+
+      <p class="label">Tipo de permiso:</p>
+      <label class="radio">
+        <input type="radio" name="role" [checked]="rol()==='admin'" (change)="rol.set('admin')" />
+        Administrador
+      </label>
+      <label class="radio">
+        <input type="radio" name="role" [checked]="rol()==='user'" (change)="rol.set('user')" />
+        Usuario estándar
+      </label>
+
+      <div class="modal-actions">
+        <button class="ok" (click)="confirmar()">Confirmar</button>
+        <button class="cancel" (click)="cerrarModal()">Cancelar</button>
+      </div>
+    </ng-container>
+
+    <ng-template #rejTpl>
+      <h2>Confirmar denegación</h2>
+      <p>¿Está seguro de que desea <strong>denegar</strong> el acceso a <strong>{{ sel()?.nombre }}</strong>?</p>
+
+      <div class="modal-actions">
+        <button class="ok danger" (click)="confirmar()">Sí, denegar</button>
+        <button class="cancel" (click)="cerrarModal()">Cancelar</button>
+      </div>
+    </ng-template>
+  </div>
+
+  <!-- Modal de justificación completa -->
+  <div class="modal" *ngIf="verJust()">
+    <button class="close" (click)="cerrarJustificacion()" aria-label="Cerrar">×</button>
+    <h2>Nombre: {{ justSel()?.nombre }}</h2>
+    <p class="muted">Correo: {{ justSel()?.correo }}</p>
+    <h3>Justificación: </h3>
+    <div class="just-body">
+      {{ justSel()?.justificacion }}
+    </div>
+
+    <div class="modal-actions">
+      <button class="ok" (click)="cerrarJustificacion()">Cerrar</button>
+    </div>
+  </div>
+</div>
