@@ -1,7 +1,14 @@
 // solicitar-registro.component.ts
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import {
+  FormBuilder,
+  Validators,
+  AbstractControl,
+  ValidationErrors,
+  ValidatorFn,
+  ReactiveFormsModule,
+} from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { RegistroService } from '../../../services/registro.service'; // ruta real
 import { HttpErrorResponse } from '@angular/common/http';
@@ -20,19 +27,45 @@ export class SolicitarRegistroComponent {
   mostrandoError = signal<string | null>(null);
   loading = signal(false);
   mostrarPassword = signal(false);
+  private static match =
+    (a: string, b: string, key: string): ValidatorFn =>
+    (g: AbstractControl): ValidationErrors | null => {
+      const v1 = g.get(a)?.value ?? '';
+      const v2 = g.get(b)?.value ?? '';
+      return v1 && v2 && v1 !== v2 ? { [key]: true } : null;
+    };
 
-  form = this.fb.group({
-    nombre: ['', [Validators.required]],
-    apellido: ['', [Validators.required]],
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(8)]],
-    motivo: ['', [Validators.required, Validators.minLength(150), Validators.maxLength(1000)]],
-  });
+  form = this.fb.group(
+    {
+      nombre: ['', [Validators.required]],
+      apellido: ['', [Validators.required]],
+      email: ['', [Validators.required, Validators.email]],
+      confirmEmail: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(8)]],
+      confirmPassword: ['', [Validators.required]],
+      motivo: [
+        '',
+        [Validators.required, Validators.minLength(150), Validators.maxLength(1000)],
+      ],
+    },
+    {
+      validators: [
+        SolicitarRegistroComponent.match('email', 'confirmEmail', 'emailMismatch'),
+        SolicitarRegistroComponent.match('password', 'confirmPassword', 'passwordMismatch'),
+      ],
+    }
+  );
 
   constructor(private registroSrv: RegistroService) {}
 
   get motivoCtrl() { return this.form.get('motivo')!; }
   get motivoLen()  { return (this.motivoCtrl.value || '').length; }
+  get emailMismatch() {
+    return this.form.hasError('emailMismatch');
+  }
+  get passwordMismatch() {
+    return this.form.hasError('passwordMismatch');
+  }
 
   enviar() {
     this.mostrandoError.set(null);

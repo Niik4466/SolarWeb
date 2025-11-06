@@ -24,6 +24,14 @@
       <small *ngIf="form.get('email')?.errors?.['email']">Formato de correo inválido.</small>
     </div>
 
+    <!-- Confirmar correo -->
+    <label>Confirmar correo electrónico</label>
+    <input type="email" formControlName="confirmEmail" placeholder="Repite tu correo" />
+    <div class="error" *ngIf="form.get('confirmEmail')?.touched && emailMismatch">
+      <small>Los correos no coinciden.</small>
+    </div>
+    
+    
     <!-- Password -->
     <label>Contraseña</label>
     <input
@@ -34,6 +42,16 @@
     <div class="error" *ngIf="form.get('password')?.touched && form.get('password')?.invalid">
       <small *ngIf="form.get('password')?.errors?.['required']">La contraseña es obligatoria.</small>
       <small *ngIf="form.get('password')?.errors?.['minlength']">Debe tener al menos 8 caracteres.</small>
+    </div>
+    <!-- Confirmar contraseña -->
+    <label>Confirmar contraseña</label>
+    <input
+      [type]="mostrarPassword() ? 'text' : 'password'"
+      formControlName="confirmPassword"
+      placeholder="Repite tu contraseña"
+    />
+    <div class="error" *ngIf="form.get('confirmPassword')?.touched && passwordMismatch">
+      <small>Las contraseñas no coinciden.</small>
     </div>
 
     <!-- Mostrar contraseña -->
@@ -94,6 +112,3 @@
   {{ mostrandoError() }}
 </div>
 
-<button type="submit" [disabled]="loading() || form.invalid">
-  {{ loading() ? 'Enviando…' : 'Enviar solicitud' }}
-</button>
