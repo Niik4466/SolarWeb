@@ -2,6 +2,8 @@
 from sqlalchemy.orm import Session
 from models.user import *
 from fastapi import HTTPException
+from core.security import hash_password, verify_password
+
 
 def list_users_query(db: Session):
     """Devuelve todos los usuarios registrados."""
@@ -59,8 +61,7 @@ def user_login_query(db: Session, email: str, password: str) -> dict:
     if not usuario:
         return {"success": False, "estado": None, "message": "credenciales invalidas"}
 
-    # TODO: reemplazar por bcrypt.verify en producción
-    if usuario.password_hash != password:
+    if not verify_password(password, usuario.password_hash):
         return {"success": False, "estado": None, "message": "credenciales invalidas"}
 
     estado = getattr(usuario.estado, "value", usuario.estado)  # Enum -> str
@@ -91,11 +92,14 @@ def create_user_query(db: Session, usuario_data: dict, justificacion: str):
     """
     try:
         # Creamos el usuario
+
+        hashed = hash_password(usuario_data["password"])
+
         nuevo_usuario = Usuario(
         correo=usuario_data["correo"],
         nombre=usuario_data["nombre"],
         apellido=usuario_data.get("apellido"),
-        password_hash=usuario_data["password"],
+        password_hash=hashed,
         es_admin=usuario_data.get("es_admin", False),
         estado=usuario_data.get("estado", "pendiente")
         )

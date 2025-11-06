@@ -10,3 +10,6 @@ pydantic[email]
 SQLAlchemy>=2.0
 psycopg2
 resend
+passlib[bcrypt]==1.7.4
+bcrypt==3.2.2
+
