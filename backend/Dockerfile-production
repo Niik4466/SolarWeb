@@ -1,28 +1,36 @@
 FROM python:3.11-slim
 
-# Establecer variables de entorno para que Python no escriba .pyc
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# Variables básicas de Python
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Instalar dependencias del sistema
+# Instalar dependencias del sistema + agregar repo de ZeroTier
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    gpg \
+    ca-certificates \
     build-essential \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+    libpq-dev && \
+    curl -s https://install.zerotier.com/ | bash && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copiar el archivo de requerimientos primero para aprovechar el cache de Docker
+# Copiar e instalar dependencias de Python
 COPY ./requirements.txt /app/requirements.txt
-
-# Instalar los requerimientos. Se asume que en requirements.txt ya tienes gunicorn y uvicorn
 RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
 
-# Copiar el código de la aplicación
+# Copiar el código de la app
 COPY . /app
 
-# Exponer el puerto
-EXPOSE 8000
+# Exponer puerto del backend
+EXPOSE 4002
 
-# Comando para producción: usar Gunicorn con Uvicorn como worker
-CMD ["gunicorn", "main:app", "--bind", "0.0.0.0:8000", "-w", "2", "--worker-class", "uvicorn.workers.UvicornWorker", "--log-level", "info"]
+# Crear volumen de configuración para ZeroTier
+VOLUME ["/var/lib/zerotier-one"]
+
+# Entrypoint: arranca ZeroTier + backend
+CMD zerotier-one -d && \
+    sleep 5 && \
+    zerotier-cli join ${ZT_NETWORK_ID} && \
+    gunicorn main:app --bind 0.0.0.0:4002 -w 2 --worker-class uvicorn.workers.UvicornWorker --log-level info

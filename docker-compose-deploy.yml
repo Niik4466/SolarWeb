@@ -16,18 +16,24 @@ services:
   backend-solarweb:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile-production
     container_name: backend-solarweb
     # SOLO PARA DEBUG
     # ports:
     #   - "4002:4002"
     volumes:
       - ./.env:/app/backend/.env
+      - zerotier-data:/var/lib/zerotier-one
     env_file:
       - .env
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    devices:
+      - /dev/net/tun
     networks:
       - red_taller_software
-    
+
   postgres:
     image: postgres:16
     container_name: postgres-solarweb
@@ -50,6 +56,7 @@ services:
     
 volumes:
   postgresdb:
+  zerotier-data:
 
 
 # Configuracion de red
