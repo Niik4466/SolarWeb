@@ -34,7 +34,7 @@
   </div>
 
   <div class="eliminados">
-    <button class="ghost" (click)="mostrarEliminados.set(true)">
+    <button class="ghost" (click)="abrirPapelera()">
       🗑 Usuarios eliminados
     </button>
   </div>
@@ -59,7 +59,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let u of papelera()">
+        <tr *ngFor="let u of listaEliminados()">
           <td>{{ u.nombre }}</td>
           <td>{{ u.correo }}</td>
           <td>{{ u.eliminado_el | date:'dd/MM/yyyy HH:mm' }}</td>
@@ -76,7 +76,7 @@
             <button class="mini rojo" (click)="borrarDefinitivo(u)">Eliminar</button>
           </td>
         </tr>
-        <tr *ngIf="papelera().length === 0">
+        <tr *ngIf="listaEliminados().length === 0">
           <td colspan="6" class="vacio">No hay usuarios eliminados</td>
         </tr>
       </tbody>

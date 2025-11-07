@@ -30,7 +30,6 @@ services:
       - miniodb2:/data
     command: server /data --console-address ":9001"
 
-
   # Uploaders
   minio-uploader:
     build:
@@ -63,6 +62,31 @@ services:
     depends_on:
       - influxdb
 
+  zerotier:
+    image: zyclonite/zerotier:latest
+    container_name: zerotier-solarweb
+    restart: unless-stopped
+    network_mode: host
+    devices:
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    volumes:
+      - zerotier-data:/var/lib/zerotier-one
+    environment:
+      - ZT_NETWORK_ID=${ZT_NETWORK_ID}
+    entrypoint: >
+      sh -c "
+        /usr/sbin/zerotier-one -d &&
+        echo 'Esperando a que el daemon se inicie...' &&
+        sleep 8 &&
+        zerotier-cli join ${ZT_NETWORK_ID} &&
+        echo 'Unido a la red ${ZT_NETWORK_ID}, esperando...' &&
+        tail -f /dev/null
+      "
+
 volumes:
   influxdb2:
   miniodb2:
+  zerotier-data:

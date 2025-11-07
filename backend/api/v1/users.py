@@ -8,7 +8,7 @@ from models.user import Usuario, Solicitud
 from pydantic import BaseModel, EmailStr
 
 router = APIRouter(prefix="/users", tags=["users"])
-    
+
 @router.get("/")
 def list_users(db: Session = Depends(get_db)):
     """
@@ -61,7 +61,7 @@ def update_user_power(user_id: int, data: UsuarioPoderActualizar, db: Session = 
     """
     Actualiza si un usuario es admin o no.
     """
-    user = db.query(Usuario).filter(Usuario.id == user_id).first()
+    user = obtain_user_by_id_query(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
@@ -81,7 +81,7 @@ def approve_user(user_id: int, admin: bool, db: Session = Depends(get_db)):
     """
     Aprueba un usuario y define si es admin o no.
     """
-    user = db.query(Usuario).filter(Usuario.id == user_id).first()
+    user = obtain_user_by_id_query(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
@@ -92,40 +92,49 @@ def approve_user(user_id: int, admin: bool, db: Session = Depends(get_db)):
 def pending_with_solicitudes(db: Session = Depends(get_db)):
     """
     Devuelve todos los usuarios en estado 'pendiente' con su última solicitud (si existe).
-    Estructura: { total, data: [ {id, correo, nombre, apellido, estado, justificacion, creado_en} ] }
     """
-    usuarios = db.query(Usuario).filter(Usuario.estado == UsuarioEstado.pendiente).all()
-    if not usuarios:
-        return {"total": 0, "data": []}
+    return get_pending_users_with_last_solicitud_query(db)
 
-    ids = [u.id for u in usuarios]
+@router.get("/approved_users")
+def approved_users(db: Session = Depends(get_db)):
+    """
+    Devuelve todos los usuarios en estado 'aprobados' con su fecha de aprobacion
+    """
+    return get_approved_users_query(db)
 
-    # Trae todas las solicitudes de esos usuarios, ordenadas por fecha DESC
-    solicitudes = (
-        db.query(Solicitud)
-        .filter(Solicitud.usuario_id.in_(ids))
-        .order_by(Solicitud.usuario_id, Solicitud.creado_en.desc())
-        .all()
+@router.get("/deleted_users")
+def deleted_users(db: Session = Depends(get_db)):
+    """
+    Devuelve todos los usuarios en estado 'eliminado' con su fecha de eliminacion
+    """
+    return get_deleted_users_query(db)
+
+@router.post("/delete_user/{user_id}/{admin_id}")
+def delete_user(user_id: int, admin_id: int, db: Session = Depends(get_db)):
+    """
+    Elimina logicamente un usuario
+    """
+    return delete_user_query(db=db, usuario_id=user_id, eliminado_por_id=admin_id)
+
+@router.get("/get_transactions/{user_id}")
+def get_transactions_by_user_id(user_id: int, db: Session = Depends(get_db)):
+    """
+    Obtiene todas las transacciones realizadas por un usuario
+    """
+    transactions = get_transactions_by_user_id_query(db, usuario_id=user_id)
+    return {"total": len(transactions), "data": transactions}
+
+@router.post("/save_transaction", response_model=TransaccionOut)
+def create_transaction(payload: TransaccionCreate, db: Session = Depends(get_db)):
+    """
+    Crea una nueva transacción (exportado_en queda en NULL).
+    """
+    return save_transaction_query(
+        db=db,
+        user_id=payload.usuario_id,
+        files=payload.archivos or [],
+        images=payload.imagenes,
+        var_ghi=payload.var_ghi,
+        var_dni=payload.var_dni,
+        var_global=payload.var_global,
     )
-
-    # Nos quedamos con la última por usuario
-    last_by_user = {}
-    for s in solicitudes:
-        if s.usuario_id not in last_by_user:
-            last_by_user[s.usuario_id] = s
-
-    data = []
-    for u in usuarios:
-        s = last_by_user.get(u.id)
-        data.append({
-            "id": u.id,
-            "correo": u.correo,
-            "nombre": u.nombre,
-            "apellido": u.apellido,
-            "estado": u.estado.value if hasattr(u.estado, "value") else u.estado,
-            "justificacion": (s.justificacion if s else None),
-            # preferimos la fecha de la solicitud si existe; si no, la creación del usuario
-            "creado_en": (s.creado_en.isoformat() if s and s.creado_en else (u.creado_en.isoformat() if u.creado_en else None)),
-        })
-
-    return {"total": len(data), "data": data}
