@@ -1,14 +1,15 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, signal, OnInit, inject } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { ReactiveFormsModule, FormControl } from '@angular/forms';
+import { UsersApi, UsuarioOut } from '../../services/user.api';
 
-type Usuario = {
-  id: string;
+type UsuarioUI = {
+  id: number;
   nombre: string;
   correo: string;
-  aprobado_el: string;   // ISO
+  aprobado_el: string | null;  // ISO o null
   eliminado?: boolean;
-  eliminado_el?: string; // ISO
+  eliminado_el?: string | null;
 };
 
 type Evento = { fecha: string; accion: string; detalle?: string };
@@ -20,78 +21,103 @@ type Evento = { fecha: string; accion: string; detalle?: string };
   templateUrl: './usuarios.html',
   styleUrls: ['./usuarios.scss'],
 })
-export class UsuariosComponent {
-  // estado en memoria
-  lista = signal<Usuario[]>([
-    { id:'u1', nombre:'Javiera González Riquelme', correo:'javiera.gonzalez@gmail.com', aprobado_el:'2024-10-12T16:33:00Z' },
-    { id:'u2', nombre:'Matías Herrera Valenzuela', correo:'matias.herrera@outlook.com', aprobado_el:'2025-04-05T13:35:00Z' },
-    { id:'u3', nombre:'Felipe Castro Morales', correo:'felipe.castro@alumnos.uach.cl', aprobado_el:'2025-05-20T21:54:00Z' },
-    { id:'u4', nombre:'Valentina Soto Aravena', correo:'valentina.soto@alumnos.uach.cl', aprobado_el:'2024-08-23T17:19:00Z' },
-  ]);
+
+export class UsuariosComponent implements OnInit {
+  private api = inject(UsersApi);
+
+  listaAprobados = signal<UsuarioUI[]>([]);
+  listaEliminados = signal<UsuarioUI[]>([]);
 
   buscar = new FormControl('', { nonNullable: true });
   mostrarEliminados = signal(false);
 
-  activos  = computed(() => this.lista().filter(u => !u.eliminado));
-  papelera = computed(() => this.lista().filter(u =>  u.eliminado));
+  cargando = signal(false);
+  error = signal<string | null>(null);
 
+  ngOnInit() { this.cargarAprobados(); }
+
+  // ✅ IMPLEMENTADO
+  private mapToUI(u: UsuarioOut): UsuarioUI {
+    const nombreCompleto = [u.nombre, u.apellido].filter(Boolean).join(' ');
+    return {
+      id: u.id,
+      nombre: nombreCompleto,
+      correo: u.correo,
+      aprobado_el: u.aprobado_en ?? null,
+      eliminado: u.estado === 'eliminado',
+      eliminado_el: u.estado === 'eliminado' ? (u.actualizado_en ?? null) : null,
+    };
+  }
+
+  private cargarAprobados() {
+    this.cargando.set(true);
+    this.error.set(null);
+    this.api.getByStatus('aprobado').subscribe({
+      next: (data) => {
+        this.listaAprobados.set(data.map(u => this.mapToUI(u)));
+        this.cargando.set(false);
+      },
+      error: () => { this.error.set('No se pudo cargar usuarios aprobados'); this.cargando.set(false); }
+    });
+  }
+
+  private cargarEliminados() {
+    this.api.getByStatus('eliminado').subscribe({
+      next: (data) => this.listaEliminados.set(data.map(u => this.mapToUI(u))),
+      error: () => this.error.set('No se pudo cargar usuarios eliminados')
+    });
+  }
+
+  abrirPapelera() {
+    this.mostrarEliminados.set(true);
+    this.cargarEliminados(); // 👈 dispara GET status=eliminado
+  }
+  cerrarPapelera() { this.mostrarEliminados.set(false); }
+
+  activos  = computed(() => this.listaAprobados());
   filtrados = computed(() => {
     const q = this.buscar.value.toLowerCase().trim();
-    if (!q) return this.activos();
-    return this.activos().filter(u =>
-      (u.nombre + ' ' + u.correo).toLowerCase().includes(q)
-    );
+    const base = this.activos();
+    if (!q) return base;
+    return base.filter(u => (u.nombre + ' ' + u.correo).toLowerCase().includes(q));
   });
 
-  // -------- Confirmación de eliminación --------
-  pendiente = signal<Usuario | null>(null);
-  abrirConfirmacion(u: Usuario) { this.pendiente.set(u); }
+  pendiente = signal<UsuarioUI | null>(null);
+  abrirConfirmacion(u: UsuarioUI) { this.pendiente.set(u); }
   cancelarEliminacion() { this.pendiente.set(null); }
+
   confirmarEliminacion() {
     const u = this.pendiente(); if (!u) return;
-    this.lista.update(xs =>
-      xs.map(x => x.id === u.id ? { ...x, eliminado: true, eliminado_el: new Date().toISOString() } : x)
-    );
-    this.pendiente.set(null);
+    this.api.updateStatus(u.id, 'eliminado').subscribe({
+      next: () => {
+        this.listaAprobados.update(xs => xs.filter(x => x.id !== u.id));
+        if (this.mostrarEliminados()) {
+          this.listaEliminados.update(xs => [{ ...u, eliminado: true, eliminado_el: new Date().toISOString() }, ...xs]);
+        }
+        this.pendiente.set(null);
+      },
+      error: () => this.error.set('No se pudo eliminar el usuario'),
+    });
   }
 
-  restaurar(u: Usuario) {
-    this.lista.update(xs =>
-      xs.map(x => x.id === u.id ? { ...x, eliminado: false, eliminado_el: undefined } : x)
-    );
-  }
-  borrarDefinitivo(u: Usuario) {
-    this.lista.update(xs => xs.filter(x => x.id !== u.id));
+  restaurar(u: UsuarioUI) {
+    this.api.updateStatus(u.id, 'aprobado').subscribe({
+      next: () => {
+        this.listaEliminados.update(xs => xs.filter(x => x.id !== u.id));
+        this.listaAprobados.update(xs => [{ ...u, eliminado: false }, ...xs]);
+      },
+      error: () => this.error.set('No se pudo restaurar el usuario'),
+    });
   }
 
-  // -------- Historial de aprobados (modal) --------
-  historialUser = signal<Usuario | null>(null);
-  private eventosMock = new Map<string, Evento[]>([
-    ['u1', [
-      { fecha:'2024-10-10T11:05:00Z', accion:'Solicitud recibida' },
-      { fecha:'2024-10-12T16:33:00Z', accion:'Aprobación de cuenta', detalle:'Admin: Valentina' },
-      { fecha:'2024-10-15T09:01:00Z', accion:'Primer ingreso', detalle:'IP 190.45.x.x' },
-    ]],
-    ['u2', [
-      { fecha:'2025-04-03T10:22:00Z', accion:'Solicitud recibida' },
-      { fecha:'2025-04-05T13:35:00Z', accion:'Aprobación de cuenta', detalle:'Admin: Iván' },
-    ]],
-    ['u3', [
-      { fecha:'2025-05-18T21:14:00Z', accion:'Solicitud recibida' },
-      { fecha:'2025-05-20T21:54:00Z', accion:'Aprobación de cuenta', detalle:'Admin: Claudia' },
-      { fecha:'2025-06-01T12:00:00Z', accion:'Cambio de contraseña' },
-    ]],
-    ['u4', [
-      { fecha:'2024-08-20T10:30:00Z', accion:'Solicitud recibida' },
-      { fecha:'2024-08-23T17:19:00Z', accion:'Aprobación de cuenta', detalle:'Admin: Jorge' },
-    ]],
-  ]);
+  borrarDefinitivo(u: UsuarioUI) {
+    this.listaEliminados.update(xs => xs.filter(x => x.id !== u.id));
+  }
 
-  abrirHistorial(u: Usuario) { this.historialUser.set(u); }
+  historialUser = signal<UsuarioUI | null>(null);
+  abrirHistorial(u: UsuarioUI) { this.historialUser.set(u); }
   cerrarHistorial() { this.historialUser.set(null); }
-  eventosDe(u: Usuario | null): Evento[] {
-    if (!u) return [];
-    return (this.eventosMock.get(u.id) || []).slice()
-             .sort((a,b) => a.fecha.localeCompare(b.fecha));
-  }
+
+  // ✅ firma con parámetro (para que compile tu template)
+  eventosDe(_u: UsuarioUI): Evento[] { return []; }
 }
