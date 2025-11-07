@@ -74,18 +74,18 @@ def user_login_query(db: Session, email: str, password: str) -> dict:
         return {"success": False, "estado": None, "message": "credenciales invalidas"}
 
     if not verify_password(password, usuario.password_hash):
-        return {"success": False, "estado": None, "message": "credenciales invalidas"}
+        return {"success": False, "estado": None, "message": "credenciales invalidas", "user_id": usuario.id}
 
     estado = getattr(usuario.estado, "value", usuario.estado)  # Enum -> str
 
     if estado == "aprobado":
-        return {"success": True, "estado": "aprobado", "message": "ok"}
+        return {"success": True, "estado": "aprobado", "message": "ok", "user_id": usuario.id}
     if estado == "pendiente":
-        return {"success": False, "estado": "pendiente", "message": "su solicitud sigue en estado de espera en aprobacion"}
+        return {"success": False, "estado": "pendiente", "message": "su solicitud sigue en estado de espera en aprobacion", "user_id": usuario.id}
     if estado == "eliminado":
-        return {"success": False, "estado": "eliminado", "message": "su solicitud ha sido rechazada"}
+        return {"success": False, "estado": "eliminado", "message": "su solicitud ha sido rechazada", "user_id": usuario.id}
 
-    return {"success": False, "estado": estado, "message": "estado no permitido para login"}
+    return {"success": False, "estado": estado, "message": "estado no permitido para login", "user_id": usuario.id}
 
 def get_users_by_status_query(db: Session, status: str = "aprobado"):
     """
