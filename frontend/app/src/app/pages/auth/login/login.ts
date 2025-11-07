@@ -52,7 +52,7 @@ export class LoginComponent {
 
     this.loading.set(true);
     this.http
-      .get<LoginResponse>(`${environment.apiBase}/users/log-in`, { params })
+      .post<LoginResponse>(`${environment.apiBase}/users/log-in`, { email, password })
       .subscribe({
         next: (res) => {
           this.loading.set(false);

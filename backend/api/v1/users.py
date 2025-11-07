@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from db.postgres import get_db
 from services.user_service import *
 from schemas.user import *
+from models.user import Usuario, Solicitud
+from pydantic import BaseModel, EmailStr
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -34,9 +36,13 @@ def create_user(usuario: UsuarioCreate, db: Session = Depends(get_db)):
             detail=f"Error creating user: {str(e)}"
         )
 
-@router.get("/log-in")
-def user_login(email: str, password: str, db: Session = Depends(get_db)):
-    return user_login_query(db, email, password)
+class LoginIn(BaseModel):
+    email: EmailStr
+    password: str
+
+@router.post("/log-in")
+def user_login(data: LoginIn, db: Session = Depends(get_db)):
+    return user_login_query(db, data.email, data.password)
 
 @router.put("/update_status/{user_id}")
 def update_user_status(user_id: int, data: UsuarioEstadoActualizar, db: Session = Depends(get_db)):
