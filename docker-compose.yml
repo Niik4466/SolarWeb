@@ -28,6 +28,7 @@ services:
       - influxdb
       - minio
       - postgres
+      - zerotier
 
   # Databases
   influxdb:
