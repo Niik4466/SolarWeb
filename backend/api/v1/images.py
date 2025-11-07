@@ -21,7 +21,7 @@ router = APIRouter(prefix="/images", tags=["images"])
 # Endpoints existentes
 # =========================
 
-@router.get("/images", response_model=MinioListResponse)
+@router.get("", response_model=MinioListResponse)
 def get_images(bucket: str, prefix: str = "", granularity:str = "1s") -> MinioListResponse:
     """
     Listado clásico (respuesta JSON única).
@@ -32,7 +32,7 @@ def get_images(bucket: str, prefix: str = "", granularity:str = "1s") -> MinioLi
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get(
-    "/images/download",
+    "/download",
     responses={
         200: {"content": {"application/octet-stream": {}}, "description": "Archivo"},
         404: {"description": "No encontrado"},
@@ -65,7 +65,7 @@ def download_image(bucket: str, object_name: str):
     )
 
 @router.get(
-    "/images/view",
+    "/view",
     responses={
         200: {"content": {"image/jpeg": {}, "image/png": {}}, "description": "Imagen"},
         404: {"description": "No encontrado"},
@@ -126,7 +126,7 @@ def _within(hhmm: Optional[str], start: Optional[str], end: Optional[str]) -> bo
     return True
 
 @router.get(
-    "/images/stream",
+    "/stream",
     responses={
         200: {"content": {"application/x-ndjson": {}}, "description": "NDJSON stream"},
         400: {"description": "Parámetros inválidos"},

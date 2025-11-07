@@ -12,7 +12,7 @@ router = APIRouter(prefix="/export", tags=["export"])
 MEASUREMENT = "radiacion_solar"
 VALID_FIELDS = {"GHI", "DNI", "DHI"}
 
-@router.post("/export/daily")
+@router.post("/daily")
 def export_daily(req: ExportDailyBatchReq):
     if not req.variables:
         raise HTTPException(400, "Debe indicar al menos una variable (GHI/DNI/DHI).")
@@ -68,7 +68,7 @@ def export_daily(req: ExportDailyBatchReq):
     )
 
 
-@router.post("/export/daily/batch")
+@router.post("/daily/batch")
 def export_daily_batch(req: ExportDailyBatchReq):
     if not req.variables:
         raise HTTPException(400, "Debe indicar al menos una variable (GHI/DNI/DHI).")
