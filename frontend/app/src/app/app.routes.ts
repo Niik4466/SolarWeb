@@ -7,14 +7,28 @@ import { ForgotPasswordComponent } from './pages/auth/forgot-password/forgot-pas
 import { SolicitudesComponent } from './pages/solicitudes/solicitudes'; 
 import { UsuariosComponent } from './pages/usuarios/usuarios';
 
+// ✅ importa el guard
+import { authGuard } from './guards/auth.guards';  // asegúrate de que el archivo se llame auth.guard.ts (no "guards")
+
 export const routes: Routes = [
+  // ---------------------------
+  // PÁGINAS PÚBLICAS (sin login)
+  // ---------------------------
   { path: '', pathMatch: 'full', redirectTo: 'login' },
+  { path: 'login', component: LoginComponent },
   { path: 'solicitar-registro', component: SolicitarRegistroComponent },
   { path: 'forgot-password', component: ForgotPasswordComponent },
-  { path: 'login', component: LoginComponent },
-  { path: 'graficos', component: GraficosComponent },
-  { path: 'exportar', component: ExportarPage },   // <-- nueva ruta
-  { path: 'solicitudes', component: SolicitudesComponent },
-  { path: 'usuarios', component: UsuariosComponent },
-  { path: '**', redirectTo: 'login' }
+
+  // ---------------------------
+  // PÁGINAS PRIVADAS (requieren sesión)
+  // ---------------------------
+  { path: 'graficos', component: GraficosComponent, canActivate: [authGuard] },
+  { path: 'exportar', component: ExportarPage, canActivate: [authGuard] },
+  { path: 'solicitudes', component: SolicitudesComponent, canActivate: [authGuard] },
+  { path: 'usuarios', component: UsuariosComponent, canActivate: [authGuard] },
+
+  // ---------------------------
+  // RUTA POR DEFECTO (404 → login)
+  // ---------------------------
+  { path: '**', redirectTo: 'login' },
 ];

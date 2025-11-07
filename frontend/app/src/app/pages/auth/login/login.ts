@@ -1,14 +1,16 @@
 import { Component, signal, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { RouterLink, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { AuthService } from '../../../services/auth.service';
 
 type LoginResponse = {
   success: boolean;
   estado?: 'aprobado' | 'pendiente' | 'eliminado' | string | null;
-  message?: string; // opcional si el backend lo envía
+  message?: string;
+  user_id?: number; // ✅ coincide con backend
 };
 
 export const environment = {
@@ -27,6 +29,8 @@ export class LoginComponent {
   private fb = inject(FormBuilder);
   private http = inject(HttpClient);
   private router = inject(Router);
+  private auth = inject(AuthService);
+  private route = inject(ActivatedRoute);
 
   mostrarPassword = signal(false);
 
@@ -48,8 +52,6 @@ export class LoginComponent {
 
     const { email, password } = this.form.value as { email: string; password: string };
 
-    const params = new HttpParams().set('email', email).set('password', password);
-
     this.loading.set(true);
     this.http
       .post<LoginResponse>(`${environment.apiBase}/users/log-in`, { email, password })
@@ -57,29 +59,47 @@ export class LoginComponent {
         next: (res) => {
           this.loading.set(false);
 
-          // Caso de éxito (solo si estado aprobado)
-          if (res.success && res.estado == 'aprobado') {
-            localStorage.setItem('isLoggedIn', 'true');
-            localStorage.setItem('userEmail', email);
-            this.router.navigateByUrl('/graficos');
+          // ✅ Éxito solo si está aprobado
+          if (res.success && res.estado === 'aprobado') {
+            this.auth.setLoggedIn(email);
+
+            // ✅ Guarda el ID correctamente (coincide con backend)
+            if (res.user_id != null) {
+              this.auth.setUserId(res.user_id);
+            } else {
+              // Si no viene el ID, intenta obtenerlo por email
+              this.auth.fetchUserIdByEmail(environment.apiBase, email).subscribe({
+                next: (r) => this.auth.setUserId(r.id),
+                error: () => {
+                  console.warn('No se pudo obtener user_id por correo');
+                },
+              });
+            }
+
+            // ✅ Redirige según returnUrl
+            const returnUrl =
+              this.route.snapshot.queryParamMap.get('returnUrl') || '/graficos';
+            this.router.navigateByUrl(returnUrl);
             return;
           }
 
-          // Mensajes específicos según estado
+          // ⚠️ Mensajes según estado
           switch (res.estado) {
             case 'pendiente':
-              this.errorMsg.set('Su solicitud sigue en estado de espera en aprobación.');
+              this.errorMsg.set(
+                'Su solicitud sigue en estado de espera en aprobación.'
+              );
               break;
             case 'eliminado':
               this.errorMsg.set('Su solicitud ha sido rechazada.');
               break;
             case 'aprobado':
-              // Por si viniera success=false con estado aprobado (no debería)
-              this.errorMsg.set('No se pudo iniciar sesión. Intente nuevamente.');
+              this.errorMsg.set(
+                'No se pudo iniciar sesión. Intente nuevamente.'
+              );
               break;
             default:
-              // Usuario no existe o contraseña incorrecta
-              this.errorMsg.set('Credenciales inválidas.');
+              this.errorMsg.set(res.message ?? 'Credenciales inválidas.');
               break;
           }
         },

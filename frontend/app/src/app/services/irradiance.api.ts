@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, forkJoin } from 'rxjs';
 
-const API_BASE = 'http://127.0.0.1:8000/api/v1';
+const API_BASE = 'http://127.0.0.1:8000';
 
 /**
  * Nombres de campos de irradiancia aceptados por la API.
