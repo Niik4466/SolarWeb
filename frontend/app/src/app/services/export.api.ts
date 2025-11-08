@@ -5,7 +5,7 @@ import { HttpClient } from '@angular/common/http';
 /**
  * Base de la API (mueve a environments para producción).
  */
-const API_BASE = 'http://127.0.0.1:8000/api/v1';
+const API_BASE = 'http://127.0.0.1:8000';
 
 /* =========================
    MODELOS DE EXPORTACIÓN

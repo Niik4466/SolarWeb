@@ -4,7 +4,8 @@ import { Component, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ExportApi } from '../../services/export.api';
-import { from, of } from 'rxjs';
+import { TransactionsApi, TransaccionCreate } from '../../services/transactions.api';
+import { of, Observable, throwError } from 'rxjs';
 import { concatMap, tap, finalize, catchError } from 'rxjs/operators';
 
 
@@ -36,6 +37,9 @@ export class ExportarPage {
 
   /** Servicio de exportación (llamadas HTTP a backend). */
   private exporter = inject(ExportApi);
+
+  /** Servicio de transacciones (llamadas HTTP a backend). */
+  private transactionsApi = inject(TransactionsApi);
 
   // ===========================
   // Form principal (opciones de exportación)
@@ -194,95 +198,157 @@ export class ExportarPage {
   // ===========================
 
   /**
-   * Ejecuta la exportación según la granularidad:
-   * - Diario: descarga un archivo por cada fecha (CSV o JSON). `include_images` se ignora.
-   * - Rango: descarga un ZIP que puede incluir imágenes (opcional).
-   * Manejo de errores: muestra alert y loguea en consola.
+   * Wrapper de la logica de exportacion, se encarga de almacenar el log en la BD y de iniciar la logica de exportacion 
+   * 1. Obtiene el UserID
+   * 2. registra la transacción en la BD.
+   * 3. Si tiene éxito, llama a logicaDeExportacion() para comenzar la descarga.
    */
   exportar() {
     if (!this.puedeExportar() || this.exporting()) return;
 
+    // --- PASO 1: OBTENER USER ID ---
+    const userIdString = localStorage.getItem('userId');
+    if (!userIdString) {
+      console.error('Error: userId no encontrado en localStorage.');
+      alert('Error de autenticación. No se pudo encontrar su ID de usuario.');
+      return; // Detener si no hay ID
+    }
+    const userId = parseInt(userIdString, 10);
+
+    // --- PASO 2: ARMAR PAYLOAD DE LA TRANSACCIÓN ---
+    const formVal = this.form.getRawValue();
+
+
+    const payload: TransaccionCreate = {
+      usuario_id: userId,
+      imagenes: !!formVal.incluirImagenes,
+      var_ghi: !!formVal.varGHI,
+      var_dni: !!formVal.varDNI,
+      var_global: !!formVal.varDHI, // <-- Revisa esta asignación
+      archivos: this.granularidad() === 'diario' 
+                  ? this.fechasDiarias() 
+                  : [`Rango: ${formVal.rangoInicio} a ${formVal.rangoFin}`]
+    };
+
+    // --- PASO 3: GUARDAR TRANSACCIÓN Y LUEGO EXPORTAR ---
+    
+    this.startProgress(1, 'Registrando transacción…'); // Estado inicial
+
+    this.runningSub = this.transactionsApi.saveTransaction(payload).pipe(
+      tap((savedTransaction) => {
+        // Actualiza el estado de la UI (opcional)
+        console.log('Transacción registrada con ID:', savedTransaction.id);
+        this.statusMsg.set('Transacción registrada. Iniciando descarga...');
+      }),
+      // Una vez guardada, ejecutamos la lógica de exportación
+      concatMap(() => this.logicaDeExportacion())
+      
+    ).subscribe({
+      error: (err) => {
+        // Este error se dispara si 'saveTransaction' o 'logicaDeExportacion' fallan
+        console.error('[Flujo Exportar] error', err);
+        // El alert específico del error ya se mostró en logicaDeExportacion
+        if (!this.statusMsg()?.startsWith('No se pudo')) {
+           alert('No se pudo registrar la transacción en la base de datos. La exportación ha sido cancelada.');
+        }
+        this.endProgress(); // Limpia la UI si falla el guardado
+      }
+    });
+  }
+
+  /**
+   * Contiene la lógica de exportación (diaria o rango).
+   * Es llamada por 'exportar()' y debe devolver un Observable.
+   * @returns Un Observable que, al suscribirse, inicia la descarga del archivo.
+   */
+  logicaDeExportacion(): Observable<Blob | null> {
+    // ❗ Esta lógica es llamada por 'exportar()', no necesita chequear 'puedeExportar'
+    // o 'userId'.
+    
     const variables = this.getSelectedVariables();
     const format = this.form.value.formato!;
 
-    // Limpia errores previos
-    this.statusMsg.set(null);
+    // ❗ Solo actualizamos el mensaje, no reiniciamos el progreso
+    this.statusMsg.set('Preparando descarga...');
 
-  if (this.granularidad() === 'diario') {
-    const dias = this.fechasDiarias();
-    if (!dias.length) return;
+    if (this.granularidad() === 'diario') {
+      const dias = this.fechasDiarias();
+      if (!dias.length) return of(null); // ❗ Devolver Observable vacío
 
-    const include_images = !!this.form.value.incluirImagenes;
+      const include_images = !!this.form.value.incluirImagenes;
 
-    // ✅ Si hay > 1 fecha → usamos el endpoint batch para un único ZIP
-    if (dias.length > 1) {
-      this.startProgress(1, 'Exportando múltiples días…');
+      // ✅ Si hay > 1 fecha → usamos el endpoint batch para un único ZIP
+      if (dias.length > 1) {
+        this.statusMsg.set('Exportando múltiples días…'); // ❗ Actualizar mensaje
 
-      this.runningSub = this.exporter.exportDailyBatch({
-        dates: dias,
+        // ❗ Devolver Observable y manejar error con catchError
+        return this.exporter.exportDailyBatch({
+          dates: dias,
+          variables,
+          format,
+          include_images
+        }).pipe(
+          tap((blob: Blob) => {
+            const first = dias[0];
+            const last = dias[dias.length - 1];
+            this.downloadBlob(blob, `export_${first}_${last}.zip`);
+            this.tickProgress('ZIP descargado');
+          }),
+          finalize(() => {
+            this.statusMsg.set('¡Exportación diaria (batch) completada!');
+            setTimeout(() => this.endProgress(), 700);
+          }),
+          // ❗ Manejar error localmente y propagarlo
+          catchError((err) => {
+            console.error('[Exportar batch] error', err);
+            this.statusMsg.set('No se pudo exportar el batch de días seleccionados.');
+            alert('No se pudo exportar el batch de días seleccionados.');
+            // endProgress() se llamará en el .subscribe() principal
+            return throwError(() => err); 
+          })
+        );
+        // ❗ 'return;' eliminado
+      }
+
+      // 🗓️ Si hay exactamente 1 fecha
+      this.statusMsg.set('Exportando día único…'); // ❗ Actualizar mensaje
+
+      const day = dias[0];
+      // ❗ Devolver Observable y manejar error con catchError
+      return this.exporter.exportDailyBatch({
+        dates: [day],
         variables,
         format,
         include_images
       }).pipe(
         tap((blob: Blob) => {
-          const first = dias[0];
-          const last  = dias[dias.length - 1];
-          this.downloadBlob(blob, `export_${first}_${last}.zip`);
-          this.tickProgress('ZIP descargado');
+          const ext = include_images ? 'zip' : (format === 'csv' ? 'csv' : 'json');
+          this.downloadBlob(blob, `export_${day}.${ext}`);
+          this.tickProgress(`Descargado ${day}`);
         }),
         finalize(() => {
-          this.statusMsg.set('¡Exportación diaria (batch) completada!');
+          this.statusMsg.set('¡Exportación diaria completada!');
           setTimeout(() => this.endProgress(), 700);
+        }),
+        // ❗ Manejar error localmente y propagarlo
+        catchError((err) => {
+          console.error('[Exportar día] error', err);
+          this.statusMsg.set(`No se pudo exportar el día ${day}.`);
+          alert(`No se pudo exportar el día ${day}.`);
+          return throwError(() => err);
         })
-      ).subscribe({
-        error: (err) => {
-          console.error('[Exportar batch] error', err);
-          alert('No se pudo exportar el batch de días seleccionados.');
-          this.endProgress();
-        }
-      });
+      );
 
-      return; // 👈 importante: no seguir con el flujo por-día
-    }
-
-    // 🗓️ Si hay exactamente 1 fecha → mantiene tu flujo actual (CSV/JSON o ZIP con imágenes)
-    this.startProgress(1, 'Exportando día único…');
-
-    const day = dias[0];
-    this.runningSub = this.exporter.exportDailyBatch({
-      dates: [day],
-      variables,
-      format,
-      include_images
-    }).pipe(
-      tap((blob: Blob) => {
-        // Si marcaste imágenes, el backend devuelve ZIP por día; si no, CSV/JSON
-        const ext = include_images ? 'zip' : (format === 'csv' ? 'csv' : 'json');
-        this.downloadBlob(blob, `export_${day}.${ext}`);
-        this.tickProgress(`Descargado ${day}`);
-      }),
-      finalize(() => {
-        this.statusMsg.set('¡Exportación diaria completada!');
-        setTimeout(() => this.endProgress(), 700);
-      })
-    ).subscribe({
-      error: (err) => {
-        console.error('[Exportar día] error', err);
-        alert(`No se pudo exportar el día ${day}.`);
-        this.endProgress();
-      }
-    });
-
-  } else {
-
+    } else {
       // Rango → un solo ZIP
       const inicio = this.form.value.rangoInicio!;
       const fin = this.form.value.rangoFin!;
       const include_images = !!this.form.value.incluirImagenes;
 
-      this.startProgress(1, `Exportando rango ${inicio} → ${fin}…`);
+      this.statusMsg.set(`Exportando rango ${inicio} → ${fin}…`); // ❗ Actualizar mensaje
 
-      this.runningSub = this.exporter.exportRange({
+      // ❗ Devolver Observable y manejar error con catchError
+      return this.exporter.exportRange({
         inicio, fin, variables, format, include_images
       }).pipe(
         tap((blob: Blob) => {
@@ -292,14 +358,15 @@ export class ExportarPage {
         finalize(() => {
           this.statusMsg.set('¡Exportación de rango completada!');
           setTimeout(() => this.endProgress(), 700);
-        })
-      ).subscribe({
-        error: (err) => {
+        }),
+        // ❗ Manejar error localmente y propagarlo
+        catchError((err) => {
           console.error('[Exportar] error', err);
+          this.statusMsg.set(`No se pudo exportar el rango ${inicio} a ${fin}.`);
           alert(`No se pudo exportar el rango ${inicio} a ${fin}.`);
-          this.endProgress();
-        }
-      });
+          return throwError(() => err);
+        })
+      );
     }
   }
 }

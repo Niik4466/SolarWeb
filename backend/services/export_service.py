@@ -7,6 +7,7 @@ import zipfile
 import io
 from minio import Minio
 from minio.error import S3Error
+from datetime import datetime, timezone
 
 MEASUREMENT = "radiacion_solar"
 VALID_FIELDS = {"GHI", "DNI", "DHI"}

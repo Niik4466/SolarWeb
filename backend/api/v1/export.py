@@ -6,6 +6,7 @@ import csv
 import io
 import zipfile
 from services.export_service import *
+from services.export_service import _write_day_to_zip
 
 router = APIRouter(prefix="/export", tags=["export"])
 

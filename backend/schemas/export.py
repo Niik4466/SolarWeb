@@ -1,6 +1,7 @@
 # backend/schemas/export.py
 from typing import Literal, List, Dict, Optional, Set
 from pydantic import BaseModel, field_validator
+from datetime import datetime
 
 class ExportDailyBatchReq(BaseModel):
     dates: List[str]                             # ["YYYY-MM-DD", ...]
