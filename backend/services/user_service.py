@@ -304,12 +304,54 @@ def delete_user_query(db: Session, usuario_id: int, eliminado_por_id: int | None
 
 def get_transactions_by_user_id_query(db: Session, usuario_id: int):
     """
-    Devuelve todas las transacciones asociadas a un usuario.
+    Devuelve todas las transacciones asociadas a un usuario,
+    agregando campos lógicos: tipo_exportar, fecha_ini y fecha_fin.
     """
     transacciones = db.query(Transaccion).filter(Transaccion.usuario_id == usuario_id).all()
     if not transacciones:
         raise HTTPException(status_code=404, detail=f"No existen transacciones para el usuario {usuario_id}")
-    return transacciones
+
+    processed = []
+    for t in transacciones:
+        # Copiamos los datos originales del modelo
+        trans_dict = {
+            "id": t.id,
+            "usuario_id": t.usuario_id,
+            "archivos": t.archivos,
+            "exportado_en": t.exportado_en,
+            "imagenes": t.imagenes,
+            "var_ghi": t.var_ghi,
+            "var_dni": t.var_dni,
+            "var_global": t.var_global,
+            "creado_en": t.creado_en,
+        }
+
+        tipo_exportar = "dias"
+        fecha_ini = None
+        fecha_fin = None
+
+        # Procesar si existen archivos/fechas
+        if t.archivos and len(t.archivos) > 0:
+            first_date = t.archivos[0]
+            # Si el primer elemento tiene formato "fecha - fecha"
+            if " - " in first_date:
+                tipo_exportar = "rango"
+                partes = [p.strip() for p in first_date.split(" ")]
+                fecha_ini, fecha_fin = partes[0], partes[2]
+            else:
+                tipo_exportar = "dias"
+
+        # Agregamos los campos derivados
+        trans_dict.update({
+            "tipo_exportar": tipo_exportar,
+            "fecha_ini": fecha_ini,
+            "fecha_fin": fecha_fin
+        })
+
+        processed.append(trans_dict)
+
+    return processed
+
 
 def save_transaction_query(
     db: Session,
