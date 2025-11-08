@@ -3,12 +3,21 @@ from typing import Literal, List, Dict, Optional, Set
 from pydantic import BaseModel, field_validator
 from datetime import datetime
 
-class ExportDailyBatchReq(BaseModel):
-    dates: List[str]                             # ["YYYY-MM-DD", ...]
+class ExportBase(BaseModel):
     variables: List[Literal["GHI","DNI","DHI"]]
     format: Literal["csv","json"]
     include_images: bool = False
     images_bucket: Optional[str] = None
+
+class ExportDayReq(ExportBase):
+    date: str
+
+class ExportByRangeReq(ExportBase):
+    date_init: str
+    date_finish: str
+
+class ExportBatchReq(ExportBase):
+    dates: List[str]                             # ["YYYY-MM-DD", ...]
 
     @field_validator("dates")
     @classmethod
@@ -26,3 +35,5 @@ class ExportDailyBatchReq(BaseModel):
                 seen.add(v)
                 out.append(v)
         return sorted(out)  # orden estable para nombre de archivo
+
+

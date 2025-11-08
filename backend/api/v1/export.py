@@ -10,101 +10,92 @@ from services.export_service import _write_day_to_zip
 
 router = APIRouter(prefix="/export", tags=["export"])
 
-MEASUREMENT = "radiacion_solar"
 VALID_FIELDS = {"GHI", "DNI", "DHI"}
 
-@router.post("/daily")
-def export_daily(req: ExportDailyBatchReq):
+@router.post("/day")
+def export_day(req: ExportDayReq):
     if not req.variables:
         raise HTTPException(400, "Debe indicar al menos una variable (GHI/DNI/DHI).")
     if any(v not in VALID_FIELDS for v in req.variables):
         raise HTTPException(400, "Variable no válida.")
+    try:
+        data_bytes, media_type, filename = export_day_query(
+                images_bucket=req.images_bucket,
+                variables=req.variables,
+                date=req.date,
+                format=req.format,
+                include_images=req.include_images, 
+                )
+    except ExportError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    start, stop = _day_bounds_utc(req.date)
-    rows = _build_table(req.variables, start, stop)
-
-    # --- JSON plano (sin imágenes) ---
-    if req.format == "json" and not req.include_images:
-        filename = f"irradiance_{req.date}.json"
-        # JSONResponse ya serializa correctamente
+    # Si es JSON puro, devolver JSONResponse
+    if media_type == "application/json" and not req.include_images:
+        import json
         return JSONResponse(
-            content=rows,
-            media_type="application/json",
+            content=json.loads(data_bytes.decode("utf-8")),
+            media_type=media_type,
             headers={"Content-Disposition": f'attachment; filename="{filename}"'}
         )
 
-    # --- CSV plano (sin imágenes) ---
-    if req.format == "csv" and not req.include_images:
-        data_bytes = _make_csv(rows, req.variables)
-        data_name = f"irradiance_{req.date}.csv"
-        return StreamingResponse(
-            io.BytesIO(data_bytes),
-            media_type="text/csv",
-            headers={"Content-Disposition": f'attachment; filename="{data_name}"'}
-        )
-
-    # --- Con imágenes: empacar en ZIP ---
-    # (CSV + imágenes) o (JSON + imágenes)
-    if req.format == "csv":
-        data_bytes = _make_csv(rows, req.variables)
-        data_name = f"irradiance_{req.date}.csv"
-    else:
-        # JSON + imágenes
-        import json
-        data_bytes = json.dumps(rows).encode("utf-8")
-        data_name = f"irradiance_{req.date}.json"
-
-    bucket_imgs = req.images_bucket or "imagenes-cielo"
-    zip_buf = _zip_with_images(
-        data_bytes=data_bytes,
-        data_name=data_name,
-        day=req.date,
-        bucket_name=bucket_imgs
-    )
-    zip_name = f"export_{req.date}.zip"
+    # Para CSV o ZIP -> StreamingResponse
     return StreamingResponse(
-        zip_buf,
-        media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{zip_name}"'}
+        io.BytesIO(data_bytes),
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
-
 
 @router.post("/daily/batch")
-def export_daily_batch(req: ExportDailyBatchReq):
+def export_daily_batch(req: ExportBatchReq):
     if not req.variables:
         raise HTTPException(400, "Debe indicar al menos una variable (GHI/DNI/DHI).")
     if any(v not in VALID_FIELDS for v in req.variables):
         raise HTTPException(400, "Variable no válida.")
 
-    bucket_imgs = req.images_bucket or "imagenes-cielo"
-
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
-        for day in req.dates:
-            _write_day_to_zip(
-                zf=zf,
-                day=day,
-                variables=req.variables,
-                fmt=req.format,
-                include_images=req.include_images,
-                bucket_name=bucket_imgs,
+    buf = export_daily_batch_query(
+            images_bucket=req.images_bucket,
+            variables=req.variables,
+            dates=req.dates,
+            format=req.format,
+            include_images=req.include_images, 
             )
-        # metadatos útiles
-        manifest = {
-            "dates": req.dates,
-            "variables": req.variables,
-            "format": req.format,
-            "include_images": req.include_images,
-        }
-        import json
-        zf.writestr("manifest.json", json.dumps(manifest, indent=2))
 
-    buf.seek(0)
     first = req.dates[0]
     last = req.dates[-1] if len(req.dates) > 1 else req.dates[0]
     zip_name = f"export_{first}_{last}.zip"
+
+    print(type(buf))
+
     return StreamingResponse(
         buf,
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{zip_name}"'}
+    )
+
+@router.post("/range")
+def export_by_range(req: ExportByRangeReq):
+    """
+    Exporta datos en un rango de fechas (date_init -> date_finish).
+    Devuelve un archivo ZIP que contiene los días solicitados.
+    """
+    try:
+        # Llamamos la capa de servicio (lógica pura)
+        data_bytes, media_type, filename = export_by_range_query(
+            images_bucket=req.images_bucket,
+            variables=req.variables,
+            day_init=req.date_init,
+            day_finish=req.date_finish,
+            fmt=req.format,
+            include_images=req.include_images,
+        )
+    except ExportError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error interno: {e}")
+
+    # Devolver como StreamingResponse (descarga ZIP)
+    return StreamingResponse(
+        data_bytes,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )

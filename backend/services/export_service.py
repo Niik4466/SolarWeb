@@ -7,15 +7,26 @@ import zipfile
 import io
 from minio import Minio
 from minio.error import S3Error
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 MEASUREMENT = "radiacion_solar"
 VALID_FIELDS = {"GHI", "DNI", "DHI"}
 
+# -------------------
+# Error logico para el Exportar
+# -------------------
+class ExportError(Exception):
+    """Error lógico para exportaciones."""
+    pass
+
+# -------------------
+# Funciones auxiliares
+# -------------------
 def _day_bounds_utc(yyyy_mm_dd: str) -> tuple[str, str]:
     # RFC3339 Zulu
-    start = f"{yyyy_mm_dd}T00:00:00Z"
-    stop  = f"{yyyy_mm_dd}T23:59:59Z"
+    formatted_yyyy_mm_dd = yyyy_mm_dd.replace("/", "-")
+    start = f"{formatted_yyyy_mm_dd}T00:00:00Z"
+    stop  = f"{formatted_yyyy_mm_dd}T23:59:59Z"
     return start, stop
 
 def _query_field_series(field: str, start: str, stop: str):
@@ -87,7 +98,7 @@ def _zip_with_images(data_bytes: bytes, data_name: str, day: str, bucket_name: s
             # si falla la lista, igual devolvemos el zip con solo datos
             zf.writestr("images/README.txt", f"No se pudieron incluir imágenes: {e}")
     buf.seek(0)
-    return buf
+    return buf.getvalue()
 
 def _write_day_to_zip(
     zf: zipfile.ZipFile,
@@ -132,3 +143,136 @@ def _write_day_to_zip(
                 zf.writestr(f"images/{day}/README.txt", "No se encontraron imágenes para este día.")
         except S3Error as e:
             zf.writestr(f"images/{day}/README.txt", f"No se pudieron incluir imágenes: {e}")
+
+# ----------------
+# Funciones llamadas por el endpoint
+# ----------------
+
+def export_day_query(
+        variables: list[str], 
+        date: str,
+        format: str, 
+        include_images: bool, 
+        images_bucket: str = "imagenes-cielo", 
+):
+    """
+    Lógica pura: genera los datos y devuelve (bytes, media_type, filename)
+    """
+    start, stop = _day_bounds_utc(date)
+    rows = _build_table(variables, start, stop)
+
+    # JSON plano (sin imágenes)
+    if format == "json" and not include_images:
+        filename = f"irradiance_{date}.json"
+        data_bytes = json.dumps(rows).encode("utf-8")
+        media_type = "application/json"
+        return data_bytes, media_type, filename
+
+    # CSV plano (sin imágenes)
+    if format == "csv" and not include_images:
+        data_bytes = _make_csv(rows, variables)
+        filename = f"irradiance_{date}.csv"
+        media_type = "text/csv"
+        return data_bytes, media_type, filename
+
+    # Con imágenes: empaquetar en ZIP
+    if format == "csv":
+        data_bytes = _make_csv(rows, variables)
+        data_name = f"irradiance_{date}.csv"
+    else:
+        data_bytes = json.dumps(rows).encode("utf-8")
+        data_name = f"irradiance_{date}.json"
+
+    bucket_imgs = images_bucket or "imagenes-cielo"
+    zip_buf = _zip_with_images(
+        data_bytes=data_bytes,
+        data_name=data_name,
+        day=date,
+        bucket_name=bucket_imgs
+    )
+
+    zip_name = f"export_{date}.zip"
+    return zip_buf.getvalue(), "application/zip", zip_name
+
+def export_daily_batch_query(
+        variables: List[str], 
+        dates: tuple[str], 
+        format: str, 
+        include_images: bool, 
+        images_bucket: str = "imagenes-cielo", 
+):
+    bucket_imgs = images_bucket or "imagenes-cielo"
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for day in dates:
+            _write_day_to_zip(
+                zf=zf,
+                day=day,
+                variables=variables,
+                fmt=format,
+                include_images=include_images,
+                bucket_name=bucket_imgs,
+            )
+    buf.seek(0)
+    return buf
+
+def export_by_range_query(
+        images_bucket: str = "imagenes-cielo",
+        variables: List[str] | None = None,
+        day_init: str | None = None,
+        day_finish: str | None = None,
+        fmt: Literal["csv", "json"] = "csv",
+        include_images: bool = False,
+) -> tuple[bytes, str, str]:
+    """
+    Genera un ZIP con archivos `data/YYYY-MM-DD.(csv|json)` para cada día en el rango
+    [day_init, day_finish] (ambos inclusive). Si include_images=True, incluye las imágenes
+    en images/YYYY-MM-DD/...
+    Devuelve (bytes_zip, "application/zip", filename).
+    """
+    # Validaciones básicas
+    if not variables:
+        raise ExportError("Debe indicar al menos una variable (GHI/DNI/DHI).")
+    if any(v not in VALID_FIELDS for v in variables):
+        raise ExportError("Variable no válida.")
+    if not day_init or not day_finish:
+        raise ExportError("Debe indicar day_init y day_finish en formato YYYY-MM-DD.")
+
+    # Parsear fechas
+    try:
+        d0 = datetime.strptime(day_init, "%Y-%m-%d").date()
+        d1 = datetime.strptime(day_finish, "%Y-%m-%d").date()
+    except ValueError:
+        raise ExportError("Formato de fecha inválido. Use YYYY-MM-DD.")
+
+    if d1 < d0:
+        raise ExportError("day_finish no puede ser anterior a day_init.")
+
+    # Generar lista de días (strings YYYY-MM-DD)
+    days: List[str] = []
+    cur = d0
+    while cur <= d1:
+        days.append(cur.isoformat())
+        cur = cur + timedelta(days=1)
+
+    bucket_imgs = images_bucket or "imagenes-cielo"
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for day in days:
+            # Reutiliza la función que ya sabe cómo escribir datos + imágenes por día
+            _write_day_to_zip(
+                zf=zf,
+                day=day,
+                variables=variables,
+                fmt=fmt,
+                include_images=include_images,
+                bucket_name=bucket_imgs,
+            )
+
+    # Nombre final
+    zip_name = f"export_{day_init}_{day_finish}.zip"
+
+    buf.seek(0)
+    return buf, "application/zip", zip_name
