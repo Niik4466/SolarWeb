@@ -7,6 +7,8 @@ from schemas.user import *
 from models.user import Usuario, Solicitud
 from pydantic import BaseModel, EmailStr
 
+from core.security import create_access_token, get_current_user
+
 router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get("/")
@@ -42,14 +44,47 @@ class LoginIn(BaseModel):
 
 @router.post("/log-in")
 def user_login(data: LoginIn, db: Session = Depends(get_db)):
-    return user_login_query(db, data.email, data.password)
+    login_result = user_login_query(db, data.email, data.password)
+
+    # se asume que login_result es un dict con 'success' y 'user' keys
+    if not login_result.get("success"):
+        return login_result # Retorna el error si el login falló
+    
+    if login_result.get("estado") != "aprobado":
+        return login_result # Retorna el estado si no está aprobado
+    
+    user_id = login_result.get("user_id")
+
+    if not user_id:
+        # Esto no debería pasar, pero por seguridad, en caso de que no haya user_id
+        user = db.query(Usuario).filter(Usuario.correo == data.correo).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Usuario no encontrado después del login exitoso"
+            )
+        user_id = user.id
+    access_token = create_access_token(data={"sub": str(user_id)})
+    # Devolvemos lo mismo que antes, pero con el token añadido
+    login_result.update({
+        "access_token": access_token,
+        "token_type": "bearer"
+    })
+    return login_result
+
+@router.get("/me", response_model=UsuarioOut)
+def read_me(current_user: Usuario = Depends(get_current_user)):
+    """
+    Obtiene la información del usuario actualmente autenticado.
+    """
+    return current_user
 
 @router.put("/update_status/{user_id}")
 def update_user_status(user_id: int, data: UsuarioEstadoActualizar, db: Session = Depends(get_db)):
     """
     Actualizar estado del usuario.
     """
-    user = db.query(Usuario).filter(Usuario.id == user_id).first()
+
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 

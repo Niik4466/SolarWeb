@@ -11,6 +11,8 @@ type LoginResponse = {
   estado?: 'aprobado' | 'pendiente' | 'eliminado' | string | null;
   message?: string;
   user_id?: number; // ✅ coincide con backend
+  access_token?: string;
+  token_type?: string;
 };
 
 export const environment = {
@@ -59,11 +61,16 @@ export class LoginComponent {
         next: (res) => {
           this.loading.set(false);
 
-          // ✅ Éxito solo si está aprobado
+          // Éxito solo si está aprobado
           if (res.success && res.estado === 'aprobado') {
             this.auth.setLoggedIn(email);
 
-            // ✅ Guarda el ID correctamente (coincide con backend)
+            // Guardar el token de acceso
+            if (res.access_token) {
+              localStorage.setItem('access_token', res.access_token);
+            }
+
+            // Guarda el ID correctamente (coincide con backend)
             if (res.user_id != null) {
               this.auth.setUserId(res.user_id);
             } else {
@@ -76,7 +83,7 @@ export class LoginComponent {
               });
             }
 
-            // ✅ Redirige según returnUrl
+            // Redirige según returnUrl
             const returnUrl =
               this.route.snapshot.queryParamMap.get('returnUrl') || '/graficos';
             this.router.navigateByUrl(returnUrl);
