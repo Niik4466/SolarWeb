@@ -15,7 +15,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # idealmente lo sacas de core.config
 SECRET_KEY = "a9c4e24d5b0480f13be6eec52e8120e92a9f715bba" # camiar esto en producción, usar variable de entorno
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 1  # 1 hora
+ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hora
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/log-in")
 
