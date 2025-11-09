@@ -6,15 +6,19 @@ import { LoginComponent } from './pages/auth/login/login';
 import { ForgotPasswordComponent } from './pages/auth/forgot-password/forgot-password'; 
 import { SolicitudesComponent } from './pages/solicitudes/solicitudes'; 
 import { UsuariosComponent } from './pages/usuarios/usuarios';
-
-// ✅ importa el guard
+import { redirectGuard } from './guards/redirect.guard';
 import { authGuard } from './guards/auth.guards';  // asegúrate de que el archivo se llame auth.guard.ts (no "guards")
 
 export const routes: Routes = [
   // ---------------------------
   // PÁGINAS PÚBLICAS (sin login)
   // ---------------------------
-  { path: '', pathMatch: 'full', redirectTo: 'login' },
+  { 
+    path: '',
+    component: LoginComponent,
+    canActivate: [redirectGuard],
+  },
+  
   { path: 'login', component: LoginComponent },
   { path: 'solicitar-registro', component: SolicitarRegistroComponent },
   { path: 'forgot-password', component: ForgotPasswordComponent },
@@ -30,5 +34,9 @@ export const routes: Routes = [
   // ---------------------------
   // RUTA POR DEFECTO (404 → login)
   // ---------------------------
-  { path: '**', redirectTo: 'login' },
+  {
+    path: '**',
+    component: LoginComponent,
+    canActivate: [redirectGuard],
+  },
 ];
