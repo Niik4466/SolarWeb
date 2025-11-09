@@ -17,6 +17,21 @@ export type UsuarioOut = {
   eliminado_en?: string | null;
 };
 
+export type TransaccionOut = {
+  id: number;
+  usuario_id: number;
+  archivos: string[];          // p.ej. ["2025-11-05", "2025-11-15"] o ["2025-11-11 - 2025-11-15"]
+  exportado_en: string | null;
+  imagenes: boolean;
+  var_ghi: boolean;
+  var_dni: boolean;
+  var_global: boolean;
+  creado_en: string;           // ISO
+  tipo_exportar: 'dias' | 'rango';
+  fecha_ini: string | null;    // "2025-11-11" si rango
+  fecha_fin: string | null;    // "2025-11-15" si rango
+};
+
 type ByStatusResp = { total: number; data: UsuarioOut[] };
 export type UsuarioEstado = 'pendiente' | 'aprobado' | 'eliminado';
 
@@ -48,4 +63,9 @@ export class UsersApi {
     );
   }
 
+  getUserTransactions(userId: number) {
+    return this.http.get<{ total: number; data: TransaccionOut[] }>(
+      `${this.base}/get_transactions/${userId}`
+    );
+  }
 }

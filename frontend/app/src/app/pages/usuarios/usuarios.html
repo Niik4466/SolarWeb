@@ -134,8 +134,7 @@
   </div>
 </div>
 
-
-<!-- Modal: Historial de usuario aprobado -->
+<!-- Modal: Historial -->
 <div class="modal" *ngIf="historialUser() as u" role="dialog" aria-modal="true">
   <div class="modal-card confirm">
     <div class="modal-head">
@@ -146,26 +145,41 @@
     <div class="modal-body">
       <p><strong>Correo:</strong> {{ u.correo }}</p>
       <p><strong>Aprobado el:</strong> {{ u.aprobado_el | date:'dd/MM/yyyy HH:mm' }}</p>
+
       <hr />
-      <table class="tabla compacta">
-        <thead>
-          <tr>
-            <th style="width: 200px;">Fecha</th>
-            <th>Acción</th>
-            <th>Detalle</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let e of eventosDe(u)">
-            <td>{{ e.fecha | date:'dd/MM/yyyy HH:mm' }}</td>
-            <td>{{ e.accion }}</td>
-            <td>{{ e.detalle || '—' }}</td>
-          </tr>
-          <tr *ngIf="eventosDe(u).length === 0">
-            <td colspan="3" class="vacio">Sin eventos registrados</td>
-          </tr>
-        </tbody>
-      </table>
+
+      <ng-container *ngIf="!cargandoHist(); else cargandoTpl">
+        <ng-container *ngIf="!errorHist(); else errorTpl">
+          <table class="tabla compacta">
+            <thead>
+              <tr>
+                <th style="width: 210px;">Fecha interacción</th>
+                <th style="width: 120px;">Tipo exportación</th>
+                <th>Fechas</th>
+                <th>Detalles</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let f of filasHistorialDe(u)">
+                <td>{{ f.fecha | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td class="cent">{{ f.tipo }}</td>
+                <td>{{ f.fechas }}</td>
+                <td>{{ f.detalle }}</td>
+              </tr>
+              <tr *ngIf="filasHistorialDe(u).length === 0">
+                <td colspan="4" class="vacio">Sin eventos registrados</td>
+              </tr>
+            </tbody>
+          </table>
+        </ng-container>
+      </ng-container>
+
+      <ng-template #cargandoTpl>
+        <p>Cargando historial…</p>
+      </ng-template>
+      <ng-template #errorTpl>
+        <p class="error">{{ errorHist() }}</p>
+      </ng-template>
     </div>
 
     <div class="modal-actions">
@@ -173,4 +187,3 @@
     </div>
   </div>
 </div>
-
