@@ -258,3 +258,44 @@
   align-items: center;
   gap: .5rem;
 }
+
+/* Calendario rango de fechas personalizado */
+
+.range-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.range-display {
+  font-size: 1rem;
+  background: #f7f9fb;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+  color: #333;
+}
+
+.calendar-wrapper {
+  display: flex;
+  justify-content: center;
+}
+
+.calendar-inline {
+  display: block;
+  width: 100%;
+  max-width: 620px;
+  min-width: 580px;
+  margin: auto;
+}
+
+::ng-deep .drp-calendar {
+  border-radius: 12px;
+}
+
+::ng-deep .drp-calendar td.available:hover {
+  background-color: #1976d2;
+  color: white;
+  border-radius: 50%;
+}

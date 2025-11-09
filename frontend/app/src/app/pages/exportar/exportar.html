@@ -51,22 +51,38 @@
          - Mensaje de validación si inicio > fin
        ====================== -->
     <div *ngIf="granularidad() === 'rango'" class="range-block">
-      <div class="row range-row">
-        <div class="field">
-          <label for="rangoInicio">Inicio</label>
-          <input id="rangoInicio" type="date" [formControl]="form.controls.rangoInicio" />
-        </div>
-        <div class="field">
-          <label for="rangoFin">Fin</label>
-          <input id="rangoFin" type="date" [formControl]="form.controls.rangoFin" />
+
+      <!-- Feedback superior -->
+      <div class="selected-range" *ngIf="selectedRange">
+        <div class="range-display">
+          <strong>Inicio:</strong> {{ selectedRange.startDate.format('DD/MM/YYYY') }}
+          &nbsp; — &nbsp;
+          <strong>Fin:</strong> {{ selectedRange.endDate.format('DD/MM/YYYY') }}
         </div>
       </div>
 
-      <!-- Validación simple en plantilla (orden de fechas) -->
+      <!-- Calendario siempre visible -->
+      <div class="calendar-wrapper">
+        <ngx-daterangepicker-material
+          [locale]="locale"
+          [linkedCalendars]="false"
+          [showCustomRangeLabel]="false"
+          [alwaysShowCalendars]="true"
+          [autoApply]="true"
+          [singleDatePicker]="false"
+          [startDate]="selectedRange.startDate"
+          [endDate]="selectedRange.endDate"
+          (choosedDate)="onDateRangeSelected($event)"
+          class="calendar-inline"
+        ></ngx-daterangepicker-material>
+      </div>
+
+      <!-- Validación -->
       <p class="muted" *ngIf="form.value.rangoInicio && form.value.rangoFin && form.value.rangoInicio! > form.value.rangoFin!">
         El inicio no puede ser posterior al fin.
       </p>
     </div>
+
   </div>
 
   <!-- =========================================

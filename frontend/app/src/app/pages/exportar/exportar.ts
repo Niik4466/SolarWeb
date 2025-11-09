@@ -1,12 +1,15 @@
 // exportar.ts
-
 import { Component, computed, signal, inject, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators, FormsModule } from '@angular/forms';
 import { ExportApi } from '../../services/export.api';
 import { TransactionsApi, TransaccionCreate } from '../../services/transactions.api';
 import { of, Observable, throwError, Subscription } from 'rxjs';
 import { concatMap, tap, finalize, catchError } from 'rxjs/operators';
+
+// ✅ Importar librería de rango de fechas
+import { NgxDaterangepickerMd, LocaleConfig} from 'ngx-daterangepicker-material';
+import dayjs from 'dayjs';
 
 type Granularity = 'diario' | 'rango';
 type VariableKey = 'GHI' | 'DNI' | 'DHI';
@@ -15,7 +18,12 @@ type FormatKey = 'csv' | 'json';
 @Component({
   standalone: true,
   selector: 'app-exportar-page',
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    FormsModule,
+    NgxDaterangepickerMd, // ✅ registra LocaleService y dependencias internas
+  ],
   templateUrl: './exportar.html',
   styleUrls: ['./exportar.scss']
 })
@@ -60,6 +68,60 @@ export class ExportarPage implements OnDestroy {
   private rangoFinSig = signal<string | null>(this.form.controls.rangoFin.value);
 
   private subs: Subscription[] = [];
+
+  // ===========================
+  // Configuración de rango de fechas (ngx-daterangepicker-material)
+  // ===========================
+
+  /**
+   * Configuración del idioma del selector de rango
+   */
+  public locale: LocaleConfig = {
+    format: 'DD/MM/YYYY',
+    displayFormat: 'DD/MM/YYYY',
+    direction: 'ltr',
+    applyLabel: 'Aplicar',
+    cancelLabel: 'Cancelar',
+    customRangeLabel: 'Personalizado',
+    daysOfWeek: ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'],
+    monthNames: [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ],
+    firstDay: 1
+  };
+
+  /**
+   * Objeto que almacena el rango de fechas seleccionado visualmente
+   */
+  selectedRange: { startDate: dayjs.Dayjs; endDate: dayjs.Dayjs } = {
+    startDate: dayjs().subtract(0, 'day'), // por ejemplo últimos 7 días
+    endDate: dayjs()
+  };
+
+
+  /**
+   * Evento que se dispara cuando el usuario selecciona un rango de fechas
+   * en el calendario interactivo.
+   */
+  onDateRangeSelected(event: any) {
+    if (!event.startDate || !event.endDate) return;
+
+    // Guardar el rango seleccionado
+    this.selectedRange = {
+      startDate: event.startDate,
+      endDate: event.endDate
+    };
+
+    // Actualizar el formulario
+    const inicio = event.startDate.format('YYYY-MM-DD');
+    const fin = event.endDate.format('YYYY-MM-DD');
+
+    this.form.patchValue({ rangoInicio: inicio, rangoFin: fin });
+    this.rangoInicioSig.set(inicio);
+    this.rangoFinSig.set(fin);
+  }
+
 
   // ===========================
   // Selectores / helpers
@@ -110,14 +172,6 @@ export class ExportarPage implements OnDestroy {
 
   setGranularidad(g: 'diario'|'rango') {
     this.granularidad.set(g);
-    if (g === 'diario') {
-      this.form.patchValue({ rangoInicio: null, rangoFin: null });
-      this.rangoInicioSig.set(null);
-      this.rangoFinSig.set(null);
-    } else {
-      // si cambia a rango, opcionalmente limpiar fechas diarias
-      // this.fechasDiarias.set([]);
-    }
   }
 
   addFechaDiaria() {
@@ -215,12 +269,12 @@ export class ExportarPage implements OnDestroy {
     this.startProgress(total, 'Registrando transacción…');
 
     this.runningSub = this.transactionsApi.saveTransaction(payload).pipe(
-      tap((savedTransaction) => {
+      tap(() => {
         this.statusMsg.set('Transacción registrada. Iniciando descarga...');
       }),
       concatMap(() => this.logicaDeExportacion()),
     ).subscribe({
-      error: (err) => {
+      error: () => {
         if (!this.statusMsg()?.startsWith('No se pudo')) {
           alert('No se pudo registrar la transacción en la base de datos. La exportación ha sido cancelada.');
         }
