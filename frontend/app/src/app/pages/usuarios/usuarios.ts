@@ -1,7 +1,8 @@
+// src/app/pages/usuarios/usuarios.ts
 import { Component, computed, signal, OnInit, inject } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { ReactiveFormsModule, FormControl } from '@angular/forms';
-import { UsersApi, UsuarioOut } from '../../services/user.api';
+import { UsersApi, UsuarioOut, TransaccionOut } from '../../services/user.api';
 import { AuthService } from '../../services/auth.service';
 
 type UsuarioUI = {
@@ -10,10 +11,15 @@ type UsuarioUI = {
   correo: string;
   aprobado_el: string | null;
   eliminado?: boolean;
-  eliminado_el?: string | null; // viene de backend
+  eliminado_el?: string | null;
 };
 
-type Evento = { fecha: string; accion: string; detalle?: string };
+type FilaHistorial = {
+  fecha: string;     // creado_en
+  tipo: 'dias' | 'rango';
+  fechas: string;    // lista o “ini – fin”
+  detalle: string;   // variables e imágenes
+};
 
 @Component({
   selector: 'app-usuarios',
@@ -26,9 +32,14 @@ export class UsuariosComponent implements OnInit {
   private api = inject(UsersApi);
   private auth = inject(AuthService);
 
-  // ⚠️ Define de dónde obtienes el adminId actual (token/estado global).
-  // De momento, déjalo fijo o inyéctalo desde tu AuthService.
-  private adminIdActual = this.auth.adminId; // <-- reemplaza por tu id real del admin logueado
+  private get adminId(): number | null {
+    const id = this.auth.getUserId?.() ?? this.auth.adminId ?? null;
+    return id != null ? Number(id) : null;
+  }
+  private excluirActual(xs: UsuarioUI[]): UsuarioUI[] {
+    const id = this.adminId;
+    return id == null ? xs : xs.filter(u => u.id !== id);
+  }
 
   listaAprobados = signal<UsuarioUI[]>([]);
   listaEliminados = signal<UsuarioUI[]>([]);
@@ -38,6 +49,13 @@ export class UsuariosComponent implements OnInit {
 
   cargando = signal(false);
   error = signal<string | null>(null);
+
+  // ----------------- NUEVO: cache de historial por usuario
+  cargandoHist = signal(false);
+  errorHist = signal<string | null>(null);
+  historialUser = signal<UsuarioUI | null>(null);
+  // cache: userId -> filas formateadas
+  privados_histCache = new Map<number, FilaHistorial[]>();
 
   ngOnInit() { this.cargarAprobados(); }
 
@@ -49,7 +67,7 @@ export class UsuariosComponent implements OnInit {
       correo: u.correo,
       aprobado_el: u.aprobado_en ?? null,
       eliminado: u.estado === 'eliminado',
-      eliminado_el: (u as any).eliminado_en ?? null, // ✅ del backend (deleted_users)
+      eliminado_el: (u as any).eliminado_en ?? null,
     };
   }
 
@@ -58,7 +76,8 @@ export class UsuariosComponent implements OnInit {
     this.error.set(null);
     this.api.getByStatus('aprobado').subscribe({
       next: (data) => {
-        this.listaAprobados.set(data.map(u => this.mapToUI(u)));
+        const mapeados = data.map(u => this.mapToUI(u));
+        this.listaAprobados.set(this.excluirActual(mapeados));
         this.cargando.set(false);
       },
       error: () => { this.error.set('No se pudo cargar usuarios aprobados'); this.cargando.set(false); }
@@ -69,20 +88,18 @@ export class UsuariosComponent implements OnInit {
     this.cargando.set(true);
     this.api.getDeletedUsers().subscribe({
       next: (data) => {
-        this.listaEliminados.set(data.map(u => this.mapToUI(u)));
+        const mapeados = data.map(u => this.mapToUI(u));
+        this.listaEliminados.set(this.excluirActual(mapeados));
         this.cargando.set(false);
       },
       error: () => { this.error.set('No se pudo cargar usuarios eliminados'); this.cargando.set(false); }
     });
   }
 
-  abrirPapelera() {
-    this.mostrarEliminados.set(true);
-    this.cargarEliminados(); // ✅ ahora usa /deleted_users
-  }
+  abrirPapelera() { this.mostrarEliminados.set(true); this.cargarEliminados(); }
   cerrarPapelera() { this.mostrarEliminados.set(false); }
 
-  activos  = computed(() => this.listaAprobados());
+  activos  = computed(() => this.excluirActual(this.listaAprobados()));
   filtrados = computed(() => {
     const q = this.buscar.value.toLowerCase().trim();
     const base = this.activos();
@@ -97,13 +114,8 @@ export class UsuariosComponent implements OnInit {
   confirmarEliminacion() {
     const u = this.pendiente();
     if (!u) return;
-
-    const adminId = this.auth.getUserId(); // ✅ toma el ID guardado del login
-    if (!adminId) {
-      this.error.set('No se pudo obtener el ID del administrador autenticado.');
-      return;
-    }
-
+    const adminId = this.auth.getUserId();
+    if (!adminId) { this.error.set('No se pudo obtener el ID del administrador autenticado.'); return; }
     this.cargando.set(true);
     this.api.deleteUser(u.id, adminId).subscribe({
       next: () => {
@@ -112,15 +124,11 @@ export class UsuariosComponent implements OnInit {
         this.pendiente.set(null);
         this.cargando.set(false);
       },
-      error: () => {
-        this.error.set('No se pudo eliminar el usuario');
-        this.cargando.set(false);
-      },
+      error: () => { this.error.set('No se pudo eliminar el usuario'); this.cargando.set(false); },
     });
   }
 
   restaurar(u: UsuarioUI) {
-    // si quieres restaurar, puedes seguir usando updateStatus('aprobado')
     this.api.updateStatus(u.id, 'aprobado').subscribe({
       next: () => {
         this.listaEliminados.update(xs => xs.filter(x => x.id !== u.id));
@@ -129,15 +137,63 @@ export class UsuariosComponent implements OnInit {
       error: () => this.error.set('No se pudo restaurar el usuario'),
     });
   }
-
   borrarDefinitivo(u: UsuarioUI) {
     this.listaEliminados.update(xs => xs.filter(x => x.id !== u.id));
-    // si tienes endpoint de borrado definitivo físico, lo llamas aquí
   }
 
-  historialUser = signal<UsuarioUI | null>(null);
-  abrirHistorial(u: UsuarioUI) { this.historialUser.set(u); }
+  // ---------- helpers de formateo
+  private buildDetalle(t: TransaccionOut): string {
+    const vars: string[] = [];
+    if (t.var_ghi) vars.push('GHI');
+    if (t.var_dni) vars.push('DNI');
+    if (t.var_global) vars.push('Global');
+    const varsTxt = vars.length ? `Vars: ${vars.join(', ')}` : 'Vars: —';
+    const imgsTxt = t.imagenes ? 'con imágenes' : 'sin imágenes';
+    return `${varsTxt} · ${imgsTxt}`;
+  }
+
+  private buildFechas(t: TransaccionOut): string {
+    if (t.tipo_exportar === 'dias') {
+      // Lista de días elegidos
+      return t.archivos.join(', ');
+    }
+    // rango: usa fecha_ini/fecha_fin si existen (o el primer string de archivos)
+    if (t.fecha_ini && t.fecha_fin) return `${t.fecha_ini} – ${t.fecha_fin}`;
+    return t.archivos?.[0] ?? '—';
+  }
+
+  // ----------- carga / acceso al historial
+  abrirHistorial(u: UsuarioUI) {
+    this.historialUser.set(u);
+    this.errorHist.set(null);
+
+    if (this.privados_histCache.has(u.id)) return; // ya cargado
+
+    this.cargandoHist.set(true);
+    this.api.getUserTransactions(u.id).subscribe({
+      next: (res) => {
+        const filas: FilaHistorial[] = (res.data || []).map(t => ({
+          fecha: t.creado_en,
+          tipo: t.tipo_exportar,
+          fechas: this.buildFechas(t),
+          detalle: this.buildDetalle(t),
+        }))
+        // opcional: ordenar por fecha desc
+        .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+
+        this.privados_histCache.set(u.id, filas);
+        this.cargandoHist.set(false);
+      },
+      error: () => {
+        this.errorHist.set('No se pudo cargar el historial de transacciones.');
+        this.cargandoHist.set(false);
+      }
+    });
+  }
+
   cerrarHistorial() { this.historialUser.set(null); }
 
-  eventosDe(_u: UsuarioUI): Evento[] { return []; }
+  filasHistorialDe(u: UsuarioUI): FilaHistorial[] {
+    return this.privados_histCache.get(u.id) ?? [];
+  }
 }
