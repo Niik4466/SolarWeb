@@ -1,9 +1,14 @@
 # backend/services/user_service.py
-from datetime import datetime
 from sqlalchemy.orm import Session
+from db.postgres import get_db, get_sync_session
 from models.user import *
 from fastapi import HTTPException
 from core.security import hash_password, verify_password
+from datetime import datetime, timedelta
+from apscheduler.schedulers.background import BackgroundScheduler
+
+scheduler = BackgroundScheduler()
+scheduler.start()
 
 
 # --------------------
@@ -435,3 +440,97 @@ def create_transaccion_query(db: Session, data: dict):
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error al crear transacción: {str(e)}")
 
+
+# --------------------
+# Eliminacion Usuarios
+# --------------------
+def delete_user_permanently_query(usuario_id: int):
+    """
+    Elimina completamente al usuario y sus registros asociados de la base de datos.
+    (Es llamada automáticamente por el scheduler)
+    """
+    db: Session = get_sync_session()
+    try:
+        usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
+        if not usuario:
+            print(f"⚠️ Usuario {usuario_id} no encontrado.")
+            return
+
+        print(f"🧹 Eliminando usuario {usuario_id} y registros asociados...")
+
+        # Eliminar manualmente todos los registros relacionados
+        db.query(UsuarioEliminacionLog).filter(
+            (UsuarioEliminacionLog.usuario_id == usuario_id) |
+            (UsuarioEliminacionLog.eliminado_por_id == usuario_id)
+        ).delete(synchronize_session=False)
+
+        db.query(Transaccion).filter(Transaccion.usuario_id == usuario_id).delete(synchronize_session=False)
+        db.query(Solicitud).filter(Solicitud.usuario_id == usuario_id).delete(synchronize_session=False)
+
+        # ✅ Importante: refrescar para evitar UPDATEs automáticos
+        db.expire_all()
+
+        # Eliminar usuario principal
+        db.query(Usuario).filter(Usuario.id == usuario_id).delete(synchronize_session=False)
+        db.commit()
+
+        print(f"✅ Usuario {usuario_id} eliminado completamente.")
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Error al eliminar usuario {usuario_id}: {e}")
+    finally:
+        db.close()
+
+def schedule_user_deletion_query(usuario_id: int):
+    """
+    Programa la eliminación definitiva del usuario en 30 días.
+    """
+    scheduler.add_job(
+        func=delete_user_permanently_query,
+        trigger="date",
+        run_date=datetime.utcnow() + timedelta(days=30),
+        args=[usuario_id],
+        id=f"delete_user_{usuario_id}",
+        replace_existing=True
+    )
+
+def mark_and_schedule_deletion_query(db: Session, usuario_id: int, eliminado_por_id: int):
+    """
+    Marca un usuario como eliminado y programa su eliminación definitiva.
+    """
+    try:
+        usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
+        if not usuario:
+            raise HTTPException(status_code=404, detail=f"Usuario {usuario_id} no encontrado.")
+        if usuario.estado == UsuarioEstado.eliminado:
+            raise HTTPException(status_code=400, detail=f"Usuario {usuario_id} ya está marcado como eliminado.")
+
+        # Marcar como eliminado
+        usuario.estado = UsuarioEstado.eliminado
+        usuario.actualizado_en = datetime.utcnow()
+
+        # Crear log
+        log = UsuarioEliminacionLog(
+            usuario_id=usuario_id,
+            eliminado_por_id=eliminado_por_id,
+            motivo="",
+            eliminado_en=datetime.utcnow(),
+        )
+        db.add(log)
+        db.commit()
+
+        # Agendar eliminación en 30 días
+        schedule_user_deletion_query(usuario_id)
+
+        return {
+            "usuario_id": usuario_id,
+            "estado": "eliminado",
+            "eliminacion_programada_en": (datetime.utcnow() + timedelta(days=30)).isoformat(),
+            "mensaje": f"Usuario {usuario_id} marcado como eliminado. Eliminación definitiva en 30 días."
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al procesar eliminación: {str(e)}")

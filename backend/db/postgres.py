@@ -22,13 +22,19 @@ def get_postgres_engine():
     )
     return engine
 
+def get_sync_session() -> Session:
+    """
+    Crea una sesión síncrona fuera del contexto de FastAPI.
+    Ideal para tareas del scheduler u operaciones en segundo plano.
+    """
+    SessionLocal = get_postgres_sessionmaker()
+    return SessionLocal()
 
 @lru_cache
 def get_postgres_sessionmaker():
     """Crea un sessionmaker enlazado al engine (para dependencias FastAPI)."""
     engine = get_postgres_engine()
     return sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 
 # Dependencia para inyección en endpoints FastAPI
 def get_db() -> Session:
