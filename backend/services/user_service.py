@@ -253,6 +253,8 @@ def get_deleted_users_query(db: Session):
             "eliminado_en": (log.eliminado_en.isoformat() if log and log.eliminado_en else None),
         })
 
+    data.sort(key=lambda x: x["eliminado_en"] or "", reverse=True)
+
     return {"total": len(data), "data": data}
 
 def delete_user_query(db: Session, usuario_id: int, eliminado_por_id: int | None = None):
@@ -306,7 +308,6 @@ def delete_user_query(db: Session, usuario_id: int, eliminado_por_id: int | None
 # --------------------
 # Tabla Transacciones
 # --------------------
-
 def get_transactions_by_user_id_query(db: Session, usuario_id: int):
     """
     Devuelve todas las transacciones asociadas a un usuario,
@@ -451,9 +452,15 @@ def delete_user_permanently_query(usuario_id: int):
     """
     db: Session = get_sync_session()
     try:
-        usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
+        # Buscar usuario con estado 'eliminado'
+        usuario = (
+            db.query(Usuario)
+            .filter(Usuario.id == usuario_id, Usuario.estado == UsuarioEstado.eliminado)
+            .first()
+        )
+
         if not usuario:
-            print(f"⚠️ Usuario {usuario_id} no encontrado.")
+            print(f"⚠️ Usuario {usuario_id} no encontrado o no está marcado como eliminado.")
             return
 
         print(f"🧹 Eliminando usuario {usuario_id} y registros asociados...")
