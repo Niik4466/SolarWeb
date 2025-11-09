@@ -1,4 +1,3 @@
-// src/app/pages/usuarios/usuarios.ts
 import { Component, computed, signal, OnInit, inject } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { ReactiveFormsModule, FormControl } from '@angular/forms';
@@ -20,6 +19,8 @@ type FilaHistorial = {
   fechas: string;    // lista o “ini – fin”
   detalle: string;   // variables e imágenes
 };
+
+type Orden = 'recientes' | 'antiguos' | 'nombre' | 'correo';
 
 @Component({
   selector: 'app-usuarios',
@@ -44,20 +45,27 @@ export class UsuariosComponent implements OnInit {
   listaAprobados = signal<UsuarioUI[]>([]);
   listaEliminados = signal<UsuarioUI[]>([]);
 
+  // ---- buscador y orden ----
   buscar = new FormControl('', { nonNullable: true });
+  orden  = signal<Orden>('recientes'); // default: más recientes primero
+
   mostrarEliminados = signal(false);
 
   cargando = signal(false);
   error = signal<string | null>(null);
 
-  // ----------------- NUEVO: cache de historial por usuario
+  // ----------------- cache de historial por usuario
   cargandoHist = signal(false);
   errorHist = signal<string | null>(null);
   historialUser = signal<UsuarioUI | null>(null);
-  // cache: userId -> filas formateadas
   privados_histCache = new Map<number, FilaHistorial[]>();
 
   ngOnInit() { this.cargarAprobados(); }
+  
+  onOrdenChange(ev: Event) {
+    const value = (ev.target as HTMLSelectElement).value as any; // 'recientes' | ...
+    this.orden.set(value);
+  }
 
   private mapToUI(u: UsuarioOut): UsuarioUI {
     const nombreCompleto = [u.nombre, u.apellido].filter(Boolean).join(' ');
@@ -100,13 +108,99 @@ export class UsuariosComponent implements OnInit {
   cerrarPapelera() { this.mostrarEliminados.set(false); }
 
   activos  = computed(() => this.excluirActual(this.listaAprobados()));
-  filtrados = computed(() => {
-    const q = this.buscar.value.toLowerCase().trim();
+
+  // ---------- helpers buscador/orden ----------
+  private norm(s: string) {
+    return (s || '')
+      .toLowerCase()
+      .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  private ts(u: UsuarioUI): number {
+    return u.aprobado_el ? new Date(u.aprobado_el).getTime() : NaN;
+  }
+
+  // Lista final visible (filtrada + ordenada)
+  visibles = computed(() => {
+    const q = this.norm(this.buscar.value);
     const base = this.activos();
-    if (!q) return base;
-    return base.filter(u => (u.nombre + ' ' + u.correo).toLowerCase().includes(q));
+
+    // filtro
+    let xs = !q ? base : base.filter(u => {
+      const hay = this.norm(u.nombre + ' ' + u.correo);
+      return hay.includes(q);
+    });
+
+    // orden
+    const ord = this.orden();
+    xs = [...xs].sort((a, b) => {
+      if (ord === 'nombre') return this.norm(a.nombre).localeCompare(this.norm(b.nombre));
+      if (ord === 'correo') return this.norm(a.correo).localeCompare(this.norm(b.correo));
+
+      const av = this.ts(a), bv = this.ts(b);
+      const aNan = Number.isNaN(av), bNan = Number.isNaN(bv);
+      if (aNan && bNan) return 0;
+      if (aNan) return 1;   // sin fecha -> al final
+      if (bNan) return -1;
+
+      return ord === 'recientes' ? (bv - av) : (av - bv);
+    });
+
+    return xs;
   });
 
+  toggleFechaSort() {
+    this.orden.set(this.orden() === 'recientes' ? 'antiguos' : 'recientes');
+  }
+
+  // ---------- helpers historial ----------
+  private buildDetalle(t: TransaccionOut): string {
+    const vars: string[] = [];
+    if (t.var_ghi) vars.push('GHI');
+    if (t.var_dni) vars.push('DNI');
+    if (t.var_global) vars.push('Global');
+    const varsTxt = vars.length ? `Vars: ${vars.join(', ')}` : 'Vars: —';
+    const imgsTxt = t.imagenes ? 'con imágenes' : 'sin imágenes';
+    return `${varsTxt} · ${imgsTxt}`;
+  }
+
+  private buildFechas(t: TransaccionOut): string {
+    if (t.tipo_exportar === 'dias') return t.archivos.join(', ');
+    if (t.fecha_ini && t.fecha_fin) return `${t.fecha_ini} – ${t.fecha_fin}`;
+    return t.archivos?.[0] ?? '—';
+  }
+
+  abrirHistorial(u: UsuarioUI) {
+    this.historialUser.set(u);
+    this.errorHist.set(null);
+    if (this.privados_histCache.has(u.id)) return;
+
+    this.cargandoHist.set(true);
+    this.api.getUserTransactions(u.id).subscribe({
+      next: (res) => {
+        const filas: FilaHistorial[] = (res.data || []).map(t => ({
+          fecha: t.creado_en,
+          tipo: t.tipo_exportar,
+          fechas: this.buildFechas(t),
+          detalle: this.buildDetalle(t),
+        }))
+        .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+
+        this.privados_histCache.set(u.id, filas);
+        this.cargandoHist.set(false);
+      },
+      error: () => { this.errorHist.set('No se pudo cargar el historial de transacciones.'); this.cargandoHist.set(false); }
+    });
+  }
+
+  cerrarHistorial() { this.historialUser.set(null); }
+
+  filasHistorialDe(u: UsuarioUI): FilaHistorial[] {
+    return this.privados_histCache.get(u.id) ?? [];
+  }
+
+  // ---- eliminar/restaurar (sin cambios)
   pendiente = signal<UsuarioUI | null>(null);
   abrirConfirmacion(u: UsuarioUI) { this.pendiente.set(u); }
   cancelarEliminacion() { this.pendiente.set(null); }
@@ -137,63 +231,8 @@ export class UsuariosComponent implements OnInit {
       error: () => this.error.set('No se pudo restaurar el usuario'),
     });
   }
+
   borrarDefinitivo(u: UsuarioUI) {
     this.listaEliminados.update(xs => xs.filter(x => x.id !== u.id));
-  }
-
-  // ---------- helpers de formateo
-  private buildDetalle(t: TransaccionOut): string {
-    const vars: string[] = [];
-    if (t.var_ghi) vars.push('GHI');
-    if (t.var_dni) vars.push('DNI');
-    if (t.var_global) vars.push('Global');
-    const varsTxt = vars.length ? `Vars: ${vars.join(', ')}` : 'Vars: —';
-    const imgsTxt = t.imagenes ? 'con imágenes' : 'sin imágenes';
-    return `${varsTxt} · ${imgsTxt}`;
-  }
-
-  private buildFechas(t: TransaccionOut): string {
-    if (t.tipo_exportar === 'dias') {
-      // Lista de días elegidos
-      return t.archivos.join(', ');
-    }
-    // rango: usa fecha_ini/fecha_fin si existen (o el primer string de archivos)
-    if (t.fecha_ini && t.fecha_fin) return `${t.fecha_ini} – ${t.fecha_fin}`;
-    return t.archivos?.[0] ?? '—';
-  }
-
-  // ----------- carga / acceso al historial
-  abrirHistorial(u: UsuarioUI) {
-    this.historialUser.set(u);
-    this.errorHist.set(null);
-
-    if (this.privados_histCache.has(u.id)) return; // ya cargado
-
-    this.cargandoHist.set(true);
-    this.api.getUserTransactions(u.id).subscribe({
-      next: (res) => {
-        const filas: FilaHistorial[] = (res.data || []).map(t => ({
-          fecha: t.creado_en,
-          tipo: t.tipo_exportar,
-          fechas: this.buildFechas(t),
-          detalle: this.buildDetalle(t),
-        }))
-        // opcional: ordenar por fecha desc
-        .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-
-        this.privados_histCache.set(u.id, filas);
-        this.cargandoHist.set(false);
-      },
-      error: () => {
-        this.errorHist.set('No se pudo cargar el historial de transacciones.');
-        this.cargandoHist.set(false);
-      }
-    });
-  }
-
-  cerrarHistorial() { this.historialUser.set(null); }
-
-  filasHistorialDe(u: UsuarioUI): FilaHistorial[] {
-    return this.privados_histCache.get(u.id) ?? [];
   }
 }

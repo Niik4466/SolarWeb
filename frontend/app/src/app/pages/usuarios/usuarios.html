@@ -1,20 +1,41 @@
 <div class="contenedor">
   <h1>Usuarios</h1>
 
-  
+  <!-- Toolbar: buscador + orden -->
+  <div class="toolbar">
+    <input
+      type="search"
+      [formControl]="buscar"
+      placeholder="Buscar por nombre o correo…"
+      aria-label="Buscar usuarios"
+    />
+
+    <select [value]="orden()" (change)="onOrdenChange($event)" aria-label="Ordenar">
+      <option value="recientes">Más recientes primero</option>
+      <option value="antiguos">Más antiguos primero</option>
+      <option value="nombre">Nombre (A–Z)</option>
+      <option value="correo">Correo (A–Z)</option>
+    </select>
+
+  </div>
+
   <div class="tabla-wrapper">
     <table class="tabla">
       <thead>
         <tr>
           <th>Nombre usuario</th>
           <th>Correo</th>
-          <th>Fecha de aprobación</th>
+          <th class="clickable" (click)="toggleFechaSort()">
+            Fecha de aprobación
+            <span *ngIf="orden()==='recientes'">↓</span>
+            <span *ngIf="orden()==='antiguos'">↑</span>
+          </th>
           <th class="cent">Historial</th>
           <th class="cent">Eliminar</th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let u of filtrados()">
+        <tr *ngFor="let u of visibles()">
           <td>{{ u.nombre }}</td>
           <td>{{ u.correo }}</td>
           <td>{{ u.aprobado_el | date:'dd/MM/yyyy HH:mm' }}</td>
@@ -26,7 +47,7 @@
           </td>
         </tr>
 
-        <tr *ngIf="filtrados().length === 0">
+        <tr *ngIf="visibles().length === 0">
           <td colspan="5" class="vacio">Sin resultados</td>
         </tr>
       </tbody>
@@ -34,86 +55,101 @@
   </div>
 
   <div class="eliminados">
-    <button class="ghost" (click)="abrirPapelera()">
-      🗑 Usuarios eliminados
-    </button>
+    <button class="ghost" (click)="abrirPapelera()">🗑 Usuarios eliminados</button>
   </div>
 
- <!-- Modal: Usuarios eliminados -->
-<div class="modal" *ngIf="mostrarEliminados()">
-  <div class="modal-card">
-    <div class="modal-head">
-      <h2>Usuarios eliminados</h2>
-      <button class="icono" (click)="mostrarEliminados.set(false)">✕</button>
-    </div>
+  <!-- Modal: Usuarios eliminados -->
+  <div class="modal" *ngIf="mostrarEliminados()">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2>Usuarios eliminados</h2>
+        <button class="icono" (click)="mostrarEliminados.set(false)">✕</button>
+      </div>
 
-    <table class="tabla compacta">
-      <thead>
-        <tr>
-          <th>Nombre usuario</th>
-          <th>Correo</th>
-          <th>Eliminado el</th>
-          <th class="cent">Historial</th>
-          <th class="cent">Restaurar</th>
-          <th class="cent">Borrar</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let u of listaEliminados()">
-          <td>{{ u.nombre }}</td>
-          <td>{{ u.correo }}</td>
-          <td>{{ u.eliminado_el | date:'dd/MM/yyyy HH:mm' }}</td>
-
-          <!-- nuevo -->
-          <td class="cent">
-            <button class="icono" title="Historial" (click)="abrirHistorial(u)">⟳</button>
-          </td>
-
-          <td class="cent">
-            <button class="mini" (click)="restaurar(u)">Restaurar</button>
-          </td>
-          <td class="cent">
-            <button class="mini rojo" (click)="borrarDefinitivo(u)">Eliminar</button>
-          </td>
-        </tr>
-        <tr *ngIf="listaEliminados().length === 0">
-          <td colspan="6" class="vacio">No hay usuarios eliminados</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Modal: Historial de usuario eliminado -->
-<div class="modal" *ngIf="historialUser() as h">
-  <div class="modal-card confirm">
-    <div class="modal-head">
-      <h2>Historial de {{ h.nombre }}</h2>
-      <button class="icono" (click)="cerrarHistorial()">✕</button>
-    </div>
-
-    <div class="modal-body">
-      <p><strong>Correo:</strong> {{ h.correo }}</p>
-      <p><strong>Fecha de aprobación:</strong> {{ h.aprobado_el | date:'dd/MM/yyyy HH:mm' }}</p>
-      <p><strong>Eliminado el:</strong> {{ h.eliminado_el | date:'dd/MM/yyyy HH:mm' }}</p>
-
-      <hr />
-
-      <p><em>Registro simulado:</em></p>
-      <ul>
-        <li>12/04/2024 15:33 — Aprobado por administrador.</li>
-        <li>06/11/2025 14:20 — Eliminado por administrador.</li>
-      </ul>
-    </div>
-
-    <div class="modal-actions">
-      <button class="btn" (click)="cerrarHistorial()">Cerrar</button>
+      <table class="tabla compacta">
+        <thead>
+          <tr>
+            <th>Nombre usuario</th>
+            <th>Correo</th>
+            <th>Eliminado el</th>
+            <th class="cent">Historial</th>
+            <th class="cent">Restaurar</th>
+            <th class="cent">Borrar</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let u of listaEliminados()">
+            <td>{{ u.nombre }}</td>
+            <td>{{ u.correo }}</td>
+            <td>{{ u.eliminado_el | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td class="cent">
+              <button class="icono" title="Historial" (click)="abrirHistorial(u)">⟳</button>
+            </td>
+            <td class="cent">
+              <button class="mini" (click)="restaurar(u)">Restaurar</button>
+            </td>
+            <td class="cent">
+              <button class="mini rojo" (click)="borrarDefinitivo(u)">Eliminar</button>
+            </td>
+          </tr>
+          <tr *ngIf="listaEliminados().length === 0">
+            <td colspan="6" class="vacio">No hay usuarios eliminados</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
-</div>
 
+  <!-- Modal: Historial -->
+  <div class="modal" *ngIf="historialUser() as u" role="dialog" aria-modal="true">
+    <div class="modal-card confirm">
+      <div class="modal-head">
+        <h2>Historial de {{ u.nombre }}</h2>
+        <button class="icono" (click)="cerrarHistorial()" aria-label="Cerrar">✕</button>
+      </div>
 
-  <!-- Modal: Confirmar eliminación (pop-up) -->
+      <div class="modal-body">
+        <p><strong>Correo:</strong> {{ u.correo }}</p>
+        <p><strong>Aprobado el:</strong> {{ u.aprobado_el | date:'dd/MM/yyyy HH:mm' }}</p>
+        <hr />
+
+        <ng-container *ngIf="!cargandoHist(); else cargandoTpl">
+          <ng-container *ngIf="!errorHist(); else errorTpl">
+            <table class="tabla compacta">
+              <thead>
+                <tr>
+                  <th style="width: 210px;">Fecha interacción</th>
+                  <th style="width: 120px;">Tipo exportación</th>
+                  <th>Fechas</th>
+                  <th>Detalles</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let f of filasHistorialDe(u)">
+                  <td>{{ f.fecha | date:'dd/MM/yyyy HH:mm' }}</td>
+                  <td class="cent">{{ f.tipo }}</td>
+                  <td>{{ f.fechas }}</td>
+                  <td>{{ f.detalle }}</td>
+                </tr>
+                <tr *ngIf="filasHistorialDe(u).length === 0">
+                  <td colspan="4" class="vacio">Sin eventos registrados</td>
+                </tr>
+              </tbody>
+            </table>
+          </ng-container>
+        </ng-container>
+
+        <ng-template #cargandoTpl><p>Cargando historial…</p></ng-template>
+        <ng-template #errorTpl><p class="error">{{ errorHist() }}</p></ng-template>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" (click)="cerrarHistorial()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Confirmar eliminación -->
   <div class="modal" *ngIf="pendiente() as p" role="dialog" aria-modal="true" aria-labelledby="dlg-title" aria-describedby="dlg-desc">
     <div class="modal-card confirm">
       <div class="modal-head">
@@ -130,60 +166,6 @@
         <button class="btn" (click)="cancelarEliminacion()">Cancelar</button>
         <button class="btn peligro" (click)="confirmarEliminacion()">Eliminar</button>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: Historial -->
-<div class="modal" *ngIf="historialUser() as u" role="dialog" aria-modal="true">
-  <div class="modal-card confirm">
-    <div class="modal-head">
-      <h2>Historial de {{ u.nombre }}</h2>
-      <button class="icono" (click)="cerrarHistorial()" aria-label="Cerrar">✕</button>
-    </div>
-
-    <div class="modal-body">
-      <p><strong>Correo:</strong> {{ u.correo }}</p>
-      <p><strong>Aprobado el:</strong> {{ u.aprobado_el | date:'dd/MM/yyyy HH:mm' }}</p>
-
-      <hr />
-
-      <ng-container *ngIf="!cargandoHist(); else cargandoTpl">
-        <ng-container *ngIf="!errorHist(); else errorTpl">
-          <table class="tabla compacta">
-            <thead>
-              <tr>
-                <th style="width: 210px;">Fecha interacción</th>
-                <th style="width: 120px;">Tipo exportación</th>
-                <th>Fechas</th>
-                <th>Detalles</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let f of filasHistorialDe(u)">
-                <td>{{ f.fecha | date:'dd/MM/yyyy HH:mm' }}</td>
-                <td class="cent">{{ f.tipo }}</td>
-                <td>{{ f.fechas }}</td>
-                <td>{{ f.detalle }}</td>
-              </tr>
-              <tr *ngIf="filasHistorialDe(u).length === 0">
-                <td colspan="4" class="vacio">Sin eventos registrados</td>
-              </tr>
-            </tbody>
-          </table>
-        </ng-container>
-      </ng-container>
-
-      <ng-template #cargandoTpl>
-        <p>Cargando historial…</p>
-      </ng-template>
-      <ng-template #errorTpl>
-        <p class="error">{{ errorHist() }}</p>
-      </ng-template>
-    </div>
-
-    <div class="modal-actions">
-      <button class="btn" (click)="cerrarHistorial()">Cerrar</button>
     </div>
   </div>
 </div>

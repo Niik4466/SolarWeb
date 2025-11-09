@@ -38,16 +38,31 @@ INFLUX_PASS=admin123
 INFLUX_ORG=miOrg
 INFLUX_BUCKET=miBucket
 INFLUX_TOKEN=super-secret-token
-INFLUX_ENDPOINT=http://influxdb-solarweb:8086
+INFLUX_ENDPOINT=http://influxdb-solarweb:8086/
 
 # Variables del servicio de almacenamiento de objetos (MinIO)
 MINIO_USER=minio
 MINIO_PASSWORD=minio123
-MINIO_ENDPOINT=http://minio-solarweb:9000
+MINIO_ENDPOINT=http://minio-solarweb:9000/
+
+# Variables de la base de datos relacional (PostgreSQL)
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_PORT=5432
+POSTGRES_HOST=postgres-solarweb
+POSTGRES_DB=solarweb
 
 # Variables para los servicios de carga de datos (Uploaders)
-MINIO_UPLOAD_IMAGES_DIR=~/Downloads/csv
-INFLUXDB_UPLOAD_CSV_DIR=~/Pictures/DatosCamera
+MINIO_UPLOAD_IMAGES_DIR=~/Pictures/DatosCamera
+INFLUXDB_UPLOAD_CSV_DIR=~/Downloads/csv
+
+# Variables para el servicio de envío de correos electrónicos (Resend)
+RESEND_API_KEY=re_oTSU8u2B_BipcCZwTEUtFMjFT6pyZT48M
+RESEND_FROM="SolarWeb-No-Reply <onboarding@resend.dev>"
+
+# Variables para la red ZeroTier
+ZT_NETWORK_ID=88c5b1f339849380
+
 ```
 
 **Paso 3: Levantar los Contenedores**
@@ -67,5 +82,6 @@ Una vez que los servicios estén activos, puedes verificar su funcionamiento:
 
   * **Frontend:** Abre tu navegador y navega a [http://localhost:3002](http://localhost:3002). Deberías ver la interfaz de usuario de SolarWeb.
   * **Backend:** La API estará disponible en [http://localhost:4002](http://localhost:4002). Puedes ir a [http://localhost:4002/docs](http://localhost:4002/docs) para probar los endpoints.
+
 
 Si encuentras algún problema, asegúrate de que no haya otros servicios ejecutándose en los mismos puertos y no tener servicios dockers activos.
