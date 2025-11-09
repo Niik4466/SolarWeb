@@ -4,13 +4,14 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { finalize, take } from 'rxjs/operators';
 import { AuthService } from '../../../services/auth.service';
 
 type LoginResponse = {
   success: boolean;
   estado?: 'aprobado' | 'pendiente' | 'eliminado' | string | null;
   message?: string;
-  user_id?: number; // ✅ coincide con backend
+  user_id?: number;
   access_token?: string;
   token_type?: string;
 };
@@ -46,7 +47,6 @@ export class LoginComponent {
 
   onSubmit() {
     this.errorMsg.set(null);
-
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
@@ -54,64 +54,51 @@ export class LoginComponent {
 
     const { email, password } = this.form.value as { email: string; password: string };
 
+    // Limpia estado previo por si hay un login viejo
+    this.auth.setLoggedOut();
+
     this.loading.set(true);
-    this.http
-      .post<LoginResponse>(`${environment.apiBase}/users/log-in`, { email, password })
+    this.http.post<LoginResponse>(`${environment.apiBase}/users/log-in`, { email, password })
+      .pipe(finalize(() => this.loading.set(false)), take(1))
       .subscribe({
         next: (res) => {
-          this.loading.set(false);
-
-          // Éxito solo si está aprobado
           if (res.success && res.estado === 'aprobado') {
+            // Guarda login básico
             this.auth.setLoggedIn(email);
 
-            // Guardar el token de acceso
+            // Guarda token (que usará el interceptor)
             if (res.access_token) {
-              localStorage.setItem('access_token', res.access_token);
+              this.auth.setToken(res.access_token);
             }
 
-            // Guarda el ID correctamente (coincide con backend)
+            // Guarda user_id si vino; si no, lo busca por email
             if (res.user_id != null) {
               this.auth.setUserId(res.user_id);
             } else {
-              // Si no viene el ID, intenta obtenerlo por email
-              this.auth.fetchUserIdByEmail(environment.apiBase, email).subscribe({
-                next: (r) => this.auth.setUserId(r.id),
-                error: () => {
-                  console.warn('No se pudo obtener user_id por correo');
-                },
-              });
+              this.auth.fetchUserIdByEmail(environment.apiBase, email)
+                .pipe(take(1))
+                .subscribe({
+                  next: r => this.auth.setUserId(r.id),
+                  error: () => console.warn('No se pudo obtener user_id por correo'),
+                });
             }
 
-            // Redirige según returnUrl
-            const returnUrl =
-              this.route.snapshot.queryParamMap.get('returnUrl') || '/graficos';
+            // Redirige (usa returnUrl si viene en query)
+            const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/graficos';
             this.router.navigateByUrl(returnUrl);
             return;
           }
 
-          // ⚠️ Mensajes según estado
-          switch (res.estado) {
-            case 'pendiente':
-              this.errorMsg.set(
-                'Su solicitud sigue en estado de espera en aprobación.'
-              );
-              break;
-            case 'eliminado':
-              this.errorMsg.set('Su solicitud ha sido rechazada.');
-              break;
-            case 'aprobado':
-              this.errorMsg.set(
-                'No se pudo iniciar sesión. Intente nuevamente.'
-              );
-              break;
-            default:
-              this.errorMsg.set(res.message ?? 'Credenciales inválidas.');
-              break;
+          // Estados no-aprobados o credenciales malas
+          if (res.estado === 'pendiente') {
+            this.errorMsg.set('Su solicitud sigue en estado de espera en aprobación.');
+          } else if (res.estado === 'eliminado') {
+            this.errorMsg.set('Su solicitud ha sido rechazada.');
+          } else {
+            this.errorMsg.set(res.message ?? 'Credenciales inválidas.');
           }
         },
         error: (err) => {
-          this.loading.set(false);
           this.errorMsg.set(err?.error?.detail ?? 'Error al iniciar sesión.');
         },
       });

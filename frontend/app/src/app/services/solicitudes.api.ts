@@ -74,8 +74,14 @@ export class UserService {
   getPendingWithSolicitudes() {
   // environment.apiBase = 'http://127.0.0.1:8000'
   // Backend: GET /users/pending_with_solicitudes
-  return this.http.get<{ total: number; data: any[] }>(`${this.base}/pending_with_solicitudes`);
-}
+    return this.http.get<{ total: number; data: any[] }>(`${this.base}/pending_with_solicitudes`);
+  }
+  
+  deleteUser(userId: number, adminId: number) {
+    return this.http.post<{ success: boolean; message: string }>(
+      `${this.base}/delete_user/${userId}/${adminId}`, {}
+    );
+  }
 
 }
 

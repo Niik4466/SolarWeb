@@ -57,7 +57,7 @@ def user_login(data: LoginIn, db: Session = Depends(get_db)):
 
     if not user_id:
         # Esto no debería pasar, pero por seguridad, en caso de que no haya user_id
-        user = db.query(Usuario).filter(Usuario.correo == data.correo).first()
+        user = db.query(Usuario).filter(Usuario.correo == data.email).first()
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -84,7 +84,7 @@ def update_user_status(user_id: int, data: UsuarioEstadoActualizar, db: Session 
     """
     Actualizar estado del usuario.
     """
-
+    user = obtain_user_by_id_query(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 

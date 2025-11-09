@@ -2,14 +2,15 @@ import { Component, computed, signal, OnInit, inject } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { ReactiveFormsModule, FormControl } from '@angular/forms';
 import { UsersApi, UsuarioOut } from '../../services/user.api';
+import { AuthService } from '../../services/auth.service';
 
 type UsuarioUI = {
   id: number;
   nombre: string;
   correo: string;
-  aprobado_el: string | null;  // ISO o null
+  aprobado_el: string | null;
   eliminado?: boolean;
-  eliminado_el?: string | null;
+  eliminado_el?: string | null; // viene de backend
 };
 
 type Evento = { fecha: string; accion: string; detalle?: string };
@@ -21,9 +22,13 @@ type Evento = { fecha: string; accion: string; detalle?: string };
   templateUrl: './usuarios.html',
   styleUrls: ['./usuarios.scss'],
 })
-
 export class UsuariosComponent implements OnInit {
   private api = inject(UsersApi);
+  private auth = inject(AuthService);
+
+  // ⚠️ Define de dónde obtienes el adminId actual (token/estado global).
+  // De momento, déjalo fijo o inyéctalo desde tu AuthService.
+  private adminIdActual = this.auth.adminId; // <-- reemplaza por tu id real del admin logueado
 
   listaAprobados = signal<UsuarioUI[]>([]);
   listaEliminados = signal<UsuarioUI[]>([]);
@@ -36,7 +41,6 @@ export class UsuariosComponent implements OnInit {
 
   ngOnInit() { this.cargarAprobados(); }
 
-  // ✅ IMPLEMENTADO
   private mapToUI(u: UsuarioOut): UsuarioUI {
     const nombreCompleto = [u.nombre, u.apellido].filter(Boolean).join(' ');
     return {
@@ -45,7 +49,7 @@ export class UsuariosComponent implements OnInit {
       correo: u.correo,
       aprobado_el: u.aprobado_en ?? null,
       eliminado: u.estado === 'eliminado',
-      eliminado_el: u.estado === 'eliminado' ? (u.actualizado_en ?? null) : null,
+      eliminado_el: (u as any).eliminado_en ?? null, // ✅ del backend (deleted_users)
     };
   }
 
@@ -62,15 +66,19 @@ export class UsuariosComponent implements OnInit {
   }
 
   private cargarEliminados() {
-    this.api.getByStatus('eliminado').subscribe({
-      next: (data) => this.listaEliminados.set(data.map(u => this.mapToUI(u))),
-      error: () => this.error.set('No se pudo cargar usuarios eliminados')
+    this.cargando.set(true);
+    this.api.getDeletedUsers().subscribe({
+      next: (data) => {
+        this.listaEliminados.set(data.map(u => this.mapToUI(u)));
+        this.cargando.set(false);
+      },
+      error: () => { this.error.set('No se pudo cargar usuarios eliminados'); this.cargando.set(false); }
     });
   }
 
   abrirPapelera() {
     this.mostrarEliminados.set(true);
-    this.cargarEliminados(); // 👈 dispara GET status=eliminado
+    this.cargarEliminados(); // ✅ ahora usa /deleted_users
   }
   cerrarPapelera() { this.mostrarEliminados.set(false); }
 
@@ -87,24 +95,36 @@ export class UsuariosComponent implements OnInit {
   cancelarEliminacion() { this.pendiente.set(null); }
 
   confirmarEliminacion() {
-    const u = this.pendiente(); if (!u) return;
-    this.api.updateStatus(u.id, 'eliminado').subscribe({
+    const u = this.pendiente();
+    if (!u) return;
+
+    const adminId = this.auth.getUserId(); // ✅ toma el ID guardado del login
+    if (!adminId) {
+      this.error.set('No se pudo obtener el ID del administrador autenticado.');
+      return;
+    }
+
+    this.cargando.set(true);
+    this.api.deleteUser(u.id, adminId).subscribe({
       next: () => {
         this.listaAprobados.update(xs => xs.filter(x => x.id !== u.id));
-        if (this.mostrarEliminados()) {
-          this.listaEliminados.update(xs => [{ ...u, eliminado: true, eliminado_el: new Date().toISOString() }, ...xs]);
-        }
+        if (this.mostrarEliminados()) this.cargarEliminados();
         this.pendiente.set(null);
+        this.cargando.set(false);
       },
-      error: () => this.error.set('No se pudo eliminar el usuario'),
+      error: () => {
+        this.error.set('No se pudo eliminar el usuario');
+        this.cargando.set(false);
+      },
     });
   }
 
   restaurar(u: UsuarioUI) {
+    // si quieres restaurar, puedes seguir usando updateStatus('aprobado')
     this.api.updateStatus(u.id, 'aprobado').subscribe({
       next: () => {
         this.listaEliminados.update(xs => xs.filter(x => x.id !== u.id));
-        this.listaAprobados.update(xs => [{ ...u, eliminado: false }, ...xs]);
+        this.listaAprobados.update(xs => [{ ...u, eliminado: false, eliminado_el: null }, ...xs]);
       },
       error: () => this.error.set('No se pudo restaurar el usuario'),
     });
@@ -112,12 +132,12 @@ export class UsuariosComponent implements OnInit {
 
   borrarDefinitivo(u: UsuarioUI) {
     this.listaEliminados.update(xs => xs.filter(x => x.id !== u.id));
+    // si tienes endpoint de borrado definitivo físico, lo llamas aquí
   }
 
   historialUser = signal<UsuarioUI | null>(null);
   abrirHistorial(u: UsuarioUI) { this.historialUser.set(u); }
   cerrarHistorial() { this.historialUser.set(null); }
 
-  // ✅ firma con parámetro (para que compile tu template)
   eventosDe(_u: UsuarioUI): Evento[] { return []; }
 }

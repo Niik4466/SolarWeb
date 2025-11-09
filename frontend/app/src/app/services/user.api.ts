@@ -11,13 +11,13 @@ export type UsuarioOut = {
   apellido?: string | null;
   es_admin: boolean;
   estado: 'pendiente' | 'aprobado' | 'eliminado';
-  creado_en: string;        // ISO
-  actualizado_en: string;   // ISO
-  aprobado_en?: string | null; // ISO
+  creado_en: string;
+  actualizado_en: string;
+  aprobado_en?: string | null;
+  eliminado_en?: string | null;
 };
 
 type ByStatusResp = { total: number; data: UsuarioOut[] };
-
 export type UsuarioEstado = 'pendiente' | 'aprobado' | 'eliminado';
 
 @Injectable({ providedIn: 'root' })
@@ -37,4 +37,15 @@ export class UsersApi {
       { estado }  // body: { estado: 'eliminado' | 'aprobado' | 'pendiente' }
     );
   }
+  getDeletedUsers(): Observable<UsuarioOut[]> {
+    return this.http.get<{ total: number; data: UsuarioOut[] }>(`${this.base}/deleted_users`)
+      .pipe(map(r => r.data));
+  }
+
+  deleteUser(userId: number, adminId: number) {
+    return this.http.post<{ success: boolean; message: string }>(
+      `${this.base}/delete_user/${userId}/${adminId}`, {}
+    );
+  }
+
 }
