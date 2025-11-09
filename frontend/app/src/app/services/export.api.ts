@@ -12,17 +12,34 @@ const API_BASE = 'http://127.0.0.1:8000';
    ========================= */
 
 /**
- * Cuerpo de la petición para exportar datos de **un solo día**.
+ * Cuerpo de la petición para exportar datos de **rango de dias**.
  */
-export type exportDailyBatchBody = {
+export type ExportDayBody = {
+  /** Fecha en formato `YYYY-MM-DD`. */
+  date: string;
+  
+  /** Variables de irradiancia a exportar. */
+  variables: ('GHI'|'DNI'|'DHI')[];
+
+  /** Formato de exportación (`csv` o `json`). */
+  format: 'csv'|'json';
+  
+  /** Si `true`, incluye imágenes asociadas al día. */
+  include_images: boolean;
+
+  /** Nombre del bucket de imágenes (opcional). */
+  images_bucket?: string;
+}
+
+/**
+ * Cuerpo de la petición para exportar datos de **varios dias**.
+ */
+export type ExportDailyBatchBody = {
   /** Fecha en formato `YYYY-MM-DD`. */
   dates: string[];
 
   /** Variables de irradiancia a exportar. */
   variables: ('GHI'|'DNI'|'DHI')[];
-
-  /** Fechas a exportar (formato `YYYY-MM-DD`). */
-
 
   /** Formato de exportación (`csv` o `json`). */
   format: 'csv'|'json';
@@ -37,16 +54,12 @@ export type exportDailyBatchBody = {
 /**
  * Cuerpo de la petición para exportar datos de un **rango de fechas**.
  */
-export type ExportRangeBody = {
+export type ExportByRangeBody = {
   /** Fecha inicial en formato `YYYY-MM-DD`. */
-  inicio: string;
+  date_init: string;
   
-  /**
-   * Fechas intermedias en formato `YYYY-MM-DD`.
-   */
-
   /** Fecha final en formato `YYYY-MM-DD`. */
-  fin: string;
+  date_finish: string;
 
   /** Variables de irradiancia a exportar. */
   variables: ('GHI'|'DNI'|'DHI')[];
@@ -63,6 +76,7 @@ export type ExportRangeBody = {
   /** Nombre del bucket de imágenes (opcional). */
   images_bucket?: string;
 };
+
 
 /* =========================
    SERVICIO (HTTP)
@@ -88,7 +102,19 @@ export class ExportApi {
    * @param body Objeto con fecha, variables y formato de exportación.
    * @returns Observable con un `Blob` (archivo descargable).
    */
-  exportDailyBatch(body: exportDailyBatchBody) {
+  exportDaily(body: ExportDayBody) {
+    return this.http.post(`${API_BASE}/export/day`, body, {
+      responseType: 'blob' as const
+    });
+  }
+
+  /**
+   * Exporta datos de un **día específico**.
+   *
+   * @param body Objeto con fecha, variables y formato de exportación.
+   * @returns Observable con un `Blob` (archivo descargable).
+   */
+  exportDailyBatch(body: ExportDailyBatchBody) {
     return this.http.post(`${API_BASE}/export/daily/batch`, body, {
       responseType: 'blob' as const
     });
@@ -100,7 +126,7 @@ export class ExportApi {
    * @param body Objeto con rango de fechas, variables y formato de exportación.
    * @returns Observable con un `Blob` (archivo descargable).
    */
-  exportRange(body: ExportRangeBody) {
+  exportRange(body: ExportByRangeBody) {
     return this.http.post(`${API_BASE}/export/range`, body, {
       responseType: 'blob' as const
     });

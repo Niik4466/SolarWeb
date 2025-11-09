@@ -1,13 +1,12 @@
 // exportar.ts
 
-import { Component, computed, signal, inject } from '@angular/core';
+import { Component, computed, signal, inject, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ExportApi } from '../../services/export.api';
 import { TransactionsApi, TransaccionCreate } from '../../services/transactions.api';
-import { of, Observable, throwError } from 'rxjs';
+import { of, Observable, throwError, Subscription } from 'rxjs';
 import { concatMap, tap, finalize, catchError } from 'rxjs/operators';
-
 
 type Granularity = 'diario' | 'rango';
 type VariableKey = 'GHI' | 'DNI' | 'DHI';
@@ -20,86 +19,87 @@ type FormatKey = 'csv' | 'json';
   templateUrl: './exportar.html',
   styleUrls: ['./exportar.scss']
 })
-export class ExportarPage {
+export class ExportarPage implements OnDestroy {
 
   // ===========================
   // Estado de la UI
   // ===========================
 
-  /** Granularidad seleccionada por el usuario (diario o rango). */
   granularidad = signal<Granularity>('diario');
-
-  /** Fechas seleccionadas en modo "diario" (formato YYYY-MM-DD). */
   fechasDiarias = signal<string[]>([]);
 
-  /** Inyección del constructor reactivo de formularios. */
   private fb = inject(FormBuilder);
-
-  /** Servicio de exportación (llamadas HTTP a backend). */
   private exporter = inject(ExportApi);
-
-  /** Servicio de transacciones (llamadas HTTP a backend). */
   private transactionsApi = inject(TransactionsApi);
 
   // ===========================
   // Form principal (opciones de exportación)
   // ===========================
 
-  /**
-   * FormGroup con:
-   * - varGHI/varDNI/varDHI: checkboxes independientes para seleccionar variables.
-   * - formato: radio ('csv' | 'json'), requerido.
-   * - incluirImagenes: aplica sólo para exportación por rango (ZIP).
-   * - fechaDiaria/rangoInicio/rangoFin: controles de calendario.
-   */
   form = this.fb.nonNullable.group({
-    // variables como checkboxes (booleanos independientes)
     varGHI: this.fb.nonNullable.control<boolean>(true),
     varDNI: this.fb.nonNullable.control<boolean>(false),
     varDHI: this.fb.nonNullable.control<boolean>(false),
 
-    // formato (radio en HTML)
     formato: this.fb.nonNullable.control<FormatKey>('csv', { validators: [Validators.required] }),
     incluirImagenes: this.fb.nonNullable.control<boolean>(false),
 
-    // Controles de calendario
     fechaDiaria: this.fb.control<string | null>(null),
     rangoInicio: this.fb.control<string | null>(null),
     rangoFin: this.fb.control<string | null>(null),
   });
 
+  // ---------------------------
+  // Señales sincronizadas con el form (para reactividad)
+  // ---------------------------
+  private varGHI = signal<boolean>(this.form.controls.varGHI.value);
+  private varDNI = signal<boolean>(this.form.controls.varDNI.value);
+  private varDHI = signal<boolean>(this.form.controls.varDHI.value);
+
+  private rangoInicioSig = signal<string | null>(this.form.controls.rangoInicio.value);
+  private rangoFinSig = signal<string | null>(this.form.controls.rangoFin.value);
+
+  private subs: Subscription[] = [];
+
   // ===========================
   // Selectores / helpers
   // ===========================
 
-  /**
-   * Obtiene las variables seleccionadas como arreglo de claves.
-   * @returns Array de variables marcadas por el usuario.
-   */
+  constructor() {
+    // Sincronizar controles -> señales
+    this.subs.push(
+      this.form.controls.varGHI.valueChanges.subscribe(v => this.varGHI.set(!!v)),
+      this.form.controls.varDNI.valueChanges.subscribe(v => this.varDNI.set(!!v)),
+      this.form.controls.varDHI.valueChanges.subscribe(v => this.varDHI.set(!!v)),
+
+      this.form.controls.rangoInicio.valueChanges.subscribe(v => this.rangoInicioSig.set(v ?? null)),
+      this.form.controls.rangoFin.valueChanges.subscribe(v => this.rangoFinSig.set(v ?? null)),
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.subs.forEach(s => s.unsubscribe());
+  }
+
   private getSelectedVariables(): VariableKey[] {
     const v: VariableKey[] = [];
-    if (this.form.value.varGHI) v.push('GHI');
-    if (this.form.value.varDNI) v.push('DNI');
-    if (this.form.value.varDHI) v.push('DHI');
+    if (this.varGHI()) v.push('GHI');
+    if (this.varDNI()) v.push('DNI');
+    if (this.varDHI()) v.push('DHI');
     return v;
   }
 
-  /**
-   * Indica si se cumplen las condiciones mínimas para habilitar el botón "Exportar".
-   * - Debe haber al menos una variable seleccionada.
-   * - En modo diario: al menos una fecha agregada.
-   * - En modo rango: fechas inicio/fin válidas y con inicio <= fin.
-   */
+  // computed ahora usa SOLO señales — se actualizará inmediatamente
   puedeExportar = computed(() => {
-    const anyVar = this.getSelectedVariables().length > 0;  
+    const anyVar = this.getSelectedVariables().length > 0;
     if (!anyVar) return false;
 
     const g = this.granularidad();
     if (g === 'diario') {
       return this.fechasDiarias().length > 0;
     } else {
-      const ini = this.form.value.rangoInicio;
-      const fin = this.form.value.rangoFin;
+      const ini = this.rangoInicioSig();
+      const fin = this.rangoFinSig();
       return Boolean(ini && fin && ini <= fin);
     }
   });
@@ -108,21 +108,18 @@ export class ExportarPage {
   // Acciones de UI
   // ===========================
 
-  /**
-   * Cambia la granularidad. Si vuelve a "diario", limpia el rango.
-   * @param g 'diario' | 'rango'
-   */
   setGranularidad(g: 'diario'|'rango') {
     this.granularidad.set(g);
     if (g === 'diario') {
       this.form.patchValue({ rangoInicio: null, rangoFin: null });
+      this.rangoInicioSig.set(null);
+      this.rangoFinSig.set(null);
+    } else {
+      // si cambia a rango, opcionalmente limpiar fechas diarias
+      // this.fechasDiarias.set([]);
     }
   }
 
-  /**
-   * Agrega una fecha al listado diario (sin duplicados) y limpia el input.
-   * Usa Set para evitar repeticiones y ordena lexicográficamente (YYYY-MM-DD).
-   */
   addFechaDiaria() {
     const value = this.form.value.fechaDiaria;
     if (!value) return;
@@ -132,23 +129,19 @@ export class ExportarPage {
     this.form.patchValue({ fechaDiaria: null });
   }
 
-  /**
-   * Elimina una fecha específica del listado diario.
-   * @param value Fecha a remover en formato YYYY-MM-DD
-   */
   removeFechaDiaria(value: string) {
     this.fechasDiarias.set(this.fechasDiarias().filter(f => f !== value));
   }
 
+  // ===========================
+  // Estado de exportación
+  // ===========================
 
-  // 👇 NUEVO: estado UI de exportación
   exporting = signal(false);
   statusMsg = signal<string | null>(null);
   progress = signal<{ total: number; done: number }>({ total: 0, done: 0 });
   private runningSub?: import('rxjs').Subscription;
 
-
-  // 👇 helper: actualizar progreso
   private startProgress(total: number, msg?: string) {
     this.progress.set({ total, done: 0 });
     this.statusMsg.set(msg ?? null);
@@ -166,7 +159,6 @@ export class ExportarPage {
     this.runningSub = undefined;
   }
 
-  // 👇 opcional: cancelar (para múltiples días)
   cancelExport() {
     if (this.runningSub && !this.runningSub.closed) {
       this.runningSub.unsubscribe();
@@ -174,16 +166,10 @@ export class ExportarPage {
     this.endProgress();
   }
 
-
   // ===========================
   // Utilidad de descarga
   // ===========================
 
-  /**
-   * Dispara la descarga de un Blob como archivo en el navegador.
-   * @param blob Contenido binario a descargar.
-   * @param filename Nombre sugerido para el archivo.
-   */
   private downloadBlob(blob: Blob, filename: string) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -197,61 +183,48 @@ export class ExportarPage {
   // Acción principal: Exportar
   // ===========================
 
-  /**
-   * Wrapper de la logica de exportacion, se encarga de almacenar el log en la BD y de iniciar la logica de exportacion 
-   * 1. Obtiene el UserID
-   * 2. registra la transacción en la BD.
-   * 3. Si tiene éxito, llama a logicaDeExportacion() para comenzar la descarga.
-   */
   exportar() {
     if (!this.puedeExportar() || this.exporting()) return;
 
-    // --- PASO 1: OBTENER USER ID ---
     const userIdString = localStorage.getItem('userId');
     if (!userIdString) {
-      console.error('Error: userId no encontrado en localStorage.');
       alert('Error de autenticación. No se pudo encontrar su ID de usuario.');
-      return; // Detener si no hay ID
+      return;
     }
     const userId = parseInt(userIdString, 10);
 
-    // --- PASO 2: ARMAR PAYLOAD DE LA TRANSACCIÓN ---
     const formVal = this.form.getRawValue();
 
+    const archivosPayload = this.granularidad() === 'diario'
+      ? this.fechasDiarias()
+      : [`${formVal.rangoInicio} - ${formVal.rangoFin}`];
 
     const payload: TransaccionCreate = {
       usuario_id: userId,
       imagenes: !!formVal.incluirImagenes,
       var_ghi: !!formVal.varGHI,
       var_dni: !!formVal.varDNI,
-      var_global: !!formVal.varDHI, // <-- Revisa esta asignación
-      archivos: this.granularidad() === 'diario' 
-                  ? this.fechasDiarias() 
-                  : [`Rango: ${formVal.rangoInicio} a ${formVal.rangoFin}`]
+      var_global: !!formVal.varDHI,
+      archivos: archivosPayload
     };
 
-    // --- PASO 3: GUARDAR TRANSACCIÓN Y LUEGO EXPORTAR ---
-    
-    this.startProgress(1, 'Registrando transacción…'); // Estado inicial
+    const total = this.granularidad() === 'diario'
+      ? Math.max(1, this.fechasDiarias().length)
+      : 1;
+
+    this.startProgress(total, 'Registrando transacción…');
 
     this.runningSub = this.transactionsApi.saveTransaction(payload).pipe(
       tap((savedTransaction) => {
-        // Actualiza el estado de la UI (opcional)
-        console.log('Transacción registrada con ID:', savedTransaction.id);
         this.statusMsg.set('Transacción registrada. Iniciando descarga...');
       }),
-      // Una vez guardada, ejecutamos la lógica de exportación
-      concatMap(() => this.logicaDeExportacion())
-      
+      concatMap(() => this.logicaDeExportacion()),
     ).subscribe({
       error: (err) => {
-        // Este error se dispara si 'saveTransaction' o 'logicaDeExportacion' fallan
-        console.error('[Flujo Exportar] error', err);
-        // El alert específico del error ya se mostró en logicaDeExportacion
         if (!this.statusMsg()?.startsWith('No se pudo')) {
-           alert('No se pudo registrar la transacción en la base de datos. La exportación ha sido cancelada.');
+          alert('No se pudo registrar la transacción en la base de datos. La exportación ha sido cancelada.');
         }
-        this.endProgress(); // Limpia la UI si falla el guardado
+        this.endProgress();
       }
     });
   }
@@ -259,29 +232,23 @@ export class ExportarPage {
   /**
    * Contiene la lógica de exportación (diaria o rango).
    * Es llamada por 'exportar()' y debe devolver un Observable.
-   * @returns Un Observable que, al suscribirse, inicia la descarga del archivo.
    */
   logicaDeExportacion(): Observable<Blob | null> {
-    // ❗ Esta lógica es llamada por 'exportar()', no necesita chequear 'puedeExportar'
-    // o 'userId'.
-    
     const variables = this.getSelectedVariables();
     const format = this.form.value.formato!;
 
-    // ❗ Solo actualizamos el mensaje, no reiniciamos el progreso
     this.statusMsg.set('Preparando descarga...');
 
     if (this.granularidad() === 'diario') {
       const dias = this.fechasDiarias();
-      if (!dias.length) return of(null); // ❗ Devolver Observable vacío
+      if (!dias.length) return of(null);
 
       const include_images = !!this.form.value.incluirImagenes;
 
-      // ✅ Si hay > 1 fecha → usamos el endpoint batch para un único ZIP
       if (dias.length > 1) {
-        this.statusMsg.set('Exportando múltiples días…'); // ❗ Actualizar mensaje
+        this.statusMsg.set('Exportando múltiples días…');
+        this.startProgress(dias.length, 'Exportando múltiples días…');
 
-        // ❗ Devolver Observable y manejar error con catchError
         return this.exporter.exportDailyBatch({
           dates: dias,
           variables,
@@ -298,28 +265,22 @@ export class ExportarPage {
             this.statusMsg.set('¡Exportación diaria (batch) completada!');
             setTimeout(() => this.endProgress(), 700);
           }),
-          // ❗ Manejar error localmente y propagarlo
           catchError((err) => {
-            console.error('[Exportar batch] error', err);
             this.statusMsg.set('No se pudo exportar el batch de días seleccionados.');
             alert('No se pudo exportar el batch de días seleccionados.');
-            // endProgress() se llamará en el .subscribe() principal
-            return throwError(() => err); 
+            return throwError(() => err);
           })
         );
-        // ❗ 'return;' eliminado
       }
 
-      // 🗓️ Si hay exactamente 1 fecha
-      this.statusMsg.set('Exportando día único…'); // ❗ Actualizar mensaje
-
+      this.statusMsg.set('Exportando día único…');
       const day = dias[0];
-      // ❗ Devolver Observable y manejar error con catchError
-      return this.exporter.exportDailyBatch({
-        dates: [day],
+
+      return this.exporter.exportDaily({
+        date: day,
         variables,
         format,
-        include_images
+        include_images,
       }).pipe(
         tap((blob: Blob) => {
           const ext = include_images ? 'zip' : (format === 'csv' ? 'csv' : 'json');
@@ -330,9 +291,7 @@ export class ExportarPage {
           this.statusMsg.set('¡Exportación diaria completada!');
           setTimeout(() => this.endProgress(), 700);
         }),
-        // ❗ Manejar error localmente y propagarlo
         catchError((err) => {
-          console.error('[Exportar día] error', err);
           this.statusMsg.set(`No se pudo exportar el día ${day}.`);
           alert(`No se pudo exportar el día ${day}.`);
           return throwError(() => err);
@@ -340,16 +299,15 @@ export class ExportarPage {
       );
 
     } else {
-      // Rango → un solo ZIP
       const inicio = this.form.value.rangoInicio!;
       const fin = this.form.value.rangoFin!;
       const include_images = !!this.form.value.incluirImagenes;
 
-      this.statusMsg.set(`Exportando rango ${inicio} → ${fin}…`); // ❗ Actualizar mensaje
+      this.statusMsg.set(`Exportando rango ${inicio} → ${fin}…`);
+      this.startProgress(1, `Exportando rango ${inicio} → ${fin}…`);
 
-      // ❗ Devolver Observable y manejar error con catchError
       return this.exporter.exportRange({
-        inicio, fin, variables, format, include_images
+        date_init: inicio, date_finish: fin, variables, format, include_images
       }).pipe(
         tap((blob: Blob) => {
           this.downloadBlob(blob, `export_${inicio}_${fin}.zip`);
@@ -359,9 +317,7 @@ export class ExportarPage {
           this.statusMsg.set('¡Exportación de rango completada!');
           setTimeout(() => this.endProgress(), 700);
         }),
-        // ❗ Manejar error localmente y propagarlo
         catchError((err) => {
-          console.error('[Exportar] error', err);
           this.statusMsg.set(`No se pudo exportar el rango ${inicio} a ${fin}.`);
           alert(`No se pudo exportar el rango ${inicio} a ${fin}.`);
           return throwError(() => err);
