@@ -8,6 +8,7 @@ import { SolicitudesComponent } from './pages/solicitudes/solicitudes';
 import { UsuariosComponent } from './pages/usuarios/usuarios';
 import { redirectGuard } from './guards/redirect.guard';
 import { authGuard } from './guards/auth.guards';  // asegúrate de que el archivo se llame auth.guard.ts (no "guards")
+import { adminGuard } from './guards/admin.guards';
 
 export const routes: Routes = [
   // ---------------------------
@@ -28,8 +29,8 @@ export const routes: Routes = [
   // ---------------------------
   { path: 'graficos', component: GraficosComponent, canActivate: [authGuard] },
   { path: 'exportar', component: ExportarPage, canActivate: [authGuard] },
-  { path: 'solicitudes', component: SolicitudesComponent, canActivate: [authGuard] },
-  { path: 'usuarios', component: UsuariosComponent, canActivate: [authGuard] },
+  { path: 'solicitudes', component: SolicitudesComponent, canActivate: [authGuard, adminGuard] },
+  { path: 'usuarios', component: UsuariosComponent, canActivate: [authGuard, adminGuard] },
 
   // ---------------------------
   // RUTA POR DEFECTO (404 → login)

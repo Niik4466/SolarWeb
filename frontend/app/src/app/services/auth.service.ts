@@ -20,6 +20,13 @@ export class AuthService {
   );
   userId = computed(() => this._userId());
 
+  // Si es admin
+  private _isAdmin = signal(
+    localStorage.getItem('isAdmin') === 'true'
+  );
+  isAdmin = computed(() => this._isAdmin()
+  )
+  
   // === Token ===
   private readonly TOKEN_KEY = 'access_token';
 
@@ -30,6 +37,15 @@ export class AuthService {
   setToken(token: string | null) {
     if (token) localStorage.setItem(this.TOKEN_KEY, token);
     else localStorage.removeItem(this.TOKEN_KEY);
+    if (token) {
+      const p = this.decodeJwt<JwtPayload>(token);
+      const isAdminFromToken = p?.['es_admin'] === true || p?.['es_admin'] === 1;
+      this._isAdmin.set(isAdminFromToken);
+      localStorage.setItem('isAdmin', isAdminFromToken ? 'true' : 'false');
+    } else {
+      this._isAdmin.set(false);
+      localStorage.removeItem('isAdmin');
+    }
   }
 
   // === JWT helpers ===
@@ -85,4 +101,30 @@ export class AuthService {
     const params = new HttpParams().set('email', email);
     return this.http.get<{ id: number }>(`${endpointBase}/users/by-email`, { params });
   }
+
+  initFromBackend() {
+  const token = this.token;
+  if (!token) return;
+
+  this.http.get<any>('http://127.0.0.1:8000/users/me').subscribe({
+    next: (user) => {
+      const isAdmin = !!user.es_admin;
+      this._isAdmin.set(isAdmin);
+      localStorage.setItem('isAdmin', String(isAdmin));
+      // por si quieres también actualizar email/id
+      if (user.correo) {
+        this._email.set(user.correo);
+        localStorage.setItem('userEmail', user.correo);
+      }
+      if (user.id) {
+        this._userId.set(user.id);
+        localStorage.setItem('userId', String(user.id));
+      }
+    },
+    error: () => {
+      // si falla, podrías desloguear
+      // this.setLoggedOut();
+    },
+  });
+ }
 }

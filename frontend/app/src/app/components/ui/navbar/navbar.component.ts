@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { Router, NavigationEnd, RouterLink, RouterLinkActive } from '@angular/router';
 import { NgIf } from '@angular/common';
 import { filter } from 'rxjs/operators';
-
+import { AuthService } from '../../../services/auth.service'; // ajusta path
 @Component({
   selector: 'app-navbar',
   standalone: true,
@@ -12,6 +12,7 @@ import { filter } from 'rxjs/operators';
 })
 export class NavbarComponent {
   private router = inject(Router);
+  auth = inject(AuthService);
   isLogin = signal(false);
 
   constructor() {

@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
+from pydantic import BaseModel, EmailStr
 from sqlalchemy import (
     Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text, BigInteger, ARRAY
 )
@@ -91,3 +92,6 @@ class Transaccion(Base):
 
     usuario: Mapped["Usuario"] = relationship("Usuario", back_populates="transacciones")
 
+class LoginIn(BaseModel):
+    email: EmailStr
+    password: str

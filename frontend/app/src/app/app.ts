@@ -3,6 +3,7 @@ import { RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { NavbarComponent } from './components/ui/navbar/navbar.component';
 import { Footer } from './components/ui/footer/footer';
+import { AuthService } from './services/auth.service';
 
 @Component({
   selector: 'app-root',
@@ -27,4 +28,9 @@ import { Footer } from './components/ui/footer/footer';
 `]
 
 })
-export class App {}
+export class App {
+  constructor(private auth: AuthService) {
+    console.log('App initialized. User is logged in:', this.auth.isLoggedIn());
+    this.auth.initFromBackend();
+  }
+}
