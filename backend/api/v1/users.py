@@ -1,5 +1,5 @@
 # backend/api/v1/users.py
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Query
 from sqlalchemy.orm import Session
 from db.postgres import get_db
 from services.user_service import *
@@ -173,3 +173,16 @@ def create_transaction(payload: TransaccionCreate, db: Session = Depends(get_db)
         var_dni=payload.var_dni,
         var_global=payload.var_global,
     )
+
+@router.delete("/delete_scheduled")
+def delete_users_scheduled(
+    usuario_id: int = Query(..., description="ID de usuarios a eliminar"),
+    eliminado_por_id: int = Query(..., description="ID del usuario que ejecuta la acción"),
+    db: Session = Depends(get_db),
+):
+    """
+    Marca uno o varios usuarios como eliminados y programa su eliminación definitiva en 30 días.
+    """
+    resultado = mark_and_schedule_deletion_query(db, usuario_id, eliminado_por_id)
+
+    return resultado
