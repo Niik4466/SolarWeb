@@ -3,6 +3,9 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { ReactiveFormsModule, FormControl } from '@angular/forms';
 import { UsersApi, UsuarioOut, TransaccionOut } from '../../services/user.api';
 import { AuthService } from '../../services/auth.service';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { startWith, debounceTime, distinctUntilChanged } from 'rxjs/operators';
+
 
 type UsuarioUI = {
   id: number;
@@ -48,6 +51,14 @@ export class UsuariosComponent implements OnInit {
   // ---- buscador y orden ----
   buscar = new FormControl('', { nonNullable: true });
   orden  = signal<Orden>('recientes'); // default: más recientes primero
+  private termino = toSignal(
+  this.buscar.valueChanges.pipe(
+    startWith(this.buscar.value),   // valor inicial
+    debounceTime(200),              // suaviza tecleo rápido
+    distinctUntilChanged()
+  ),
+  { initialValue: this.buscar.value }
+);
 
   mostrarEliminados = signal(false);
 
@@ -123,7 +134,7 @@ export class UsuariosComponent implements OnInit {
 
   // Lista final visible (filtrada + ordenada)
   visibles = computed(() => {
-    const q = this.norm(this.buscar.value);
+    const q = this.norm(this.termino() ?? '');
     const base = this.activos();
 
     // filtro
