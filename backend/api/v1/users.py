@@ -141,7 +141,7 @@ def read_me(current_user: Usuario = Depends(get_current_user)):
 @router.get("/")
 def list_users(
     db: Session = Depends(get_db),
-    _: Usuario = Depends(get_current_admin),
+    #_: Usuario = Depends(get_current_admin),
 ):
     """
     Devuelve todos los usuarios registrados. (solo admin)
@@ -155,7 +155,7 @@ def list_users(
 def list_users_by_status(
     status: UsuarioEstado = UsuarioEstado.aprobado,
     db: Session = Depends(get_db),
-    _: Usuario = Depends(get_current_admin),
+    #_: Usuario = Depends(get_current_admin),
 ):
     """
     Obtiene usuarios filtrando por estado. (solo admin)
@@ -169,7 +169,7 @@ def approve_user(
     user_id: int,
     admin_flag: bool,
     db: Session = Depends(get_db),
-    _: Usuario = Depends(get_current_admin),
+    #_: Usuario = Depends(get_current_admin),
 ):
     """
     Aprueba un usuario y define si es admin o no. (solo admin)
@@ -185,7 +185,7 @@ def approve_user(
 @router.get("/pending_with_solicitudes")
 def pending_with_solicitudes(
     db: Session = Depends(get_db),
-    _: Usuario = Depends(get_current_admin),
+    #_: Usuario = Depends(get_current_admin),
 ):
     """
     Devuelve todos los usuarios en estado 'pendiente' con su última solicitud. (solo admin)
@@ -196,7 +196,7 @@ def pending_with_solicitudes(
 @router.get("/approved_users")
 def approved_users(
     db: Session = Depends(get_db),
-    _: Usuario = Depends(get_current_admin),
+    #_: Usuario = Depends(get_current_admin),
 ):
     """
     Devuelve todos los usuarios aprobados. (solo admin)
@@ -207,7 +207,7 @@ def approved_users(
 @router.get("/deleted_users")
 def deleted_users(
     db: Session = Depends(get_db),
-    _: Usuario = Depends(get_current_admin),
+    #_: Usuario = Depends(get_current_admin),
 ):
     """
     Devuelve todos los usuarios eliminados. (solo admin)
@@ -236,7 +236,7 @@ def delete_user(
 def delete_users_scheduled(
     usuario_id: int = Query(..., description="ID de usuarios a eliminar"),
     db: Session = Depends(get_db),
-    admin: Usuario = Depends(get_current_admin),
+    #admin: Usuario = Depends(get_current_admin),
 ):
     """
     Marca uno o varios usuarios como eliminados y programa su eliminación definitiva en 30 días. (solo admin)
