@@ -12,6 +12,41 @@ from core.deps import get_current_admin  # dependencia que valida es_admin
 
 router = APIRouter(prefix="/users", tags=["users"])
 
+# -----------------------------------------------------------
+# TESTING
+# -----------------------------------------------------------
+@router.put("/update_status/{user_id}")
+def update_user_status(
+    user_id: int,
+    data: UsuarioEstadoActualizar,
+    db: Session = Depends(get_db),
+):
+    """
+    Actualizar estado del usuario. (solo admin)
+    """
+    user = obtain_user_by_id_query(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    updated_user = update_user_status_query(db, data.estado.value, user)
+    return {"msg": "Estado actualizado", "user": updated_user}
+
+
+@router.put("/update_power/{user_id}")
+def update_user_power(
+    user_id: int,
+    data: UsuarioPoderActualizar,
+    db: Session = Depends(get_db),
+):
+    """
+    Actualiza si un usuario es admin o no.
+    """
+    user = obtain_user_by_id_query(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    updated_user = update_user_power_query(db, data.es_admin, user)
+    return {"msg": "Rol actualizado", "user": updated_user}
 
 
 # -----------------------------------------------------------
@@ -88,6 +123,9 @@ def create_user(usuario: UsuarioCreate, db: Session = Depends(get_db)):
         )
 
 
+# -----------------------------------------------------------
+# USUARIO
+# -----------------------------------------------------------
 @router.get("/me", response_model=UsuarioOut)
 def read_me(current_user: Usuario = Depends(get_current_user)):
     """
@@ -96,8 +134,9 @@ def read_me(current_user: Usuario = Depends(get_current_user)):
     return current_user
 
 
+
 # -----------------------------------------------------------
-# ADMIN - SOLO ADMIN
+# ADMIN
 # -----------------------------------------------------------
 @router.get("/")
 def list_users(
@@ -110,41 +149,6 @@ def list_users(
     users = list_users_query(db)
     return {"data": users, "total": len(users)}
 
-
-@router.put("/update_status/{user_id}")
-def update_user_status(
-    user_id: int,
-    data: UsuarioEstadoActualizar,
-    db: Session = Depends(get_db),
-    admin: Usuario = Depends(get_current_admin),
-):
-    """
-    Actualizar estado del usuario. (solo admin)
-    """
-    user = obtain_user_by_id_query(db, user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
-    updated_user = update_user_status_query(db, data.estado.value, user)
-    return {"msg": "Estado actualizado", "user": updated_user}
-
-
-@router.put("/update_power/{user_id}")
-def update_user_power(
-    user_id: int,
-    data: UsuarioPoderActualizar,
-    db: Session = Depends(get_db),
-    admin: Usuario = Depends(get_current_admin),
-):
-    """
-    Actualiza si un usuario es admin o no. (solo admin)
-    """
-    user = obtain_user_by_id_query(db, user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
-    updated_user = update_user_power_query(db, data.es_admin, user)
-    return {"msg": "Rol actualizado", "user": updated_user}
 
 
 @router.get("/by_status")
@@ -244,7 +248,7 @@ def delete_users_scheduled(
 
 
 # -----------------------------------------------------------
-# TRANSACCIONES (puedes dejarlas así o protegerlas después)
+# TRANSACCIONES
 # -----------------------------------------------------------
 @router.get("/get_transactions/{user_id}")
 def get_transactions_by_user_id(user_id: int, db: Session = Depends(get_db)):

@@ -105,7 +105,7 @@ export class SolicitudesComponent implements OnInit {
       }
 
       // ✅ usar delete_user para que guarde eliminado_en y el admin
-      this.users.deleteUser(Number(s.id), adminId).pipe(
+      this.users.deleteUser(Number(s.id)).pipe(
         catchError(err => {
           this.error.set(`No se pudo rechazar: ${err?.status || ''} ${err?.statusText || ''}`);
           return of(null);

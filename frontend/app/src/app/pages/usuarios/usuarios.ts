@@ -222,7 +222,7 @@ export class UsuariosComponent implements OnInit {
     const adminId = this.auth.getUserId();
     if (!adminId) { this.error.set('No se pudo obtener el ID del administrador autenticado.'); return; }
     this.cargando.set(true);
-    this.api.deleteUser(u.id, adminId).subscribe({
+    this.api.deleteUser(u.id).subscribe({
       next: () => {
         this.listaAprobados.update(xs => xs.filter(x => x.id !== u.id));
         if (this.mostrarEliminados()) this.cargarEliminados();

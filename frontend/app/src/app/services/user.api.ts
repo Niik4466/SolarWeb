@@ -57,9 +57,9 @@ export class UsersApi {
       .pipe(map(r => r.data));
   }
 
-  deleteUser(userId: number, adminId: number) {
-    return this.http.post<{ success: boolean; message: string }>(
-      `${this.base}/delete_user/${userId}/${adminId}`, {}
+  deleteUser(userId: number) {
+    return this.http.delete<{ success: boolean; message: string }>(
+      `${this.base}/delete_scheduled/?usuario_id=${userId}`
     );
   }
 

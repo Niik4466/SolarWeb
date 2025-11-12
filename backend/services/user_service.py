@@ -10,7 +10,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 scheduler = BackgroundScheduler()
 scheduler.start()
 
-
 # --------------------
 # Tabla Usuarios
 # --------------------
@@ -270,6 +269,10 @@ def delete_user_query(db: Session, usuario_id: int, eliminado_por_id: int | None
     if not usuario:
         raise HTTPException(status_code=404, detail=f"Usuario con ID {usuario_id} no encontrado")
 
+    # Si el usuario es admin no eliminar
+    if usuario.es_admin == True:
+        raise HTTPException(status_code=403, detail="No se puede eliminar un usuario administrador")
+
     # Si ya estaba eliminado, evitar duplicar
     if usuario.estado == "eliminado":
         raise HTTPException(status_code=400, detail=f"El usuario {usuario_id} ya está eliminado")
@@ -463,6 +466,7 @@ def delete_user_permanently_query(usuario_id: int):
             print(f"⚠️ Usuario {usuario_id} no encontrado o no está marcado como eliminado.")
             return
 
+        
         print(f"🧹 Eliminando usuario {usuario_id} y registros asociados...")
 
         # Eliminar manualmente todos los registros relacionados
@@ -511,6 +515,8 @@ def mark_and_schedule_deletion_query(db: Session, usuario_id: int, eliminado_por
             raise HTTPException(status_code=404, detail=f"Usuario {usuario_id} no encontrado.")
         if usuario.estado == UsuarioEstado.eliminado:
             raise HTTPException(status_code=400, detail=f"Usuario {usuario_id} ya está marcado como eliminado.")
+        if usuario.es_admin == True:
+            raise HTTPException(status_code=403, detail="No se puede eliminar un usuario administrador")
 
         # Marcar como eliminado
         usuario.estado = UsuarioEstado.eliminado
