@@ -7,22 +7,15 @@ html, body {
   overflow: hidden;
 }
 
+/* ✅ Permite que el documento haga scroll normal */
 :host {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  width: 100vw;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
+  display: block;
 }
 
-/* Fondo con la foto y tarjeta centrada */
+/* ✅ El contenedor ocupa la pantalla, pero SIN forzar overflow hidden */
 .reg-container {
+  min-height: 100dvh;
   position: relative;
-  flex: 1;
-  width: 100%;
-  height: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -30,7 +23,12 @@ html, body {
   background: url('../../../../assets/images/campus-Miraflores.png') no-repeat center center;
   background-size: cover;
   background-attachment: fixed;
+
+  /* 👇 Reserva espacio para que el footer no tape el final (56px footer + aire) */
+  padding-block-end: 80px;
+  padding-block-start: 24px;  /* un poquito de aire arriba en pantallas bajas */
 }
+
 
 /* Tarjeta del formulario */
 .reg-card {
@@ -41,6 +39,9 @@ html, body {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
   width: 100%;
   max-width: 520px;
+
+  /* 👇 nuevo: borde visible */
+  border: 1px solid rgba(0, 0, 0, 0.12);
 
   display: grid;
   gap: 0.9rem;

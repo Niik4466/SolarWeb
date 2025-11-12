@@ -12,6 +12,7 @@ type UsuarioUI = {
   nombre: string;
   correo: string;
   aprobado_el: string | null;
+  rol: 'admin' | 'user'; 
   eliminado?: boolean;
   eliminado_el?: string | null;
 };
@@ -80,11 +81,15 @@ export class UsuariosComponent implements OnInit {
 
   private mapToUI(u: UsuarioOut): UsuarioUI {
     const nombreCompleto = [u.nombre, u.apellido].filter(Boolean).join(' ');
+    const rol = ((u as any).rol ??
+              (((u as any).es_admin === true) ? 'admin' : 'user')) as 'admin' | 'user';
+
     return {
       id: u.id,
       nombre: nombreCompleto,
       correo: u.correo,
       aprobado_el: u.aprobado_en ?? null,
+      rol,
       eliminado: u.estado === 'eliminado',
       eliminado_el: (u as any).eliminado_en ?? null,
     };

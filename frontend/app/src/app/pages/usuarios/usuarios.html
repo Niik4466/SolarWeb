@@ -25,6 +25,7 @@
         <tr>
           <th>Nombre usuario</th>
           <th>Correo</th>
+          <th>Rol</th>
           <th class="clickable" (click)="toggleFechaSort()">
             Fecha de aprobación
             <span *ngIf="orden()==='recientes'">↓</span>
@@ -38,6 +39,11 @@
         <tr *ngFor="let u of visibles()">
           <td>{{ u.nombre }}</td>
           <td>{{ u.correo }}</td>
+          <td>
+            <span class="rol-pill" [class.admin]="u.rol === 'admin'" [class.user]="u.rol === 'user'">
+              {{ u.rol === 'admin' ? 'Administrador' : 'Usuario estándar' }}
+            </span>
+          </td>
           <td>{{ u.aprobado_el | date:'dd/MM/yyyy HH:mm' }}</td>
           <td class="cent">
             <button class="icono" title="Historial" (click)="abrirHistorial(u)">⟳</button>

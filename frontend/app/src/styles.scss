@@ -22,3 +22,16 @@ p, label, input, button { font-size: 1rem; } // base (18px)
 small { font-size: 0.85rem; } // ≈ 15px
 
 nav, .tab { font-size: 1.25rem; font-weight: 600; letter-spacing: .2px; } /* opcional */
+
+/* Sticky-footer layout global */
+html, body { height: 100%; }
+
+app-root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+main, .main, .page, .contenido {
+  flex: 1 0 auto;
+}
