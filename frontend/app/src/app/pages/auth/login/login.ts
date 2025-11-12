@@ -6,6 +6,7 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { finalize, take } from 'rxjs/operators';
 import { AuthService } from '../../../services/auth.service';
+import { environment } from '../../../services/login.service';
 
 type LoginResponse = {
   success: boolean;
@@ -16,10 +17,7 @@ type LoginResponse = {
   token_type?: string;
 };
 
-export const environment = {
-  production: false,
-  apiBase: 'http://127.0.0.1:8000',
-};
+
 
 @Component({
   selector: 'app-login',
