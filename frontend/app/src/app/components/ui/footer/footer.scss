@@ -1,11 +1,12 @@
 @use '../../../../styles/colors' as *;
 @use "sass:color";
 
-.footer {   /* 👈 clave */
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 100;       /* sobre el contenido */
+.footer {
+  /* 👇 claves para sticky (sin position fixed) */
+  margin-top: auto;
+  width: 100%;
+
+  z-index: 100;
 
   background: linear-gradient(
     90deg,
@@ -16,7 +17,7 @@
   border-top: 1px solid rgba(255,255,255,.1);
   box-shadow: 0 -2px 12px rgba(0,0,0,.15);
   padding: 0.75rem 1rem;
-  height: 56px; /* referencia para el padding del <main> */
+  height: 56px; /* referencia por si usas padding-bottom en contenido */
 }
 
 
