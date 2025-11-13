@@ -4,7 +4,9 @@ import { ReactiveFormsModule, FormControl } from '@angular/forms';
 import { UsersApi, UsuarioOut, TransaccionOut } from '../../services/user.api';
 import { AuthService } from '../../services/auth.service';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { startWith, debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { startWith, debounceTime, distinctUntilChanged, finalize } from 'rxjs/operators';
+import { LoadingService } from '../../services/loading.service';
+import { HttpErrorResponse } from '@angular/common/http';
 
 
 type UsuarioUI = {
@@ -36,6 +38,7 @@ type Orden = 'recientes' | 'antiguos' | 'nombre' | 'correo';
 export class UsuariosComponent implements OnInit {
   private api = inject(UsersApi);
   private auth = inject(AuthService);
+  private loadingSrv = inject(LoadingService);
 
   private get adminId(): number | null {
     const id = this.auth.getUserId?.() ?? this.auth.adminId ?? null;
@@ -206,7 +209,17 @@ export class UsuariosComponent implements OnInit {
         this.privados_histCache.set(u.id, filas);
         this.cargandoHist.set(false);
       },
-      error: () => { this.errorHist.set('No se pudo cargar el historial de transacciones.'); this.cargandoHist.set(false); }
+      error: (err: HttpErrorResponse) => {
+        // 👇 Si el backend responde 404, lo interpretamos como “no tiene historial todavía”
+        if (err.status === 404) {
+          this.privados_histCache.set(u.id, []);   // caché vacío
+          this.errorHist.set(null);                // sin error
+        } else {
+          // 👇 otros errores sí son reales (500, 0, etc.)
+          this.errorHist.set('No se pudo cargar el historial de transacciones.');
+        }
+        this.cargandoHist.set(false);
+      }
     });
   }
 
@@ -227,14 +240,22 @@ export class UsuariosComponent implements OnInit {
     const adminId = this.auth.getUserId();
     if (!adminId) { this.error.set('No se pudo obtener el ID del administrador autenticado.'); return; }
     this.cargando.set(true);
-    this.api.deleteUser(u.id).subscribe({
+    this.loadingSrv.show();
+    this.api.deleteUser(u.id).pipe(
+      finalize(() => {
+        // 👇 siempre se ejecuta (éxito o error)
+        this.cargando.set(false);
+        this.loadingSrv.hide();  // 👈 oculta overlay global
+      })
+    ).subscribe({
       next: () => {
         this.listaAprobados.update(xs => xs.filter(x => x.id !== u.id));
         if (this.mostrarEliminados()) this.cargarEliminados();
         this.pendiente.set(null);
-        this.cargando.set(false);
       },
-      error: () => { this.error.set('No se pudo eliminar el usuario'); this.cargando.set(false); },
+      error: () => {
+        this.error.set('No se pudo eliminar el usuario');
+      },
     });
   }
 

@@ -3,7 +3,9 @@ import { CommonModule, NgFor, NgIf } from '@angular/common';
 import { catchError, map, finalize } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { UserService } from '../../services/solicitudes.api';
-import { AuthService } from '../../services/auth.service'; // 👈
+import { AuthService } from '../../services/auth.service'; 
+import { LoadingService } from '../../services/loading.service';
+
 
 type Solicitud = {
   id: string;
@@ -22,7 +24,8 @@ type Solicitud = {
 })
 export class SolicitudesComponent implements OnInit {
   private users = inject(UserService);
-  private auth = inject(AuthService); // 👈
+  private auth = inject(AuthService); 
+  private loadingSrv = inject(LoadingService);
 
   cargando = signal<boolean>(false);
   enviando = signal<boolean>(false);
@@ -81,6 +84,8 @@ export class SolicitudesComponent implements OnInit {
     this.error.set(null);
     this.okMsg.set(null);
 
+    this.loadingSrv.show();
+
     if (this.accion() === 'aprobar') {
       const admin = this.rol() === 'admin';
       this.users.approveUser(Number(s.id), admin).pipe(
@@ -88,7 +93,9 @@ export class SolicitudesComponent implements OnInit {
           this.error.set(`No se pudo aprobar: ${err?.status || ''} ${err?.statusText || ''}`);
           return of(null);
         }),
-        finalize(() => this.enviando.set(false))
+        finalize(() => {this.enviando.set(false);
+          this.loadingSrv.hide();
+        })
       ).subscribe(resp => {
         if (!resp) return;
         this.okMsg.set('Usuario aprobado correctamente.');
@@ -101,6 +108,7 @@ export class SolicitudesComponent implements OnInit {
       if (!adminId) {
         this.error.set('No se pudo obtener el ID del administrador autenticado.');
         this.enviando.set(false);
+        this.loadingSrv.hide();
         return;
       }
 
@@ -110,7 +118,9 @@ export class SolicitudesComponent implements OnInit {
           this.error.set(`No se pudo rechazar: ${err?.status || ''} ${err?.statusText || ''}`);
           return of(null);
         }),
-        finalize(() => this.enviando.set(false))
+        finalize(() => {this.enviando.set(false);
+          this.loadingSrv.hide();
+        })
       ).subscribe(resp => {
         if (!resp) return;
         this.okMsg.set('Usuario rechazado y registrado con fecha de eliminación.');
@@ -119,6 +129,7 @@ export class SolicitudesComponent implements OnInit {
 
     } else {
       this.enviando.set(false);
+      this.loadingSrv.hide();
     }
   }
 

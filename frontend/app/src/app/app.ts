@@ -4,12 +4,13 @@ import { CommonModule } from '@angular/common';
 import { NavbarComponent } from './components/ui/navbar/navbar.component';
 import { Footer } from './components/ui/footer/footer';
 import { AuthService } from './services/auth.service';
+import { LoadingOverlayComponent } from './components/loading-overlay/loading-overlay';
 
 @Component({
   selector: 'app-root',
   standalone: true,
   //Se agregan los imports necesarios
-  imports: [CommonModule, RouterOutlet, NavbarComponent, Footer], 
+  imports: [CommonModule, RouterOutlet, NavbarComponent, Footer, LoadingOverlayComponent], 
 
   //Template agrega el componente necesario
   template: `
@@ -18,6 +19,7 @@ import { AuthService } from './services/auth.service';
       <router-outlet></router-outlet>
     </main>
     <app-footer></app-footer>
+    <app-loading-overlay></app-loading-overlay>
   `,
   styles: [`
   .container {
