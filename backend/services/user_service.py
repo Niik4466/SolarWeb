@@ -10,6 +10,10 @@ from apscheduler.schedulers.background import BackgroundScheduler
 scheduler = BackgroundScheduler()
 scheduler.start()
 
+class UsersError(Exception):
+    """Error lógico para usuarios."""
+    pass
+
 # --------------------
 # Tabla Usuarios
 # --------------------
@@ -73,6 +77,12 @@ def approve_user_query(db: Session, user: Usuario, admin: bool):
     return user
 
 def user_login_query(db: Session, email: str, password: str) -> dict:
+    """
+    Lógica de negocio del login:
+    - Busca usuario
+    - Verifica contraseña
+    - Verifica estado 
+    """
     usuario = get_user_by_email_query(db, email)
     if not usuario:
         return {"success": False, "estado": None, "message": "credenciales invalidas"}
@@ -83,7 +93,7 @@ def user_login_query(db: Session, email: str, password: str) -> dict:
     estado = getattr(usuario.estado, "value", usuario.estado)  # Enum -> str
 
     if estado == "aprobado":
-        return {"success": True, "estado": "aprobado", "message": "ok", "user_id": usuario.id}
+        return {"success": True, "estado": "aprobado", "message": "ok", "user_id": usuario.id, "es_admin": usuario.es_admin}
     if estado == "pendiente":
         return {"success": False, "estado": "pendiente", "message": "su solicitud sigue en estado de espera en aprobacion", "user_id": usuario.id}
     if estado == "eliminado":
@@ -106,6 +116,8 @@ def create_user_query(db: Session, usuario_data: dict, justificacion: str):
     """
     Crea un nuevo usuario junto con su solicitud
     """
+    if get_user_by_email_query(db, usuario_data["correo"]):
+        raise UsersError(f"Ya existe un usuario con el correo {usuario_data['correo']}")
     try:
         # Creamos el usuario
 

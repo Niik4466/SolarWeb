@@ -5,7 +5,6 @@ from db.postgres import get_db
 from services.user_service import *
 from schemas.user import *
 from models.user import Usuario, Solicitud
-from pydantic import BaseModel, EmailStr
 
 from core.security import create_access_token, get_current_user
 from core.deps import get_current_admin  # dependencia que valida es_admin
@@ -64,38 +63,20 @@ def user_login(data: LoginIn, db: Session = Depends(get_db)):
     if login_result.get("estado") != "aprobado":
         return login_result
 
-    # 3. obtener el id de usuario (puede no venir en login_result)
-    user_id = login_result.get("user_id")
-    user = None
 
-    if user_id:
-        user = db.query(Usuario).filter(Usuario.id == user_id).first()
-    else:
-        user = db.query(Usuario).filter(Usuario.correo == data.email).first()
-        if user:
-            user_id = user.id
-
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Usuario no encontrado después del login exitoso",
-        )
-
-    # 4. crear token incluyendo es_admin
+    # 3. crear token incluyendo es_admin
     access_token = create_access_token(
         data={
-            "sub": str(user_id),
-            "es_admin": user.es_admin,
+            "sub": str(login_result["user_id"]),
+            "es_admin": login_result["es_admin"],
         }
     )
 
-    # 5. devolver lo mismo que devolvías + token + flag admin
+    # 4. devolver lo mismo que devolvías + token + flag admin
     login_result.update(
         {
             "access_token": access_token,
             "token_type": "bearer",
-            "es_admin": user.es_admin,
-            "user_id": user_id,
         }
     )
     return login_result
@@ -133,8 +114,6 @@ def read_me(current_user: Usuario = Depends(get_current_user)):
     """
     return current_user
 
-
-
 # -----------------------------------------------------------
 # ADMIN
 # -----------------------------------------------------------
@@ -148,7 +127,6 @@ def list_users(
     """
     users = list_users_query(db)
     return {"data": users, "total": len(users)}
-
 
 
 @router.get("/by_status")
@@ -236,7 +214,7 @@ def delete_user(
 def delete_users_scheduled(
     usuario_id: int = Query(..., description="ID de usuarios a eliminar"),
     db: Session = Depends(get_db),
-    #admin: Usuario = Depends(get_current_admin),
+    admin: Usuario = Depends(get_current_admin),
 ):
     """
     Marca uno o varios usuarios como eliminados y programa su eliminación definitiva en 30 días. (solo admin)
