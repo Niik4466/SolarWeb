@@ -460,7 +460,47 @@ def create_transaccion_query(db: Session, data: dict):
 # --------------------
 # Eliminacion Usuarios
 # --------------------
-def delete_user_permanently_query(usuario_id: int):
+def delete_user_permanently_query(usuario_id: int, db: Session = None):
+    """
+    Elimina completamente al usuario y sus registros asociados de la base de datos.
+    """
+    try:
+        # Buscar usuario con estado 'eliminado'
+        usuario = (
+            db.query(Usuario)
+            .filter(Usuario.id == usuario_id, Usuario.estado == UsuarioEstado.eliminado)
+            .first()
+        )
+
+        if not usuario:
+            raise HTTPException(status_code=404, detail=f"Usuario {usuario_id} no encontrado o no eliminado")
+        if usuario.es_admin == True:
+            raise HTTPException(status_code=403, detail="No se puede eliminar un usuario administrador")
+
+        # Eliminar manualmente todos los registros relacionados
+        db.query(UsuarioEliminacionLog).filter(
+            (UsuarioEliminacionLog.usuario_id == usuario_id) |
+            (UsuarioEliminacionLog.eliminado_por_id == usuario_id)
+        ).delete(synchronize_session=False)
+
+        db.query(Transaccion).filter(Transaccion.usuario_id == usuario_id).delete(synchronize_session=False)
+        db.query(Solicitud).filter(Solicitud.usuario_id == usuario_id).delete(synchronize_session=False)
+
+        db.expire_all()
+
+        db.query(Usuario).filter(Usuario.id == usuario_id).delete(synchronize_session=False)
+        db.commit()
+
+        return {"msg": f"Usuario {usuario_id} eliminado completamente."}
+
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al eliminar usuario {usuario_id}: {str(e)}")
+
+def delete_user_permanently_scheduled(usuario_id: int):
     """
     Elimina completamente al usuario y sus registros asociados de la base de datos.
     (Es llamada automáticamente por el scheduler)
@@ -509,7 +549,7 @@ def schedule_user_deletion_query(usuario_id: int):
     Programa la eliminación definitiva del usuario en 30 días.
     """
     scheduler.add_job(
-        func=delete_user_permanently_query,
+        func=delete_user_permanently_scheduled,
         trigger="date",
         run_date=datetime.utcnow() + timedelta(days=30),
         args=[usuario_id],

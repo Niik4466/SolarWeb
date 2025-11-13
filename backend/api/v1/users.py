@@ -224,6 +224,19 @@ def delete_users_scheduled(
     )
     return resultado
 
+@router.delete("/delete_permanently")
+def delete_user_permanently(
+    usuario_id: int = Query(..., description="ID del usuario a eliminar"),
+    db: Session = Depends(get_db),
+    admin: Usuario = Depends(get_current_admin),
+):
+    """
+    Elimina definitivamente un usuario de la base de datos. (solo admin)
+    """
+    resultado = delete_user_permanently_query(
+        db=db, usuario_id=usuario_id
+    )
+    return resultado
 
 # -----------------------------------------------------------
 # TRANSACCIONES
