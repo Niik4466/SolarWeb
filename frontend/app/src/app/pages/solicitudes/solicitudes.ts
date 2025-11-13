@@ -1,11 +1,12 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, computed } from '@angular/core';
 import { CommonModule, NgFor, NgIf } from '@angular/common';
-import { catchError, map, finalize } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { UserService } from '../../services/solicitudes.api';
 import { AuthService } from '../../services/auth.service'; 
 import { LoadingService } from '../../services/loading.service';
-
+import { FormControl, ReactiveFormsModule } from '@angular/forms'; 
+import { catchError, map, finalize, startWith, debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 type Solicitud = {
   id: string;
@@ -15,13 +16,16 @@ type Solicitud = {
   fecha: string;
 };
 
+type Orden = 'recientes' | 'antiguos' | 'nombre' | 'correo';
+
 @Component({
   selector: 'app-solicitudes',
   standalone: true,
-  imports: [CommonModule, NgFor, NgIf],
+  imports: [CommonModule, NgFor, NgIf, ReactiveFormsModule],
   templateUrl: './solicitudes.html',
   styleUrls: ['./solicitudes.scss'],
 })
+
 export class SolicitudesComponent implements OnInit {
   private users = inject(UserService);
   private auth = inject(AuthService); 
@@ -37,6 +41,24 @@ export class SolicitudesComponent implements OnInit {
   sel = signal<Solicitud | null>(null);
   accion = signal<'aprobar' | 'rechazar' | null>(null);
   rol = signal<'admin' | 'user'>('user');
+
+  // ---- buscador y orden (MISMO PATRÓN QUE USUARIOS) ----
+  buscar = new FormControl('', { nonNullable: true });
+  orden  = signal<Orden>('recientes'); // podrías usarlo después si quieres ordenar
+
+  private termino = toSignal(
+    this.buscar.valueChanges.pipe(
+      startWith(this.buscar.value),   // valor inicial
+      debounceTime(200),              // suaviza tecleo rápido
+      distinctUntilChanged()
+    ),
+    { initialValue: this.buscar.value }
+  );
+
+  onOrdenChange(ev: Event) {
+    const value = (ev.target as HTMLSelectElement).value as any; // 'recientes' | ...
+    this.orden.set(value);
+  }
 
   verJust = signal(false);
   justSel = signal<{ nombre: string; correo: string; justificacion: string } | null>(null);
@@ -66,6 +88,53 @@ export class SolicitudesComponent implements OnInit {
       finalize(() => this.cargando.set(false)),
     ).subscribe(lista => this.solicitudes.set(lista));
   }
+
+  // normaliza texto (minúsculas, sin tildes, espacios simples)
+  private norm(s: string) {
+    return (s || '')
+      .toLowerCase()
+      .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  // timestamp desde la fecha (para ordenar si quieres usar Orden)
+  private ts(s: Solicitud): number {
+    return s.fecha ? new Date(s.fecha).getTime() : NaN;
+  }
+
+  // Lista final visible: filtrada por buscador y opcionalmente ordenada
+  visibles = computed(() => {
+    const q = this.norm(this.termino() ?? '');
+    let xs = this.solicitudes();
+
+    // --- filtro por nombre + correo ---
+    if (q) {
+      xs = xs.filter(s => {
+        const hay = this.norm(s.nombre + ' ' + s.correo);
+        return hay.includes(q);
+      });
+    }
+
+    // --- si quieres, también puedes ordenar usando this.orden() ---
+    const ord = this.orden();
+
+    xs = [...xs].sort((a, b) => {
+      if (ord === 'nombre') return this.norm(a.nombre).localeCompare(this.norm(b.nombre));
+      if (ord === 'correo') return this.norm(a.correo).localeCompare(this.norm(b.correo));
+
+      const av = this.ts(a), bv = this.ts(b);
+      const aNan = Number.isNaN(av), bNan = Number.isNaN(bv);
+      if (aNan && bNan) return 0;
+      if (aNan) return 1;
+      if (bNan) return -1;
+
+      return ord === 'recientes' ? (bv - av) : (av - bv);
+    });
+
+    return xs;
+  });
+
 
   abrirJustificacion(s: Solicitud) {
     this.justSel.set({ nombre: s.nombre, correo: s.correo, justificacion: s.justificacion });

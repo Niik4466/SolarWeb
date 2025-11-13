@@ -1,6 +1,26 @@
 <div class="wrap">
   <h1>Solicitudes</h1>
 
+  <!-- Toolbar: buscador + orden -->
+  <div class="toolbar">
+    <input
+      type="search"
+      [formControl]="buscar"
+      placeholder="Buscar por nombre o correo…"
+      aria-label="Buscar usuarios"
+    />
+
+    <select [value]="orden()" (change)="onOrdenChange($event)" aria-label="Ordenar">
+      <option value="recientes">Más recientes primero</option>
+      <option value="antiguos">Más antiguos primero</option>
+      <option value="nombre">Nombre (A–Z)</option>
+      <option value="correo">Correo (A–Z)</option>
+    </select>
+
+  </div>
+
+
+
   <div class="card">
     <table class="tabla">
       <thead>
@@ -13,7 +33,7 @@
       </thead>
 
       <tbody>
-        <tr *ngFor="let s of solicitudes()">
+        <tr *ngFor="let s of visibles()">
           <td [attr.data-label]="'Nombre solicitante'">
             <span class="val">{{ s.nombre }}</span>
           </td>
@@ -34,9 +54,18 @@
           </td>
         </tr>
 
+        <!-- Caso 1: no hay solicitudes en el backend -->
         <tr *ngIf="solicitudes().length === 0">
           <td colspan="4" class="empty">No hay solicitudes pendientes.</td>
         </tr>
+
+        <!-- Caso 2: sí hay solicitudes, pero el filtro no encontró nada -->
+        <tr *ngIf="solicitudes().length > 0 && visibles().length === 0">
+          <td colspan="4" class="empty">No hay resultados para la búsqueda.</td>
+        </tr>
+
+
+
       </tbody>
     </table>
   </div>

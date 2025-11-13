@@ -2,24 +2,58 @@
   <div class="brand">
     <span class="logo">☀</span>
     <span class="title">SolarWeb</span>
+
+    <!-- Botón hamburguesa solo si NO es login -->
+    <button
+      *ngIf="!isLogin()"
+      class="hamburger"
+      type="button"
+      (click)="toggleMenu()"
+      aria-label="Abrir menú"
+      [attr.aria-expanded]="mobileOpen()"
+      aria-controls="mobileMenu"
+    >
+      <span *ngIf="!mobileOpen()">☰</span>
+    </button>
   </div>
 
-  <!-- Tabs: ocultar en /login -->
+  <!-- Tabs desktop (se esconden en móvil por CSS) -->
   <nav class="tabs" role="tablist" *ngIf="!isLogin()">
-    <!-- Pestaña Gráficos -->
-    <a routerLink="/graficos"
-       routerLinkActive="active"
-       class="tab"
-       [attr.aria-current]="(true ? 'page' : null)">Gráficos</a>
-
-    <!-- Pestaña Exportar -->
-    <a routerLink="/exportar"
-       routerLinkActive="active"
-       class="tab">Exportar</a>
-
-    <a *ngIf="auth.isAdmin()" routerLink="/solicitudes" routerLinkActive="active" class="tab">Solicitudes</a>
-
-    <a *ngIf="auth.isAdmin()" routerLink="/usuarios" routerLinkActive="active" class="tab">Usuarios</a>
-
+    <a routerLink="/graficos" routerLinkActive="active" class="tab">Gráficos</a>
+    <a routerLink="/exportar" routerLinkActive="active" class="tab">Exportar</a>
+    <a *ngIf="auth.isAdmin()" routerLink="/solicitudes" routerLinkActive="active" class="tab">
+      Solicitudes
+    </a>
+    <a *ngIf="auth.isAdmin()" routerLink="/usuarios" routerLinkActive="active" class="tab">
+      Usuarios
+    </a>
   </nav>
 </header>
+
+<!-- ===== Menú móvil tipo recuadro blanco encima ===== -->
+<div
+  class="mobile-backdrop"
+  *ngIf="!isLogin() && mobileOpen()"
+>
+  <div class="mobile-panel" id="mobileMenu">
+    <button
+      class="mobile-close"
+      type="button"
+      (click)="closeMenu()"
+      aria-label="Cerrar menú"
+    >
+      ✕
+    </button>
+
+    <nav class="mobile-links">
+      <a routerLink="/graficos" routerLinkActive="active" (click)="closeMenu()">Gráficos</a>
+      <a routerLink="/exportar" routerLinkActive="active" (click)="closeMenu()">Exportar</a>
+      <a *ngIf="auth.isAdmin()" routerLink="/solicitudes" routerLinkActive="active" (click)="closeMenu()">
+        Solicitudes
+      </a>
+      <a *ngIf="auth.isAdmin()" routerLink="/usuarios" routerLinkActive="active" (click)="closeMenu()">
+        Usuarios
+      </a>
+    </nav>
+  </div>
+</div>

@@ -5,42 +5,79 @@
   min-height: 100%;
 }
 
-/* ===== Layout página ===== */
+/* ===== Layout general ===== */
 .wrap {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 1rem;
-  max-width: 1100px;
-  margin: 0 auto;
-  padding-bottom: clamp(72px, 9vh, 96px);
+  padding: 1rem 0;
+  min-height: 100%;
 }
 
-h1 { margin: .2rem 0 1rem; font-size: clamp(1.3rem, 1rem + 1.2vw, 2rem); }
+/* Título centrado como en Usuarios */
+.wrap h1 {
+  margin: 0 0 .75rem;
+  text-align: left;
+  width: 90%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  font-size: clamp(1.3rem, 1rem + 1.2vw, 2rem);
+}
 
-/* ===== Tarjeta contenedora ===== */
+/* ===== Toolbar: buscar + ordenar (misma estética) ===== */
+.toolbar {
+  width: 90%;
+  max-width: 1200px;
+  margin: 0 auto .8rem;
+  display: grid;
+  grid-template-columns: 1fr max-content;
+  gap: .6rem;
+
+  input,
+  select {
+    padding: .55rem .7rem;
+    border: 1px solid #d7dbe3;
+    border-radius: .6rem;
+    background: #fff;
+    font: inherit;
+  }
+}
+
+/* ===== Tarjeta / contenedor de tabla ===== */
 .card {
+  width: 90%;
+  max-width: 1200px;
+  margin: 0 auto 1rem;
   background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 6px 22px rgba(0,0,0,.06);
+  border-radius: .75rem;
+  box-shadow: 0 1px 8px rgba(0,0,0,.06);
   overflow: hidden;
-   margin-bottom: 1rem;    
 }
 
-/* ===== Tabla (escritorio) ===== */
+/* ===== Tabla (desktop) – similar a Usuarios ===== */
 .tabla {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
 }
-thead th {
-  background: #f6f8fb;
-  font-weight: 700;
-}
-th, td {
-  padding: .6rem .7rem;
+
+.tabla th,
+.tabla td {
+  padding: .6rem .75rem;
   border-bottom: 1px solid #e9edf2;
   vertical-align: top;
+}
+
+.tabla thead th {
+  background: #e8f0ff;
+  color: #23324a;
+  font-weight: 600;
+  text-align: left;
+}
+
+.tabla tbody tr:hover {
+  background: #fafafa;
 }
 
 /* valores largos (romper correctamente) */
@@ -52,7 +89,10 @@ th, td {
 }
 
 /* celda justificación: centra el botón Ver en escritorio */
-.just { text-align: center; }
+.just {
+  text-align: center;
+}
+
 .btn-ver {
   display: inline-flex;
   align-items: center;
@@ -67,39 +107,84 @@ th, td {
 }
 
 /* acciones */
-.acciones { text-align: right; white-space: nowrap; }
-.btn-aprobar, .btn-rechazar {
-  border: 0; border-radius: 6px; padding: .35rem .55rem; cursor: pointer; font-weight: 700;
+.acciones {
+  text-align: right;
+  white-space: nowrap;
 }
-.btn-rechazar { background: #ffd8d8; color: #a30000; margin-right: .35rem; }
-.btn-aprobar  { background: #d8ffe0; color: #075a1a; }
 
-.empty { text-align: center; color: #666; padding: 1.2rem; }
+.btn-aprobar,
+.btn-rechazar {
+  border: 0;
+  border-radius: 6px;
+  padding: .35rem .55rem;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: .85rem;
+}
+
+.btn-rechazar {
+  background: #ffd8d8;
+  color: #a30000;
+  margin-right: .35rem;
+}
+
+.btn-aprobar {
+  background: #d8ffe0;
+  color: #075a1a;
+}
+
+.empty {
+  text-align: center;
+  color: #777;
+  padding: 1.2rem;
+}
 
 /* ===== Responsive (móvil) ===== */
 /* evita que el borde del card recorte contenido en móvil */
-.card { overflow: visible; }
-
 @media (max-width: 640px) {
-  .wrap { padding-bottom: 7rem;}
-  .tabla, thead, tbody, th, tr, td { display: block; width: 100%; }
-  thead { position: absolute; top: -9999px; left: -9999px; }
+  .wrap {
+    padding-bottom: 7rem;
+  }
+  .toolbar {
+    width: 92%;
+    grid-template-columns: 1fr; /* buscador arriba, orden abajo */
+  }
+  .card {
+    box-shadow: none;         /* sacamos la sombra grande del contenedor */
+    background: transparent;  /* que el fondo blanco lo tengan las filas */
+  }
+
+  .tabla,
+  .tabla thead,
+  .tabla tbody,
+  .tabla th,
+  .tabla tr,
+  .tabla td {
+    display: block;
+    width: 100%;
+  }
+
+  .tabla thead {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+  }
 
   .tabla tr {
     background: #fff;
     border-radius: 10px;
     box-shadow: 0 4px 16px rgba(0,0,0,.06);
     margin: .6rem 0;
-    padding: .6rem 1rem .75rem;    /* un poco más de aire lateral */
+    padding: .6rem 1rem .75rem;
     box-sizing: border-box;
   }
 
-  /* etiqueta + valor: damos MÁS espacio al valor */
+  /* etiqueta + valor: damos más espacio al valor */
   .tabla td {
     border: 0;
     padding: .45rem 0;
     display: grid;
-    grid-template-columns: 9.5rem minmax(0, 1fr);  /* antes 12rem o 11rem */
+    grid-template-columns: 9.5rem minmax(0, 1fr);
     column-gap: .6rem;
     align-items: start;
     box-sizing: border-box;
@@ -113,58 +198,133 @@ th, td {
     text-align: left;
   }
 
-  .val { padding-right: .25rem; overflow-wrap: anywhere; word-break: break-word; }
+  .val {
+    padding-right: .25rem;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 
-  /* Justificación: botón al inicio, sin desbordes */
-  td.just .btn-ver { justify-self: start; }
+  /* Justificación: botón al inicio */
+  td.just .btn-ver {
+    justify-self: start;
+  }
 
-  /* ✅ Acciones: la etiqueta arriba y los dos botones en 2 columnas.
-     (Sin columna extra para la etiqueta → no se corta el ✔) */
+  /* Acciones: etiqueta arriba y dos botones en 2 columnas */
   td.acciones {
     display: grid !important;
-    grid-template-columns: 1fr 1fr;   /* solo los botones */
+    grid-template-columns: 1fr 1fr;
     gap: .6rem;
     align-items: center;
     justify-items: stretch;
   }
+
   td.acciones::before {
-    grid-column: 1 / -1;              /* la etiqueta ocupa el ancho completo arriba */
+    grid-column: 1 / -1;
     margin-bottom: .35rem;
   }
+
   td.acciones button {
     height: 42px;
     width: 100%;
     min-width: 0;
-    display: flex; align-items: center; justify-content: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: .95rem;
     border-radius: 10px;
     box-sizing: border-box;
   }
 }
 
-
-/* ===== Modales ===== */
+/* ===== Modales (manteniendo tu lógica, pero alineado en estilo) ===== */
 .backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 1000;
 }
+
 .modal {
-  position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
-  width: min(92vw, 560px); background: #fff; border-radius: 12px; z-index: 1001;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  width: min(92vw, 560px);
+  background: #fff;
+  border-radius: 12px;
+  z-index: 1001;
   box-shadow: 0 18px 60px rgba(0,0,0,.35);
   padding: 1.2rem 1.3rem 1rem;
-  display: grid; gap: .65rem;
+  display: grid;
+  gap: .65rem;
 }
-.modal h2 { margin: .2rem 0 .4rem; }
-.modal .label { margin: .3rem 0; font-weight: 600; }
-.modal .radio { display: flex; align-items: center; gap: .5rem; margin: .15rem 0; }
-.modal .muted { color:#666; font-size:.9rem; margin-top:-.25rem; }
+
+.modal h2 {
+  margin: .2rem 0 .4rem;
+}
+
+.modal .label {
+  margin: .3rem 0;
+  font-weight: 600;
+}
+
+.modal .radio {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin: .15rem 0;
+}
+
+.modal .muted {
+  color: #666;
+  font-size: .9rem;
+  margin-top: -.25rem;
+}
+
 .modal .just-body {
-  max-height: 40vh; overflow: auto;
+  max-height: 40vh;
+  overflow: auto;
   padding: .6rem .75rem;
-  background: #f8fafc; border-radius: 8px; line-height: 1.45;
+  background: #f8fafc;
+  border-radius: 8px;
+  line-height: 1.45;
 }
-.modal .modal-actions { display:flex; gap:.5rem; justify-content:center; margin-top:.6rem; }
-.modal .ok { background:#2ecc71; color:#fff; border:0; border-radius:8px; padding:.6rem 1rem; font-weight:700; }
-.modal .ok.danger { background:#ff5252; }
-.modal .cancel { background:#b0b7c3; color:#fff; border:0; border-radius:8px; padding:.6rem 1rem; font-weight:700; }
-.modal .close { position:absolute; top:.4rem; right:.6rem; background:transparent; border:0; font-size:1.3rem; cursor:pointer; }
+
+.modal .modal-actions {
+  display: flex;
+  gap: .5rem;
+  justify-content: center;
+  margin-top: .6rem;
+}
+
+.modal .ok {
+  background: #2ecc71;
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: .6rem 1rem;
+  font-weight: 700;
+}
+
+.modal .ok.danger {
+  background: #ff5252;
+}
+
+.modal .cancel {
+  background: #b0b7c3;
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: .6rem 1rem;
+  font-weight: 700;
+}
+
+.modal .close {
+  position: absolute;
+  top: .4rem;
+  right: .6rem;
+  background: transparent;
+  border: 0;
+  font-size: 1.3rem;
+  cursor: pointer;
+}

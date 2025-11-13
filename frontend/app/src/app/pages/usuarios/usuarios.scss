@@ -1,14 +1,31 @@
-.contenedor { padding: 1rem; }
-h1 {
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 100%;
+}
+
+/* ===== Layout general ===== */
+.contenedor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0;
+  min-height: 100%;
+}
+
+/* Título con misma estética que Solicitudes */
+.contenedor > h1 {
   margin: 0 0 .75rem;
   text-align: left;
   width: 90%;
   max-width: 1200px;
   margin-left: auto;
   margin-right: auto;
+  font-size: clamp(1.3rem, 1rem + 1.2vw, 2rem);
 }
 
-/* Toolbar buscador + orden */
+/* ===== Toolbar buscador + orden (misma que en Solicitudes) ===== */
 .toolbar {
   width: 90%;
   max-width: 1200px;
@@ -17,15 +34,21 @@ h1 {
   grid-template-columns: 1fr max-content;
   gap: .6rem;
 
-  input, select {
+  input,
+  select {
     padding: .55rem .7rem;
     border: 1px solid #d7dbe3;
     border-radius: .6rem;
     background: #fff;
+    font: inherit;
   }
 }
 
-.tabla-wrapper { display: flex; justify-content: center; }
+/* ===== Tabla en card centrada ===== */
+.tabla-wrapper {
+  display: flex;
+  justify-content: center;
+}
 
 .tabla {
   width: 90%;
@@ -36,34 +59,85 @@ h1 {
   overflow: hidden;
   box-shadow: 0 1px 8px rgba(0,0,0,.06);
 
-  th, td { padding: .6rem .75rem; border-bottom: 1px solid #eee; }
-  thead th { text-align: left; background: #e8f0ff; color: #23324a; font-weight: 600; }
-  tbody tr:hover { background: #fafafa; }
-  .cent { text-align: center; width: 96px; }
-  .vacio { text-align: center; color: #777; }
+  th,
+  td {
+    padding: .6rem .75rem;
+    border-bottom: 1px solid #e9edf2;
+  }
+
+  thead th {
+    text-align: left;
+    background: #e8f0ff;
+    color: #23324a;
+    font-weight: 600;
+  }
+
+  tbody tr:hover {
+    background: #fafafa;
+  }
+
+  .cent {
+    text-align: center;
+    width: 96px;
+  }
+
+  .vacio {
+    text-align: center;
+    color: #777;
+    padding: 1.2rem 0;
+  }
 }
 
+/* Columna de fecha clickeable (flecha ↑↓) */
 th.clickable {
   cursor: pointer;
   user-select: none;
 }
-th.clickable span { opacity: .7; margin-left: .25rem; }
 
-.tabla.compacta th, .tabla.compacta td { padding: .45rem .6rem; }
+th.clickable span {
+  opacity: .7;
+  margin-left: .25rem;
+}
 
+.tabla.compacta th,
+.tabla.compacta td {
+  padding: .45rem .6rem;
+}
+
+/* ===== Iconos y botones pequeños ===== */
 .icono {
-  border: 1px solid rgba(0,0,0,.1);
-  width: 32px; height: 32px; border-radius: 50%;
-  display: inline-grid; place-items: center;
-  background: #fff; cursor: pointer;
-  &:hover { background: #f3f6fb; }
-  &.rojo { color: #c62828; border-color: rgba(198,40,40,.25); }
-}
-.mini {
-  padding: .25rem .5rem; border-radius: .5rem; border: 1px solid #ddd; background: #fff;
-  &.rojo { color: #c62828; border-color: rgba(198,40,40,.3); }
+  border: 1px solid rgba(0, 0, 0, .1);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  background: #fff;
+  cursor: pointer;
+
+  &:hover {
+    background: #f3f6fb;
+  }
+
+  &.rojo {
+    color: #c62828;
+    border-color: rgba(198, 40, 40, .25);
+  }
 }
 
+.mini {
+  padding: .25rem .5rem;
+  border-radius: .5rem;
+  border: 1px solid #ddd;
+  background: #fff;
+
+  &.rojo {
+    color: #c62828;
+    border-color: rgba(198, 40, 40, .3);
+  }
+}
+
+/* ===== Botón "Usuarios eliminados" ===== */
 .eliminados {
   width: 90%;
   max-width: 1200px;
@@ -71,16 +145,133 @@ th.clickable span { opacity: .7; margin-left: .25rem; }
   display: flex;
   justify-content: flex-start;
 }
-button.ghost { background: #fff; border: 1px dashed #bbb; padding: .6rem .9rem; border-radius: .75rem; }
 
-/* Modales (como ya los tenías) */
-.modal { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: grid; place-items: center; z-index: 1000; }
-.modal-card { width: auto; max-width: 90vw; background: #fff; border-radius: 1rem; box-shadow: 0 6px 24px rgba(0,0,0,.2); overflow: hidden; display: inline-block; }
-.modal-card table { margin: 0 auto; width: auto; min-width: 720px; table-layout: fixed; }
-.modal-head { display: flex; align-items: center; justify-content: space-between; padding: .9rem 1rem; border-bottom: 1px solid #eee; background: #f8fafc; }
-.modal-card.confirm { width: min(760px, 94vw); }
-.modal-body { padding: 1rem; line-height: 1.45; }
-.modal-actions { display: flex; justify-content: flex-end; gap: .5rem; padding: 0 1rem 1rem; }
-.btn { padding: .5rem .9rem; border: 1px solid #dcdcdc; background: #fff; border-radius: .6rem; cursor: pointer; }
-.btn.peligro { border-color: rgba(198,40,40,.35); color: #fff; background: #c62828; }
-.btn.peligro:hover { filter: brightness(.96); }
+button.ghost {
+  background: #fff;
+  border: 1px dashed #bbb;
+  padding: .6rem .9rem;
+  border-radius: .75rem;
+  cursor: pointer;
+}
+
+/* ===== Modales: mismos tonos que Solicitudes ===== */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .35);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+}
+
+.modal-card {
+  width: auto;
+  max-width: 90vw;
+  background: #fff;
+  border-radius: 1rem;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .2);
+  overflow: hidden;
+  display: inline-block;
+}
+
+.modal-card table {
+  margin: 0 auto;
+  width: auto;
+  min-width: 720px;
+  table-layout: fixed;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .9rem 1rem;
+  border-bottom: 1px solid #eee;
+  background: #f8fafc;
+}
+
+.modal-card.confirm {
+  width: min(760px, 94vw);
+}
+
+.modal-body {
+  padding: 1rem;
+  line-height: 1.45;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: .5rem;
+  padding: 0 1rem 1rem;
+}
+
+.btn {
+  padding: .5rem .9rem;
+  border: 1px solid #dcdcdc;
+  background: #fff;
+  border-radius: .6rem;
+  cursor: pointer;
+}
+
+.btn.peligro {
+  border-color: rgba(198, 40, 40, .35);
+  color: #fff;
+  background: #c62828;
+}
+
+.btn.peligro:hover {
+  filter: brightness(.96);
+}
+
+/* (Opcional) un poquito de responsivo para la tabla grande */
+@media (max-width: 720px) {
+  .tabla {
+    width: 95%;
+  }
+
+  .modal-card table {
+    min-width: 100%;
+  }
+}
+
+/* ===== Responsivo (móvil) ===== */
+@media (max-width: 720px) {
+  /* Título y toolbar con mismo ancho */
+  .contenedor > h1 {
+    width: 92%;
+  }
+
+  .toolbar {
+    width: 92%;
+    grid-template-columns: 1fr; /* buscador arriba, orden abajo */
+  }
+
+  /* La tabla se vuelve scrolleable horizontalmente */
+  .tabla-wrapper {
+    justify-content: flex-start;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .tabla {
+    width: 640px;        /* ancho mínimo cómodo para todas las columnas */
+    max-width: none;
+    margin: 0 0 0 4%;
+  }
+
+  .tabla th,
+  .tabla td {
+    padding: .5rem .6rem;
+    font-size: .9rem;
+  }
+
+  .eliminados {
+    width: 92%;
+  }
+
+  button.ghost {
+    width: 100%;
+    justify-content: center;
+  }
+}

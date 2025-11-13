@@ -1,19 +1,18 @@
-/* navbar.component.scss */
-@use '../../../../styles/colors' as *; // variables: $color-azul-profundo, $color-blanco-nieve, $color-amarillo-solar
+@use '../../../../styles/colors' as *;
+@use "sass:color";
 
 /* ===== Navbar ===== */
 .nav {
   position: sticky;
   top: 0;
   z-index: 50;
-  width: 100vw;           /* ocupa todo el ancho visible */
+  width: 100vw;
   margin: 0;
   box-sizing: border-box;
-  overflow-x: hidden;   
+  overflow-x: hidden;
 
-  /* Grid en 2 filas y 2 columnas */
   display: grid;
-  grid-template-columns: 1fr 320px;  /* izquierda: brand/tabs, derecha: reservado */
+  grid-template-columns: 1fr 320px;
   grid-template-rows: auto auto;
   grid-template-areas:
     "brand right"
@@ -26,25 +25,27 @@
 
   background: linear-gradient(
     90deg,
-    darken($color-azul-profundo, 6%) 0%,
+    color.adjust($color-azul-profundo, $lightness: -6%) 0%,
     $color-azul-profundo 45%,
-    darken($color-azul-profundo, 10%) 100%
+    color.adjust($color-azul-profundo, $lightness: -10%) 100%
   );
   color: $color-blanco-nieve;
 
-  border-bottom: 1px solid rgba(255,255,255,.08);
-  box-shadow: 0 4px 16px rgba(0,0,0,.18);
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .18);
 }
 
 /* ===== Brand ===== */
 .brand {
+  grid-area: brand;
   display: flex;
   align-items: center;
-  gap: 1rem;             /* un poquito más de espacio entre logo y texto */
+  gap: 1rem;
   min-width: 0;
 }
+
 .logo {
-  font-size: 2.4rem;   /* más grande que el original (2.2rem), pero moderado */
+  font-size: 2.4rem;
   line-height: 1;
   color: $color-amarillo-solar;
   filter: drop-shadow(0 1px 4px rgba(0,0,0,.25));
@@ -52,7 +53,7 @@
 }
 
 .title {
-  font-size: clamp(1.8rem, 2.5vw + 1rem, 2.6rem); /* un poco más grande que el inicio (≈2rem) */
+  font-size: clamp(1.8rem, 2.5vw + 1rem, 2.6rem);
   font-weight: 800;
   letter-spacing: .5px;
   line-height: 1.2;
@@ -60,9 +61,7 @@
   text-shadow: 0 1px 3px rgba(0,0,0,.2);
 }
 
-
-/* ===== Tabs debajo del brand ===== */
-/* ===== Tabs debajo del brand ===== */
+/* ===== Tabs desktop ===== */
 .tabs {
   grid-area: tabs;
   justify-self: start;
@@ -72,7 +71,7 @@
   gap: 1rem;
   margin: 0;
 
-  font-size: 0.9rem;  /* 👈 más pequeño */
+  font-size: 0.9rem;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
@@ -84,7 +83,7 @@
   color: rgba($color-blanco-nieve, .92);
   text-decoration: none;
 
-  padding: .35rem .2rem;   /* 👈 más compacto */
+  padding: .35rem .2rem;
   border-bottom: 1.5px solid transparent;
   border-radius: .5rem;
 
@@ -109,7 +108,7 @@
     color: $color-blanco-nieve;
     background: rgba(255,255,255,.10);
     border-bottom-color: transparent;
-    padding: .4rem .5rem;   /* pill más pequeño */
+    padding: .4rem .5rem;
     border-radius: 999px;
     &::after { width: 100%; }
     box-shadow: 0 2px 10px rgba(0,0,0,.12) inset;
@@ -122,8 +121,7 @@
   }
 }
 
-
-/* ===== Área derecha reservada ===== */
+/* Área derecha por si luego agregas algo */
 .right {
   grid-area: right;
   display: flex;
@@ -132,21 +130,104 @@
   gap: .5rem;
 }
 
-/* ===== Compacto en pantallas pequeñas ===== */
+/* ===== Botón hamburguesa ===== */
+.hamburger {
+  display: none;
+  background: transparent;
+  border: 0;
+  font-size: 1.8rem;
+  color: $color-blanco-nieve;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+/* ===== Overlay menú móvil (recuadro blanco encima) ===== */
+.mobile-backdrop {
+  display: none;
+}
+
+.mobile-panel {
+  display: none;
+}
+
+/* ===== Versión móvil ===== */
 @media (max-width: 720px) {
   .nav {
     grid-template-columns: 1fr;
-    grid-template-areas:
-      "brand"
-      "tabs";   /* .right se omite si no hay contenido */
-    row-gap: .4rem;
-    padding: .75rem .75rem .5rem;
+    grid-template-areas: "brand";
+    row-gap: .25rem;
+    padding: .6rem .75rem .4rem;
   }
-  .title { font-size: clamp(1.2rem, 4vw + .6rem, 1.6rem); }
-  .tabs  { gap: .9rem; }
+
+  .tabs {
+    display: none;  /* ocultar tabs desktop */
+  }
+
+  .hamburger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: .1rem .4rem;
+  }
+
+  /* overlay ocupa toda la pantalla, pero deja ver el header */
+  .mobile-backdrop {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 80;  // > navbar (50)
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 4rem; /* espacio para que no tape la navbar */
+  }
+
+  .mobile-panel {
+    display: block;
+    width: min(90vw, 360px);
+    background: #ffffff;
+    color: #0b1b3a;
+    border-radius: 1rem;
+    padding: .8rem 1rem 1rem;
+    box-shadow: 0 12px 40px rgba(0,0,0,.35);
+    position: relative;
+  }
+
+  .mobile-close {
+    position: absolute;
+    top: .35rem;
+    right: .35rem;
+    background: transparent;
+    border: 0;
+    font-size: 1.3rem;
+    cursor: pointer;
+  }
+
+  .mobile-links {
+    margin-top: 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+  }
+
+  .mobile-links a {
+    display: block;
+    text-decoration: none;
+    color: #0b1b3a;
+    padding: .55rem .7rem;
+    border-radius: .7rem;
+    background: #f3f5fb;
+    font-weight: 500;
+  }
+
+  .mobile-links a.active {
+    background: #e6ecff;
+    border: 1px solid #c1cffb;
+    font-weight: 600;
+  }
 }
 
-/* ===== (Opcional) modo shrink al scrolleo ===== */
+/* Compact (si quieres reducir al hacer scroll) */
 .nav.nav--compact {
   padding: .35rem 1rem;
 
