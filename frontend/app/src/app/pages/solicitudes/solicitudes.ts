@@ -13,7 +13,7 @@ type Solicitud = {
   nombre: string;
   correo: string;
   justificacion: string;
-  fecha: string;
+  fecha: Date | null;
 };
 
 type Orden = 'recientes' | 'antiguos' | 'nombre' | 'correo';
@@ -78,7 +78,7 @@ export class SolicitudesComponent implements OnInit {
           nombre: `${u.nombre ?? ''} ${u.apellido ?? ''}`.trim(),
           correo: u.correo,
           justificacion: (u.justificacion ?? '—').toString(),
-          fecha: (u.creado_en ?? '').slice(0, 10) || '',
+          fecha: u.creado_en ? new Date(u.creado_en.endsWith('Z') ? u.creado_en : u.creado_en + 'Z') : null,
         })) as Solicitud[];
       }),
       catchError((err) => {
@@ -100,8 +100,9 @@ export class SolicitudesComponent implements OnInit {
 
   // timestamp desde la fecha (para ordenar si quieres usar Orden)
   private ts(s: Solicitud): number {
-    return s.fecha ? new Date(s.fecha).getTime() : NaN;
+    return s.fecha ? s.fecha.getTime() : NaN;
   }
+
 
   // Lista final visible: filtrada por buscador y opcionalmente ordenada
   visibles = computed(() => {
