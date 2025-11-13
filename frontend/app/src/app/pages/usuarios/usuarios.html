@@ -48,9 +48,13 @@
           <td class="cent">
             <button class="icono" title="Historial" (click)="abrirHistorial(u)">⟳</button>
           </td>
-          <td class="cent">
+          
+          <td class="cent" *ngIf="u.rol !== 'admin'">
             <button class="icono rojo" title="Eliminar" (click)="abrirConfirmacion(u)">✖</button>
           </td>
+
+    
+          <td class="cent" *ngIf="u.rol === 'admin'">—</td>
         </tr>
 
         <tr *ngIf="visibles().length === 0">

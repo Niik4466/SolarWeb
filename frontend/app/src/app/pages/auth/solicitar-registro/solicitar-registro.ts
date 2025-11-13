@@ -12,6 +12,8 @@ import {
 import { RouterLink } from '@angular/router';
 import { RegistroService } from '../../../services/registro.service'; // ruta real
 import { HttpErrorResponse } from '@angular/common/http';
+import { LoadingService } from '../../../services/loading.service';
+import { finalize } from 'rxjs/operators';
 
 @Component({
   selector: 'app-solicitar-registro',
@@ -25,7 +27,7 @@ export class SolicitarRegistroComponent {
   fb = new FormBuilder();
   enviado = signal(false);
   mostrandoError = signal<string | null>(null);
-  loading = signal(false);
+  
   mostrarPassword = signal(false);
   private static match =
     (a: string, b: string, key: string): ValidatorFn =>
@@ -56,8 +58,12 @@ export class SolicitarRegistroComponent {
     }
   );
 
-  constructor(private registroSrv: RegistroService) {}
-
+  constructor(
+    private registroSrv: RegistroService, 
+    private loadingSrv: LoadingService) {}
+  get cargando() {
+    return this.loadingSrv.isLoading();
+  }
   get motivoCtrl() { return this.form.get('motivo')!; }
   get motivoLen()  { return (this.motivoCtrl.value || '').length; }
   get emailMismatch() {
@@ -75,22 +81,27 @@ export class SolicitarRegistroComponent {
       return;
     }
 
-    this.loading.set(true);
-    this.registroSrv.solicitarRegistro(this.form.value as any).subscribe({
-      next: () => {
-        this.loading.set(false);
-        this.enviado.set(true);      // abre modal
-        this.form.reset();           // limpia el form
-      },
+    this.loadingSrv.show();
+
+
+    this.registroSrv
+      .solicitarRegistro(this.form.value as any)
+      .pipe(
+        // se ejecuta tanto en éxito como en error
+        finalize(() => this.loadingSrv.hide())
+      )
+      .subscribe({
+        next: () => {
+          this.enviado.set(true);      // abre modal
+          this.form.reset();           // limpia el form
+        },
       error: (err: HttpErrorResponse) => {
-        this.loading.set(false);
-        // intenta leer el mensaje del backend
-        const msg =
-          (err.error && (err.error.detail || err.error.msg)) ||
-          err.message ||
-          'No se pudo enviar la solicitud.';
-        this.mostrandoError.set(msg);
-      }
+          const msg =
+            (err.error && (err.error.detail || err.error.msg)) ||
+            err.message ||
+            'No se pudo enviar la solicitud.';
+          this.mostrandoError.set(msg);
+        },
     });
   }
 }

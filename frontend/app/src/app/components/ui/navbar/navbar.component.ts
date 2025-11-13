@@ -17,7 +17,7 @@ export class NavbarComponent {
 
   constructor() {
     const set = (url: string) =>
-      this.isLogin.set(/^\/(login|forgot-password|solicitar-registro)(\/|$)/.test(url));
+      this.isLogin.set(/^\/(login|forgot-password|solicitar-registro)(\/|$|\?|#|;)/.test(url));
 
     // evaluar al cargar
     set(this.router.url || '');
