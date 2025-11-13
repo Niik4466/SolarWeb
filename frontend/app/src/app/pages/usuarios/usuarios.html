@@ -75,6 +75,7 @@
         <h2>Usuarios eliminados</h2>
         <button class="icono" (click)="mostrarEliminados.set(false)">✕</button>
       </div>
+      
 
       <table class="tabla compacta">
         <thead>
@@ -99,14 +100,44 @@
               <button class="mini" (click)="restaurar(u)">Restaurar</button>
             </td>
             <td class="cent">
-              <button class="mini rojo" (click)="borrarDefinitivo(u)">Eliminar</button>
+              <button class="mini rojo" (click)="abrirEliminarDefinitivo(u)">Eliminar</button>
             </td>
+            <!-- Modal: Eliminación definitiva (usuarios eliminados) -->
+            <div class="modal" *ngIf="pendienteDef() as p" role="dialog" aria-modal="true">
+              <div class="modal-card confirm">
+
+                <div class="modal-head">
+                  <h2>Eliminar definitivamente</h2>
+                  <button class="icono" (click)="cancelarEliminarDefinitivo()" aria-label="Cerrar">✕</button>
+                </div>
+                
+
+
+                <div class="modal-body">
+                  <p>
+                    ¿Seguro que deseas eliminar de forma <strong>permanente</strong> al usuario
+                    <strong>{{ p.nombre }}</strong>?
+                  </p>
+                  <p style="margin-top:.4rem;">Esta acción no se puede deshacer.</p>
+                </div>
+
+                <div class="modal-actions">
+                  <button class="btn" (click)="cancelarEliminarDefinitivo()">Cancelar</button>
+                  <button class="btn peligro" (click)="confirmarEliminarDefinitivo()">Eliminar definitivamente</button>
+                </div>
+              </div>
+            </div>
+
           </tr>
           <tr *ngIf="listaEliminados().length === 0">
             <td colspan="6" class="vacio">No hay usuarios eliminados</td>
           </tr>
         </tbody>
       </table>
+      <div class="info-msg">
+        Los usuarios eliminados serán borrados de forma permanente después de <strong>30 días</strong>.
+      </div>
+
     </div>
   </div>
 

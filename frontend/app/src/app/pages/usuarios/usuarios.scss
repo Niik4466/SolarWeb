@@ -234,6 +234,17 @@ button.ghost {
     min-width: 100%;
   }
 }
+.info-msg {
+  margin: .7rem 1rem 1rem;
+  background: #fff7db;
+  border: 1px solid #ffe9a8;
+  padding: .75rem 1rem;
+  border-radius: .6rem;
+  color: #735c00;
+  font-size: .9rem;
+  line-height: 1.3;
+}
+
 
 /* ===== Responsivo (móvil) ===== */
 @media (max-width: 720px) {

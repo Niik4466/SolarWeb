@@ -231,8 +231,42 @@ export class UsuariosComponent implements OnInit {
 
   // ---- eliminar/restaurar (sin cambios)
   pendiente = signal<UsuarioUI | null>(null);
+  pendienteDef = signal<UsuarioUI | null>(null);
   abrirConfirmacion(u: UsuarioUI) { this.pendiente.set(u); }
   cancelarEliminacion() { this.pendiente.set(null); }
+
+  abrirEliminarDefinitivo(u: UsuarioUI) {
+  this.pendienteDef.set(u);
+}
+
+cancelarEliminarDefinitivo() {
+  this.pendienteDef.set(null);
+}
+
+confirmarEliminarDefinitivo() {
+  const u = this.pendienteDef();
+  if (!u) return;
+
+  this.error.set(null);
+  this.cargando.set(true);
+  this.loadingSrv?.show?.();
+
+  this.api.deleteUserPermanently(u.id).pipe(
+    finalize(() => {
+      this.cargando.set(false);
+      this.loadingSrv?.hide?.();
+    })
+  ).subscribe({
+    next: () => {
+      // quitar de la lista de eliminados
+      this.listaEliminados.update(xs => xs.filter(x => x.id !== u.id));
+      this.pendienteDef.set(null);
+    },
+    error: () => {
+      this.error.set('No se pudo eliminar definitivamente el usuario.');
+    }
+  }); 
+}
 
   confirmarEliminacion() {
     const u = this.pendiente();
@@ -270,6 +304,25 @@ export class UsuariosComponent implements OnInit {
   }
 
   borrarDefinitivo(u: UsuarioUI) {
-    this.listaEliminados.update(xs => xs.filter(x => x.id !== u.id));
+
+
+    this.error.set(null);
+    this.cargando.set(true);
+    this.loadingSrv?.show?.(); // si ya usas LoadingService aquí, déjalo tal cual
+
+    this.api.deleteUserPermanently(u.id).pipe(
+      finalize(() => {
+        this.cargando.set(false);
+        this.loadingSrv?.hide?.();
+      })
+    ).subscribe({
+      next: () => {
+        // sacamos al usuario de la tabla de eliminados
+        this.listaEliminados.update(xs => xs.filter(x => x.id !== u.id));
+      },
+      error: () => {
+        this.error.set('No se pudo eliminar definitivamente el usuario.');
+      }
+    });
   }
 }

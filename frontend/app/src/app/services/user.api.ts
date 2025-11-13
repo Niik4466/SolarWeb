@@ -68,4 +68,9 @@ export class UsersApi {
       `${this.base}/get_transactions/${userId}`
     );
   }
+  
+  deleteUserPermanently(id: number) {
+    const params = new HttpParams().set('usuario_id', id);
+    return this.http.delete<any>(`${this.base}/delete_permanently`, { params });
+  }
 }
