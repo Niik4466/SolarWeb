@@ -2,21 +2,30 @@
 title Diagrama de Secuencia: Gestionar solicitudes de acceso
 
 actor Administrador
-participant UI as "pages - solicitudes"
-participant FE_Service as "services - solicitudesService"
-participant BE as "Backend API"
-participant DB as "Base de Datos"
+participant UI as "PAGES - solicitudes"
+participant FE_Service as "SERVICES - solicitudesService"
+participant ENDPOINT as "API ENDPOINT - users"
+participant SERVICES as "API SERVICES - users_service"
+participant SQL as "DATA PERSISTENCE - SqlAlchemy"
+database DB as "POSTGRES"
+
+== Mostrar solicitudes pendientes ==
 
 Administrador -> UI : Abre página "solicitudes
 
 UI -> FE_Service :  getPendingWithSolicitudes()
 
-FE_Service -> BE : GET /users/pending_with_solicitudes
+FE_Service -> ENDPOINT : GET /users/pending_with_solicitudes
+ENDPOINT -> SERVICES : get_pending_users_with_last_solicitud_query(...)
+SERVICES -> SQL : Consultar solicitudes
+SQL -> DB: SELECT * \nFROM solicitudes \nWHERE estado = 'pendiente'
+DB --> SQL : Query result
+SQL --> SERVICES : Lista de solicitudes pendientes
+SERVICES --> ENDPOINT: [solicitudes pendientes]
+ENDPOINT --> UI: [solicitudes pendientes]
+UI --> Administrador : Mostrar tabla de solicitudes
 
-BE -> DB : Consultar solicitudes\nWHERE estado = 'pendiente'
-DB --> BE : Lista de solicitudes pendientes
-BE --> FE_Service : [solicitudes pendientes]
-FE_Service --> UI : Mostrar tabla de solicitudes
+== Aprobar o rechazar solicitud ==
 
 Administrador -> UI : Selecciona solicitud\n y elige acción\n(Aprobar / Rechazar)
 
@@ -24,29 +33,47 @@ alt Aprobar solicitud
     Administrador -> UI : Define rol\n(user / admin)
     UI -> FE_Service : approveUser(id_solicitud, admin)
 
-    FE_Service -> BE : PUT /users/approve/{id}/{admin}
+    FE_Service -> ENDPOINT : PUT /users/approve/{id}/{admin}
 
-    BE -> DB : Crear usuario\n(estado = 'aprobado', rol)
-    DB --> BE : Usuario creado
+    ENDPOINT -> SERVICES : obtain_user_by_id_query({id})
+    SERVICES -> SQL : Consultar usuario por ID
+    SQL -> DB : SELECT * \nFROM usuarios \nWHERE id = {id}
+    DB --> SQL : Query result
+    SQL --> SERVICES : User data
+    SERVICES --> ENDPOINT : user
 
-    BE -> DB : Actualizar solicitud\nestado = 'aprobada'
-    DB --> BE : OK
+    ENDPOINT -> SERVICES : approve_user_query(user, admin)
+    SERVICES -> SQL : Crear usuario\n(estado = 'aprobado', rol)
+    SQL -> DB : INSERT INTO usuarios (...)
+    DB --> SQL : Confirmación de inserción
+    SQL --> SERVICES : Confirmacion de inserción
+    SERVICES --> ENDPOINT : Updated user data
 
-    BE --> FE_Service : 200 OK\n("Solicitud aprobada")
+    ENDPOINT --> FE_Service : 200 OK\n("Solicitud aprobada")
     FE_Service --> UI : Actualizar tabla\n(remover solicitud aprobada)
     UI --> Administrador : Se muestra tabla actualizada
 else Rechazar solicitud
     Administrador -> UI : Confirma rechazo
     UI -> FE_Service : deleteUser(id_solicitud)
 
-    FE_Service -> BE : DELETE /users/delete_scheduled/?usuario_id={id}
+    FE_Service -> ENDPOINT : DELETE /users/delete_scheduled/?usuario_id={id}
 
-    BE -> DB : Actualizar solicitud\nestado = 'rechazada'
-    DB --> BE : OK
+    ENDPOINT -> SERVICES : mark_and_schedule_deletion_query({id})
+    SERVICES -> SQL : Marcar usuario como 'rechazado'
+    SQL -> DB : UPDATE solicitudes\nSET estado = 'rechazada'\nWHERE id = {id}
+    DB --> SQL : OK
+    SQL --> SERVICES : Confirmación de actualización
+    SERVICES -> SERVICES: Schedule user definitive deletion after 30 days
+    SERVICES --> ENDPOINT : Confirmación de rechazo
 
-    BE --> FE_Service : 200 OK\n("Solicitud rechazada")
+    ENDPOINT --> FE_Service : 200 OK\n("Solicitud rechazada")
     FE_Service --> UI : Actualizar tabla\n(remover solicitud rechazada)
     UI --> Administrador : Se muestra tabla actualizada
+
+    SERVICES -> SQL : Eliminar completamente usuario tras 30 días
+    SQL -> DB : DELETE FROM usuarios\nWHERE id = {id} AND fecha_rechazo <= CURRENT_DATE - INTERVAL '30 days'
+    DB --> SQL : Confirmación de eliminación
+    SQL --> SERVICES : Confirmación de eliminación
 end
 
 @enduml

@@ -1,51 +1,76 @@
 @startuml
-title Diagrama de Secuencia: Acceder al sitio web tras aprobación
+title Acceder al sitio web tras aprobación
 
 actor Usuario
-participant UI as "pages - login"
-participant FE_Service as "services - loginService"
-participant BE as "Backend API"
-participant DB as "Base de Datos"
+participant UI as "PAGES - login"
+participant FE_Service as "SERVICES - UsersService"
+participant ENDPOINT as "API ENDPOINT - users"
+participant SERVICE as "API SERVICES - users_service"
+participant SQL as "DATA PERSISTENCE - SqlAlchemy"
+database DB as "Postgres"
+
+== Interacción inicial ==
 
 Usuario -> UI : Abre página "login"
 Usuario -> UI : Ingresa correo y contraseña
 Usuario -> UI : Clic en "Iniciar sesión"
+Usuario -> UI : Ingresar correo y contraseña
 
 UI -> FE_Service : login(correo, contraseña)
 
-FE_Service -> BE : POST /users/log-in
+== Llamada al endpoint ==
 
-BE -> DB : Buscar usuario por correo
-DB --> BE : Usuario encontrado / no encontrado
+FE_Service -> ENDPOINT : POST /users/log-in\nBody: { email, password }
+
+ENDPOINT -> SERVICE : user_login_query(correo, contraseña)
+
+SERVICE -> SQL : Consultar usuario por correo\nget_user_by_email_query(correo)
+SQL -> DB : SELECT *\nFROM usuarios\nWHERE correo = {correo}
+DB --> SQL : Resultado de la consulta
+SQL --> SERVICE : usuario | None
 
 alt Usuario no existe
-    BE --> FE_Service : 401 Unauthorized\n("Credenciales inválidas")
+    SERVICE --> ENDPOINT : {success: False,\nestado: None,\nmessage: "credenciales invalidas"}
+    ENDPOINT --> FE_Service : 200 OK\nlogin_result
     FE_Service --> UI : Error de autenticación
     UI --> Usuario : Mostrar mensaje\n"Credenciales inválidas"
 else Usuario existe
-    BE -> BE : Verificar contraseña
-
     alt Contraseña incorrecta
-        BE --> FE_Service : 401 Unauthorized\n("Credenciales inválidas")
+        SERVICE --> ENDPOINT : {success: False,\nestado: None,\nmessage: "credenciales invalidas",\nuser_id: usuario.id}
+        ENDPOINT --> FE_Service : 200 OK\nlogin_result
         FE_Service --> UI : Error de autenticación
         UI --> Usuario : Mostrar mensaje\n"Credenciales inválidas"
-    else Contraseña correcta
-        BE -> BE : Verificar estado del usuario
 
-        alt Estado = pendiente
-            BE --> FE_Service : 403 Forbidden\n("Su solicitud sigue en estado de espera en aprobación.")
+    else Contraseña correcta
+
+        alt estado == "pendiente"
+            SERVICE --> ENDPOINT : {success: False,\nestado: "pendiente",\nmessage: "su solicitud sigue en estado de espera en aprobacion",\nuser_id: usuario.id}
+            ENDPOINT --> FE_Service : 200 OK\nlogin_result
             FE_Service --> UI : Mostrar mensaje de estado
             UI --> Usuario : Mostrar mensaje\n"Su solicitud sigue en estado de espera en aprobación."
-        else Estado = eliminado
-            BE --> FE_Service : 403 Forbidden\n("Su solicitud ha sido rechazada.")
+
+        else estado == "eliminado"
+            SERVICE --> ENDPOINT : {success: False,\nestado: "eliminado",\nmessage: "su solicitud ha sido rechazada",\nuser_id: usuario.id}
+            ENDPOINT --> FE_Service : 200 OK\nlogin_result
             FE_Service --> UI : Mostrar mensaje de estado
             UI --> Usuario : Mostrar mensaje\n"Su solicitud ha sido rechazada."
-        else Estado = aprobado
-            BE -> BE : Generar token de acceso (JWT)
-            BE --> FE_Service : 200 OK\n{token, rol, datos usuario}
-            FE_Service --> UI : Guardar sesión\n(token, rol)
 
-            UI --> Usuario : Redirigir a página principal\n(/graficos)
+        else estado == "aprobado"
+            == Logica en caso de usuario aprobado ==
+
+            SERVICE --> ENDPOINT : {success: True,\nestado: "aprobado",\nmessage: "ok",\nuser_id: usuario.id,\nes_admin: usuario.es_admin}
+
+            ENDPOINT -> ENDPOINT : create_access_token(\n  sub = str(user_id),\n  es_admin = login_result.es_admin\n)
+            note right of ENDPOINT
+                Genera JWT token con
+                user_id y es_admin
+                para mantener sesion activa
+            end note
+            ENDPOINT --> FE_Service : 200 OK\nlogin_result + {access_token, token_type: "bearer"}
+
+            FE_Service -> FE_Service : Guardar sesión\n(access_token, es_admin, user_id)
+            FE_Service --> UI : Redirigir a página principal\n(/graficos)
+            UI --> Usuario : Mostrar pantalla principal\n"Gráficos"
         end
     end
 end
