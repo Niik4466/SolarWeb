@@ -1,0 +1,39 @@
+@startuml
+title Diagrama de Secuencia: Eliminar usuarios aprobados
+
+actor Administrador
+participant UI as "pages - usuarios"
+participant FE_Service as "services - usersService"
+participant BE as "Backend API"
+participant DB as "Base de Datos"
+
+Administrador -> UI : Abre página "usuarios"
+UI -> FE_Service : getByStatus()
+FE_Service -> BE : GET /users/by_status?status=aprobado
+BE -> DB : Consultar usuarios con estado = 'aprobado'
+DB --> BE : Lista de usuarios aprobados
+BE --> FE_Service : [usuarios aprobados]
+FE_Service --> UI : Mostrar tabla de usuarios aprobados
+
+== Acción: eliminar usuario aprobado ==
+
+Administrador -> UI : Clic en "X"\nsobre un usuario aprobado
+
+UI -> FE_Service : confirmarEliminacion()
+
+FE_Service -> BE : DELETE /users/delete_scheduled?usuario_id={id_usuario}
+
+BE -> DB : Buscar usuario por id_usuario
+DB --> BE : Usuario encontrado / no encontrado
+
+BE -> DB : Actualizar usuario\nestado = "eliminado", eliminado_en = NOW()
+DB --> BE : Usuario actualizado
+
+BE --> FE_Service : 200 OK\n{usuario_actualizado}
+FE_Service --> UI : Confirmar eliminación
+
+UI -> UI : Remover usuario de la tabla\n"aprobados"
+UI -> UI : Agregar usuario a la lista\n"usuarios eliminados"
+UI --> Administrador : Mostrar tabla actualizada de usuarios
+
+@enduml
