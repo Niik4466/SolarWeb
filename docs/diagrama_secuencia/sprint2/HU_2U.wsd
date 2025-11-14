@@ -1,0 +1,32 @@
+@startuml
+title Diagrama de Secuencia: Solicitar Registro (con flujo alternativo)
+
+actor Usuario
+participant UI as "pages - solicitar-registro"
+participant FE_Val as "services - registroService"
+participant BE as "Backend API"
+participant DB as "Base de Datos"
+
+Usuario -> UI : Abre página "solicitar-registro"
+Usuario -> UI : Completa formulario
+Usuario -> UI : Clic en "Enviar"
+
+UI -> FE_Val : Validar campos
+FE_Val --> UI : OK
+
+UI -> BE : POST /users/create_user
+
+BE -> DB : Buscar usuario por correo
+DB --> BE : Existe
+
+alt Correo ya existe
+    BE --> UI : Error 400\n("Correo ya registrado")
+    UI --> Usuario : Mostrar mensaje de error
+else Correo no existe
+    BE -> DB : Crear solicitud (pendiente)
+    DB --> BE : OK
+    BE --> UI : OK\n("Solicitud enviada exitosamente")
+    UI --> Usuario : Mostrar confirmación
+end
+
+@enduml
