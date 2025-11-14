@@ -116,8 +116,10 @@ def create_user_query(db: Session, usuario_data: dict, justificacion: str):
     """
     Crea un nuevo usuario junto con su solicitud
     """
-    if get_user_by_email_query(db, usuario_data["correo"]):
-        raise UsersError(f"Ya existe un usuario con el correo {usuario_data['correo']}")
+    user = get_user_by_email_query(db, usuario_data["correo"])
+    if user and (user.estado == "aprobado" or user.estado == "pendiente"):
+        raise HTTPException(status_code=400, detail=f"Ya existe un usuario con el correo {usuario_data['correo']} en estado {user.estado}")   
+
     try:
         # Creamos el usuario
 
@@ -149,7 +151,7 @@ def create_user_query(db: Session, usuario_data: dict, justificacion: str):
     except IntegrityError as e:
         # Deshacemos los cambios
         db.rollback()
-        raise e
+        raise HTTPException(status_code=500, detail=f"Error al crear usuario: {str(e)}")
 
 def get_pending_users_with_last_solicitud_query(db: Session):
     """

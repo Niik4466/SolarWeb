@@ -92,16 +92,10 @@ def create_user(usuario: UsuarioCreate, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Password is missing"
         )
-    try:
-        nuevo_usuario = create_user_query(
-            db, usuario.dict(), usuario.justificacion
-        )
-        return nuevo_usuario
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Error creating user: {str(e)}",
-        )
+    nuevo_usuario = create_user_query(
+        db, usuario.dict(), usuario.justificacion
+    )
+    return nuevo_usuario
 
 
 # -----------------------------------------------------------
