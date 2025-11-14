@@ -297,7 +297,9 @@ confirmarEliminarDefinitivo() {
     this.api.updateStatus(u.id, 'aprobado').subscribe({
       next: () => {
         this.listaEliminados.update(xs => xs.filter(x => x.id !== u.id));
-        this.listaAprobados.update(xs => [{ ...u, eliminado: false, eliminado_el: null }, ...xs]);
+
+        // Recargar desde backend → trae aprobación REAL
+        this.cargarAprobados();
       },
       error: () => this.error.set('No se pudo restaurar el usuario'),
     });
