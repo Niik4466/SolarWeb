@@ -1,0 +1,27 @@
+@startuml
+title Diagrama de Secuencia: Ver usuarios aprobados
+
+actor Administrador
+participant UI as "pages - usuarios"
+participant FE_Service as "services - usersService"
+participant BE as "Backend API"
+participant DB as "Base de Datos"
+
+Administrador -> UI : Abre página "usuarios"
+
+UI -> FE_Service : getByStatus()
+
+FE_Service -> BE : GET /users/by_status?status=aprobado
+
+BE -> DB : Consultar usuarios con estado = 'aprobado'
+DB --> BE : Lista de usuarios aprobados
+
+alt Lista vacía
+    BE --> UI : 200 OK\n[]
+    UI --> Administrador : Mostrar mensaje\n"Sin usuarios aprobados"
+else Lista con resultados
+    BE --> UI : 200 OK\n[usuarios aprobados]
+    UI --> Administrador : Mostrar tabla de usuarios aprobados
+end
+
+@enduml

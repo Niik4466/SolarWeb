@@ -1,0 +1,23 @@
+@startuml
+title Diagrama de Secuencia: Definir rango de fechas para exportar
+
+actor Investigador
+participant UI as "pages - exportar"
+participant FE_Service as "services - exportService"
+participant BE as "Backend API"
+participant DB as "Base de Datos"
+
+Investigador -> UI : Abre página "Exportar"
+Investigador -> UI : Selecciona fecha_inicio y fecha_fin
+
+UI -> FE_Service : exportRange()
+
+FE_Service -> BE : POST /export/range
+FE_Service -> BE : POST /users/save_transaction
+BE -> DB : Obtener fecha mínima y máxima\nde datos disponibles
+DB --> BE : min_fecha, max_fecha
+BE --> FE_Service : Rango disponible\n[min_fecha, max_fecha]
+FE_Service --> Investigador : descargar archivo seleccionado
+
+
+@enduml

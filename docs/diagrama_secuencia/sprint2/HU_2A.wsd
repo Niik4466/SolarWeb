@@ -1,0 +1,30 @@
+@startuml
+title Diagrama de Secuencia: Ver historial de descargas por usuario
+
+actor Administrador
+participant UI as "pages - usuarios"
+participant FE_Service as "services - usersService"
+participant BE as "Backend API"
+participant DB as "Base de Datos"
+
+
+
+Administrador -> UI : Abre página "usuarios"
+Administrador -> UI : Selecciona un usuario\n(clic en "Ver historial")
+
+UI -> FE_Service :  getUserTransactions(user_id={id})
+
+FE_Service -> BE : GET /users/get_transactions/{id}
+
+BE -> DB : Consultar transacciones\nWHERE usuario_id = {id}\nORDER BY fecha_descarga DESC
+DB --> BE : Lista de transacciones\n(fecha_descarga, tipo_dato, rango_fechas, etc.)
+
+alt Lista vacía
+    BE --> UI : 200 OK\n[]
+    UI --> Administrador : Mostrar mensaje\n"Sin eventos descargados"
+else Lista con resultados
+    BE --> UI : 200 OK\n[historial de descargas]
+    UI --> Administrador : Mostrar tabla\n(fecha de descarga,\ntipo de exportacion, rango, etc.)
+end
+
+@enduml
