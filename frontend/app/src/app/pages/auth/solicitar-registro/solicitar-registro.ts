@@ -178,10 +178,28 @@ export class SolicitarRegistroComponent {
           this.form.reset();
         },
         error: (err: HttpErrorResponse) => {
-          // Intentamos obtener un mensaje significativo desde el backend:
-          // - err.error.detail
-          // - err.error.msg
-          // - err.message
+          const emailCtrl = this.form.get('email');
+
+          // 👇 Caso específico: correo ya usado (estado aprobado o pendiente)
+          if (
+            err.status === 400 &&
+            typeof err.error?.detail === 'string' &&
+            err.error.detail.startsWith('Ya existe un usuario con el correo')
+          ) {
+            const msg =
+              'Ya existe una cuenta aprobada o una solicitud pendiente asociada a este correo.';
+
+            // marcar el campo email con un error propio
+            emailCtrl?.setErrors({
+              ...(emailCtrl.errors || {}),
+              alreadyUsed: true,
+            });
+
+            this.mostrandoError.set(msg);
+            return;
+          }
+
+          // 👇 resto de errores (fallback)
           const msg =
             (err.error && (err.error.detail || err.error.msg)) ||
             err.message ||

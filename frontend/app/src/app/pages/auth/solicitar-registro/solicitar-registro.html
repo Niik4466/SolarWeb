@@ -22,6 +22,7 @@
     <div class="error" *ngIf="form.get('email')?.touched && form.get('email')?.invalid">
       <small *ngIf="form.get('email')?.errors?.['required']">El correo es obligatorio.</small>
       <small *ngIf="form.get('email')?.errors?.['email']">Formato de correo inválido.</small>
+      <small *ngIf="form.get('email')?.errors?.['alreadyUsed']">Ya existe una cuenta aprobada o una solicitud pendiente asociada a este correo.</small>
     </div>
 
     <!-- Confirmar correo -->
@@ -107,8 +108,5 @@
   </div>
 </div>
 
-<!-- Mensaje de error general -->
-<div class="error" *ngIf="mostrandoError()">
-  {{ mostrandoError() }}
-</div>
+
 
