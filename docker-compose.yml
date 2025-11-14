@@ -155,19 +155,20 @@ services:
         tail -f /dev/null
       "
   
-  # seeder:
-  #   image: postgres:16
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ./databases/postgres/tests_seed.sql:/seed/tests_seed.sql:ro
-  #   environment:
-  #     PGPASSWORD: ${POSTGRES_PASSWORD}
-  #   entrypoint: ["/bin/sh","-c"]
-  #   command: >
-  #     "psql -h postgres -U ${POSTGRES_USER} -d ${POSTGRES_DB} -v ON_ERROR_STOP=1 -f /seed/tests_seed.sql &&
-  #     echo '✅ Datos de prueba cargados' || (echo '❌ Error en seed' && exit 1)"
+  seeder:
+    profiles: ["test"]
+    image: postgres:16
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./databases/postgres/tests_seed.sql:/seed/tests_seed.sql:ro
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    entrypoint: ["/bin/sh","-c"]
+    command: >
+       "psql -h postgres -U ${POSTGRES_USER} -d ${POSTGRES_DB} -v ON_ERROR_STOP=1 -f /seed/tests_seed.sql &&
+       echo '✅ Datos de prueba cargados' || (echo '❌ Error en seed' && exit 1)"
 
 volumes:
   influxdb2:
