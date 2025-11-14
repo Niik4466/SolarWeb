@@ -1,0 +1,52 @@
+@startuml
+title Diagrama de Secuencia: Gestionar solicitudes de acceso
+
+actor Administrador
+participant UI as "pages - solicitudes"
+participant FE_Service as "services - solicitudesService"
+participant BE as "Backend API"
+participant DB as "Base de Datos"
+
+Administrador -> UI : Abre página "solicitudes
+
+UI -> FE_Service :  getPendingWithSolicitudes()
+
+FE_Service -> BE : GET /users/pending_with_solicitudes
+
+BE -> DB : Consultar solicitudes\nWHERE estado = 'pendiente'
+DB --> BE : Lista de solicitudes pendientes
+BE --> FE_Service : [solicitudes pendientes]
+FE_Service --> UI : Mostrar tabla de solicitudes
+
+Administrador -> UI : Selecciona solicitud\n y elige acción\n(Aprobar / Rechazar)
+
+alt Aprobar solicitud
+    Administrador -> UI : Define rol\n(user / admin)
+    UI -> FE_Service : approveUser(id_solicitud, admin)
+
+    FE_Service -> BE : PUT /users/approve/{id}/{admin}
+
+    BE -> DB : Crear usuario\n(estado = 'aprobado', rol)
+    DB --> BE : Usuario creado
+
+    BE -> DB : Actualizar solicitud\nestado = 'aprobada'
+    DB --> BE : OK
+
+    BE --> FE_Service : 200 OK\n("Solicitud aprobada")
+    FE_Service --> UI : Actualizar tabla\n(remover solicitud aprobada)
+    UI --> Administrador : Se muestra tabla actualizada
+else Rechazar solicitud
+    Administrador -> UI : Confirma rechazo
+    UI -> FE_Service : deleteUser(id_solicitud)
+
+    FE_Service -> BE : DELETE /users/delete_scheduled/?usuario_id={id}
+
+    BE -> DB : Actualizar solicitud\nestado = 'rechazada'
+    DB --> BE : OK
+
+    BE --> FE_Service : 200 OK\n("Solicitud rechazada")
+    FE_Service --> UI : Actualizar tabla\n(remover solicitud rechazada)
+    UI --> Administrador : Se muestra tabla actualizada
+end
+
+@enduml

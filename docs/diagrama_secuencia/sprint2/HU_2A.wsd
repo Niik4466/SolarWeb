@@ -1,0 +1,38 @@
+@startuml
+title Ver historial de descargas por usuario
+
+actor Administrador
+participant UI as "PAGES - usuarios"
+participant FE_Service as "SERVICES - UsersService"
+participant ENDPOINT as "API ENDPOINTS - users"
+participant SERVICE as "API SERVICES - users_service"
+participant SQL as "DATA PERSISTENCE - SqlAlchemy"
+database DB as "POSTGRES"
+
+== Initial interaction ==
+
+Administrador -> UI : Abre página "usuarios"
+Administrador -> UI : Selecciona un usuario\n(clic en "Ver historial")
+
+UI -> FE_Service :  getUserTransactions(user_id={id})
+
+== Endpoint Call ==
+
+FE_Service -> ENDPOINT : GET /users/get_transactions/{id}
+
+ENDPOINT -> SERVICE : get_transaction_by_user_id_query(id={id})
+SERVICE -> SQL : Consultar transacciones\npor id de usuario
+SQL -> DB : SELECT * \nFROM transacciones\nWHERE usuario_id = {id}\nORDER BY fecha_descarga DESC
+DB --> SQL : Query Result
+SQL --> SERVICE : Lista de transacciones\n(fecha_descarga, tipo_dato, rango_fechas, etc.)
+SERVICE --> ENDPOINT : return transactions_list
+
+alt El usuario no tiene transacciones
+    ENDPOINT --> UI : Error 404\nNo existen transacciones para el usuario {id}
+    UI --> Administrador : Mostrar mensaje\n"Sin eventos descargados"
+else Lista con resultados
+    ENDPOINT --> UI : 200 OK\n[historial de descargas]
+    UI --> Administrador : Mostrar tabla\n(fecha de descarga,\ntipo de exportacion, rango, etc.)
+end
+
+@enduml

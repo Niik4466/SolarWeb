@@ -27,6 +27,7 @@
         <tr>
           <th>Nombre solicitante</th>
           <th>Correo</th>
+          <th>Fecha solicitud</th>
           <th>Justificación</th>
           <th style="width:120px;">Acciones</th>
         </tr>
@@ -42,6 +43,9 @@
             <span class="val">{{ s.correo }}</span>
           </td>
 
+          <td [attr.data-label]="'Fecha solicitud'">
+            {{ s.fecha | date:'dd/MM/yyyy HH:mm' }}
+          </td>
 
           <td class="just" [attr.data-label]="'Justificación'">
             

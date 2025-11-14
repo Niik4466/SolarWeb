@@ -1,0 +1,53 @@
+@startuml
+title Diagrama de Secuencia: Acceder al sitio web tras aprobación
+
+actor Usuario
+participant UI as "pages - login"
+participant FE_Service as "services - loginService"
+participant BE as "Backend API"
+participant DB as "Base de Datos"
+
+Usuario -> UI : Abre página "login"
+Usuario -> UI : Ingresa correo y contraseña
+Usuario -> UI : Clic en "Iniciar sesión"
+
+UI -> FE_Service : login(correo, contraseña)
+
+FE_Service -> BE : POST /users/log-in
+
+BE -> DB : Buscar usuario por correo
+DB --> BE : Usuario encontrado / no encontrado
+
+alt Usuario no existe
+    BE --> FE_Service : 401 Unauthorized\n("Credenciales inválidas")
+    FE_Service --> UI : Error de autenticación
+    UI --> Usuario : Mostrar mensaje\n"Credenciales inválidas"
+else Usuario existe
+    BE -> BE : Verificar contraseña
+
+    alt Contraseña incorrecta
+        BE --> FE_Service : 401 Unauthorized\n("Credenciales inválidas")
+        FE_Service --> UI : Error de autenticación
+        UI --> Usuario : Mostrar mensaje\n"Credenciales inválidas"
+    else Contraseña correcta
+        BE -> BE : Verificar estado del usuario
+
+        alt Estado = pendiente
+            BE --> FE_Service : 403 Forbidden\n("Su solicitud sigue en estado de espera en aprobación.")
+            FE_Service --> UI : Mostrar mensaje de estado
+            UI --> Usuario : Mostrar mensaje\n"Su solicitud sigue en estado de espera en aprobación."
+        else Estado = eliminado
+            BE --> FE_Service : 403 Forbidden\n("Su solicitud ha sido rechazada.")
+            FE_Service --> UI : Mostrar mensaje de estado
+            UI --> Usuario : Mostrar mensaje\n"Su solicitud ha sido rechazada."
+        else Estado = aprobado
+            BE -> BE : Generar token de acceso (JWT)
+            BE --> FE_Service : 200 OK\n{token, rol, datos usuario}
+            FE_Service --> UI : Guardar sesión\n(token, rol)
+
+            UI --> Usuario : Redirigir a página principal\n(/graficos)
+        end
+    end
+end
+
+@enduml

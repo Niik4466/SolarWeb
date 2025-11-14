@@ -1,0 +1,27 @@
+@startuml
+title Diagrama de Secuencia: Ver lista de solicitudes de acceso
+
+actor Administrador
+participant UI as "pages - solicitudes"
+participant FE_Service as "services - solicitudesService"
+participant BE as "Backend API"
+participant DB as "Base de Datos"
+
+Administrador -> UI : Abre página "solicitudes de acceso"
+
+UI -> FE_Service :  getPendingWithSolicitudes()
+
+FE_Service -> BE : GET /users/pending_with_solicitudes
+
+BE -> DB : Consultar solicitudes\nWHERE estado = 'pendiente'
+DB --> BE : Lista de solicitudes pendientes
+
+alt Lista vacía
+    BE --> UI : 200 OK\n[]
+    UI --> Administrador : Mostrar mensaje\n"No hay solicitudes pendientes"
+else Lista con resultados
+    BE --> UI : 200 OK\n[solicitudes pendientes]
+    UI --> Administrador : Mostrar tabla\n"Solicitudes de acceso pendientes"
+end
+
+@enduml

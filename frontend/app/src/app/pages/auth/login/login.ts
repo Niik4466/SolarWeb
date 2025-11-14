@@ -1,23 +1,11 @@
+// src/app/pages/login/login.ts
 import { Component, signal, inject } from '@angular/core';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { finalize, take } from 'rxjs/operators';
-import { AuthService } from '../../../services/auth.service';
-import { environment } from '../../../services/login.service';
-
-type LoginResponse = {
-  success: boolean;
-  estado?: 'aprobado' | 'pendiente' | 'eliminado' | string | null;
-  message?: string;
-  user_id?: number;
-  access_token?: string;
-  token_type?: string;
-};
-
-
+import { finalize } from 'rxjs/operators';
+import { LoginService, LoginResponse } from '../../../services/login.service'; // ajusta la ruta
 
 @Component({
   selector: 'app-login',
@@ -27,72 +15,71 @@ type LoginResponse = {
   styleUrls: ['./login.scss'],
 })
 export class LoginComponent {
+  // ---------------------------------------------------------
+  // Inyección de dependencias
+  // ---------------------------------------------------------
   private fb = inject(FormBuilder);
-  private http = inject(HttpClient);
   private router = inject(Router);
-  private auth = inject(AuthService);
   private route = inject(ActivatedRoute);
+  private loginService = inject(LoginService); // nuevo servicio
 
+  /**
+   * Controla si se muestra/oculta el password en el input.
+   */
   mostrarPassword = signal(false);
 
+  /**
+   * Formulario de login.
+   */
   form = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required]],
   });
 
+  /**
+   * Estado de carga y mensaje de error.
+   */
   loading = signal(false);
   errorMsg = signal<string | null>(null);
 
+  /**
+   * Handler del submit del formulario de login.
+   */
   onSubmit() {
     this.errorMsg.set(null);
+
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
-    const { email, password } = this.form.value as { email: string; password: string };
-
-    // Limpia estado previo por si hay un login viejo
-    this.auth.setLoggedOut();
+    const { email, password } = this.form.value as {
+      email: string;
+      password: string;
+    };
 
     this.loading.set(true);
-    this.http.post<LoginResponse>(`${environment.apiBase}/users/log-in`, { email, password })
-      .pipe(finalize(() => this.loading.set(false)), take(1))
+
+    this.loginService
+      .login(email, password)
+      .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
-        next: (res) => {
+        next: (res: LoginResponse) => {
+          // Caso: login exitoso y usuario APROBADO
           if (res.success && res.estado === 'aprobado') {
-            // Guarda login básico
-            this.auth.setLoggedIn(email);
-
-            // Guarda token (que usará el interceptor)
-            if (res.access_token) {
-              this.auth.setToken(res.access_token);
-            }
-
-            // Guarda user_id si vino; si no, lo busca por email
-            if (res.user_id != null) {
-              this.auth.setUserId(res.user_id);
-            } else {
-              this.auth.fetchUserIdByEmail(environment.apiBase, email)
-                .pipe(take(1))
-                .subscribe({
-                  next: r => this.auth.setUserId(r.id),
-                  error: () => console.warn('No se pudo obtener user_id por correo'),
-                });
-            }
-
-            // Redirige (usa returnUrl si viene en query)
-            const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/graficos';
+            const returnUrl =
+              this.route.snapshot.queryParamMap.get('returnUrl') || '/graficos';
             this.router.navigateByUrl(returnUrl);
             return;
           }
 
-          // Estados no-aprobados o credenciales malas
+          // Casos de usuario no aprobado
           if (res.estado === 'pendiente') {
             this.errorMsg.set('Su solicitud sigue en estado de espera en aprobación.');
           } else if (res.estado === 'eliminado') {
             this.errorMsg.set('Su solicitud ha sido rechazada.');
           } else {
+            // Credenciales inválidas u otro mensaje del backend
             this.errorMsg.set(res.message ?? 'Credenciales inválidas.');
           }
         },

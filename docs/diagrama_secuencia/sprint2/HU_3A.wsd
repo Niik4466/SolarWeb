@@ -1,0 +1,33 @@
+@startuml
+title Diagrama de Secuencia: Ver usuarios aprobados
+
+actor Administrador
+participant UI as "PAGES - usuarios"
+participant FE_Service as "SERVICES - UsersService"
+participant ENDPOINT as "API ENDPOINT - users"
+participant SERVICE as "API SERVICES - users_service"
+participant SQL as "DATA PERSISTENCE - SqlAlchemy"
+database DB as "POSTGRES"
+
+Administrador -> UI : Abre página "usuarios"
+
+UI -> FE_Service : getByStatus()
+
+FE_Service -> ENDPOINT : GET /users/by_status?status=aprobado
+
+ENDPOINT -> SERVICE : get_users_by_status_query(status="aprobado")
+SERVICE -> SQL : Consultar usuarios con estado = 'aprobado'
+SQL -> DB : SELECT * \nFROM usuarios \nWHERE estado = 'aprobado'
+DB --> SQL : Lista de usuarios aprobados
+SQL --> SERVICE : Lista de usuarios aprobados
+SERVICE --> ENDPOINT : return approved_users_list
+
+alt Lista vacía
+    ENDPOINT --> UI : 200 OK\n[]
+    UI --> Administrador : Mostrar mensaje\n"Sin usuarios aprobados"
+else Lista con resultados
+    ENDPOINT --> UI : 200 OK\n[usuarios aprobados]
+    UI --> Administrador : Mostrar tabla de usuarios aprobados
+end
+
+@enduml

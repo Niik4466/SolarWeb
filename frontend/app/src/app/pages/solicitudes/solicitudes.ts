@@ -8,14 +8,25 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { catchError, map, finalize, startWith, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { toSignal } from '@angular/core/rxjs-interop';
 
+// -----------------------------------------------------------
+// Tipos de apoyo para la UI
+// -----------------------------------------------------------
+
+/**
+ * Representa una solicitud de registro que viene del backend,
+ * adaptada para ser usada en la tabla de la UI.
+ */
 type Solicitud = {
   id: string;
   nombre: string;
   correo: string;
   justificacion: string;
-  fecha: string;
+  fecha: Date | null;   // fecha de creación de la solicitud
 };
 
+/**
+ * Criterios posibles de ordenamiento para la lista.
+ */
 type Orden = 'recientes' | 'antiguos' | 'nombre' | 'correo';
 
 @Component({
@@ -25,46 +36,98 @@ type Orden = 'recientes' | 'antiguos' | 'nombre' | 'correo';
   templateUrl: './solicitudes.html',
   styleUrls: ['./solicitudes.scss'],
 })
-
 export class SolicitudesComponent implements OnInit {
-  private users = inject(UserService);
-  private auth = inject(AuthService); 
-  private loadingSrv = inject(LoadingService);
+  // ---------------------------------------------------------
+  // Inyección de servicios
+  // ---------------------------------------------------------
+  private users = inject(UserService);       // servicio que llama a la API de solicitudes/usuarios pendientes
+  private auth = inject(AuthService);        // servicio de autenticación (para obtener admin actual)
+  private loadingSrv = inject(LoadingService); // overlay global de carga
 
-  cargando = signal<boolean>(false);
-  enviando = signal<boolean>(false);
-  error = signal<string | null>(null);
-  okMsg = signal<string | null>(null);
+  // ---------------------------------------------------------
+  // Estado general de la vista
+  // ---------------------------------------------------------
 
+  cargando = signal<boolean>(false);       // indica si se están cargando las solicitudes
+  enviando = signal<boolean>(false);       // indica si se está enviando una acción (aprobar/rechazar)
+  error = signal<string | null>(null);     // mensaje de error general
+  okMsg = signal<string | null>(null);     // mensaje de éxito (aprobado/rechazado correctamente)
+
+  // Lista de solicitudes pendientes mostradas en la tabla
   solicitudes = signal<Solicitud[]>([]);
 
+  // ---------------------------------------------------------
+  // Estado de los modales / acciones
+  // ---------------------------------------------------------
+
+  // Solicitud seleccionada para aprobar/rechazar
   sel = signal<Solicitud | null>(null);
+
+  // Acción seleccionada para esa solicitud: aprobar o rechazar
   accion = signal<'aprobar' | 'rechazar' | null>(null);
+
+  // Rol que se asignará si se aprueba (admin/user) – por defecto user
   rol = signal<'admin' | 'user'>('user');
 
-  // ---- buscador y orden (MISMO PATRÓN QUE USUARIOS) ----
-  buscar = new FormControl('', { nonNullable: true });
-  orden  = signal<Orden>('recientes'); // podrías usarlo después si quieres ordenar
+  // ---------------------------------------------------------
+  // Buscador y orden (mismo patrón que en UsuariosComponent)
+  // ---------------------------------------------------------
 
+  // Input de búsqueda reactivo
+  buscar = new FormControl('', { nonNullable: true });
+
+  // Criterio de orden actual
+  orden  = signal<Orden>('recientes');
+
+  /**
+   * Signal derivado del valor del input de búsqueda con:
+   * - valor inicial
+   * - debounce para tecleo rápido
+   * - distinctUntilChanged para evitar cálculos innecesarios
+   */
   private termino = toSignal(
     this.buscar.valueChanges.pipe(
       startWith(this.buscar.value),   // valor inicial
-      debounceTime(200),              // suaviza tecleo rápido
+      debounceTime(200),              // espera 200ms tras dejar de teclear
       distinctUntilChanged()
     ),
     { initialValue: this.buscar.value }
   );
 
+  /**
+   * Maneja el cambio de orden desde el <select>.
+   */
   onOrdenChange(ev: Event) {
     const value = (ev.target as HTMLSelectElement).value as any; // 'recientes' | ...
     this.orden.set(value);
   }
 
+  // ---------------------------------------------------------
+  // Modal de justificación
+  // ---------------------------------------------------------
+
+  // Controla si se muestra el modal de justificación
   verJust = signal(false);
+
+  // Datos de la justificación seleccionada (nombre, correo, texto)
   justSel = signal<{ nombre: string; correo: string; justificacion: string } | null>(null);
 
-  ngOnInit() { this.cargarPendientes(); }
+  // ---------------------------------------------------------
+  // Ciclo de vida
+  // ---------------------------------------------------------
 
+  ngOnInit() {
+    this.cargarPendientes();
+  }
+
+  // ---------------------------------------------------------
+  // Carga de solicitudes pendientes desde el backend
+  // ---------------------------------------------------------
+
+  /**
+   * Llama al backend para obtener la lista de usuarios con solicitud pendiente.
+   * Mapea la respuesta a la estructura Solicitud y maneja errores.
+   */
   private cargarPendientes() {
     this.cargando.set(true);
     this.error.set(null);
@@ -78,7 +141,10 @@ export class SolicitudesComponent implements OnInit {
           nombre: `${u.nombre ?? ''} ${u.apellido ?? ''}`.trim(),
           correo: u.correo,
           justificacion: (u.justificacion ?? '—').toString(),
-          fecha: (u.creado_en ?? '').slice(0, 10) || '',
+          // Convertimos el string de fecha a Date, ajustando 'Z' si falta
+          fecha: u.creado_en
+            ? new Date(u.creado_en.endsWith('Z') ? u.creado_en : u.creado_en + 'Z')
+            : null,
         })) as Solicitud[];
       }),
       catchError((err) => {
@@ -89,7 +155,16 @@ export class SolicitudesComponent implements OnInit {
     ).subscribe(lista => this.solicitudes.set(lista));
   }
 
-  // normaliza texto (minúsculas, sin tildes, espacios simples)
+  // ---------------------------------------------------------
+  // Helpers buscador/orden
+  // ---------------------------------------------------------
+
+  /**
+   * Normaliza texto:
+   * - a minúsculas
+   * - sin tildes
+   * - espacios múltiples → uno solo
+   */
   private norm(s: string) {
     return (s || '')
       .toLowerCase()
@@ -98,17 +173,24 @@ export class SolicitudesComponent implements OnInit {
       .trim();
   }
 
-  // timestamp desde la fecha (para ordenar si quieres usar Orden)
+  /**
+   * Devuelve el timestamp numérico de la fecha de la solicitud,
+   * para poder ordenar por recientes/antiguos.
+   */
   private ts(s: Solicitud): number {
-    return s.fecha ? new Date(s.fecha).getTime() : NaN;
+    return s.fecha ? s.fecha.getTime() : NaN;
   }
 
-  // Lista final visible: filtrada por buscador y opcionalmente ordenada
+  /**
+   * Lista final visible en la tabla:
+   * - Filtrada por buscador (nombre + correo).
+   * - Ordenada según el criterio seleccionado (orden).
+   */
   visibles = computed(() => {
     const q = this.norm(this.termino() ?? '');
     let xs = this.solicitudes();
 
-    // --- filtro por nombre + correo ---
+    // --- filtro por texto en nombre + correo ---
     if (q) {
       xs = xs.filter(s => {
         const hay = this.norm(s.nombre + ' ' + s.correo);
@@ -116,7 +198,7 @@ export class SolicitudesComponent implements OnInit {
       });
     }
 
-    // --- si quieres, también puedes ordenar usando this.orden() ---
+    // --- orden según 'orden' seleccionado ---
     const ord = this.orden();
 
     xs = [...xs].sort((a, b) => {
@@ -126,7 +208,7 @@ export class SolicitudesComponent implements OnInit {
       const av = this.ts(a), bv = this.ts(b);
       const aNan = Number.isNaN(av), bNan = Number.isNaN(bv);
       if (aNan && bNan) return 0;
-      if (aNan) return 1;
+      if (aNan) return 1;   // sin fecha → al final
       if (bNan) return -1;
 
       return ord === 'recientes' ? (bv - av) : (av - bv);
@@ -135,19 +217,83 @@ export class SolicitudesComponent implements OnInit {
     return xs;
   });
 
+  // ---------------------------------------------------------
+  // Lógica de justificación (modal de texto largo)
+  // ---------------------------------------------------------
 
+  /**
+   * Abre el modal de justificación para una solicitud dada.
+   */
   abrirJustificacion(s: Solicitud) {
-    this.justSel.set({ nombre: s.nombre, correo: s.correo, justificacion: s.justificacion });
+    this.justSel.set({
+      nombre: s.nombre,
+      correo: s.correo,
+      justificacion: s.justificacion,
+    });
     this.verJust.set(true);
   }
-  cerrarJustificacion() { this.verJust.set(false); this.justSel.set(null); }
 
-  abrirAprobar(s: Solicitud)  { this.sel.set(s); this.accion.set('aprobar'); this.rol.set('user'); this.okMsg.set(null); this.error.set(null); }
-  abrirRechazar(s: Solicitud) { this.sel.set(s); this.accion.set('rechazar'); this.okMsg.set(null); this.error.set(null); }
-  cerrarModal()               { this.sel.set(null); this.accion.set(null); this.enviando.set(false); }
+  /**
+   * Cierra el modal de justificación y limpia selección.
+   */
+  cerrarJustificacion() {
+    this.verJust.set(false);
+    this.justSel.set(null);
+  }
 
+  // ---------------------------------------------------------
+  // Abrir modales de aprobar / rechazar
+  // ---------------------------------------------------------
+
+  /**
+   * Abre el modal para aprobar una solicitud.
+   * - Selecciona la fila
+   * - Setea la acción en 'aprobar'
+   * - Valor por defecto de rol: 'user'
+   */
+  abrirAprobar(s: Solicitud)  {
+    this.sel.set(s);
+    this.accion.set('aprobar');
+    this.rol.set('user');
+    this.okMsg.set(null);
+    this.error.set(null);
+  }
+
+  /**
+   * Abre el modal para rechazar una solicitud.
+   */
+  abrirRechazar(s: Solicitud) {
+    this.sel.set(s);
+    this.accion.set('rechazar');
+    this.okMsg.set(null);
+    this.error.set(null);
+  }
+
+  /**
+   * Cierra el modal de aprobar/rechazar y resetea flags.
+   */
+  cerrarModal() {
+    this.sel.set(null);
+    this.accion.set(null);
+    this.enviando.set(false);
+  }
+
+  // ---------------------------------------------------------
+  // Confirmar acción (aprobar / rechazar)
+  // ---------------------------------------------------------
+
+  /**
+   * Ejecuta la acción elegida sobre la solicitud seleccionada:
+   * - Si es 'aprobar', llama al endpoint de approveUser asignando rol.
+   * - Si es 'rechazar', llama al endpoint deleteUser para guardar eliminado_en.
+   * En ambos casos:
+   * - Muestra loader global.
+   * - Maneja errores.
+   * - Elimina la fila aprobada/rechazada de la tabla.
+   */
   confirmar() {
-    const s = this.sel(); if (!s) return;
+    const s = this.sel();
+    if (!s) return;
 
     this.enviando.set(true);
     this.error.set(null);
@@ -155,14 +301,17 @@ export class SolicitudesComponent implements OnInit {
 
     this.loadingSrv.show();
 
+    // ---- APROBAR ----
     if (this.accion() === 'aprobar') {
       const admin = this.rol() === 'admin';
+
       this.users.approveUser(Number(s.id), admin).pipe(
         catchError(err => {
           this.error.set(`No se pudo aprobar: ${err?.status || ''} ${err?.statusText || ''}`);
           return of(null);
         }),
-        finalize(() => {this.enviando.set(false);
+        finalize(() => {
+          this.enviando.set(false);
           this.loadingSrv.hide();
         })
       ).subscribe(resp => {
@@ -171,8 +320,9 @@ export class SolicitudesComponent implements OnInit {
         this.removerFila(s.id);
       });
 
+    // ---- RECHAZAR ----
     } else if (this.accion() === 'rechazar') {
-      // ✅ obtener adminId del login actual
+      // obtener adminId del login actual (por si backend lo registra)
       const adminId = this.auth.getUserId();
       if (!adminId) {
         this.error.set('No se pudo obtener el ID del administrador autenticado.');
@@ -181,13 +331,14 @@ export class SolicitudesComponent implements OnInit {
         return;
       }
 
-      // ✅ usar delete_user para que guarde eliminado_en y el admin
+      // usar delete_user para que backend registre eliminado_en y admin
       this.users.deleteUser(Number(s.id)).pipe(
         catchError(err => {
           this.error.set(`No se pudo rechazar: ${err?.status || ''} ${err?.statusText || ''}`);
           return of(null);
         }),
-        finalize(() => {this.enviando.set(false);
+        finalize(() => {
+          this.enviando.set(false);
           this.loadingSrv.hide();
         })
       ).subscribe(resp => {
@@ -197,11 +348,16 @@ export class SolicitudesComponent implements OnInit {
       });
 
     } else {
+      // Si por alguna razón no hay acción definida
       this.enviando.set(false);
       this.loadingSrv.hide();
     }
   }
 
+  /**
+   * Quita una solicitud de la tabla por id
+   * y cierra el modal de aprobación/rechazo.
+   */
   private removerFila(id: string) {
     this.solicitudes.update(arr => arr.filter(x => x.id !== id));
     this.cerrarModal();

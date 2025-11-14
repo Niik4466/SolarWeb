@@ -1,0 +1,22 @@
+@startuml
+title Diagrama de Secuencia: Ver vista previa de fechas seleccionadas
+
+actor Investigador
+participant UI as "pages - exportar"
+participant FE_Service as "services - exportService\n(lógica interna / helpers)"
+
+== Selección de rango ==
+
+Investigador -> UI : Abre página "exportar datos"
+Investigador -> UI : Selecciona rango en\ncalendario (ngx-daterangepicker)
+
+UI -> UI : onDateRangeSelected(event)\nactualiza selectedRange,\nrangoInicio, rangoFin en el form
+
+UI -> FE_Service : buildPreviewRange(rangoInicio, rangoFin)
+
+FE_Service -> FE_Service : Validar rango\n(rangoInicio <= rangoFin)
+
+FE_Service -> FE_Service : Generar lista de fechas\nentre rangoInicio y rangoFin\n(usando dayjs u otra lib)
+FE_Service --> UI : Lista de fechas a exportar\n[p.ej. 2025-11-01, 2025-11-02, ...]
+UI --> Investigador : Mostrar vista previa de fechas\n(lista/chips/calendario resaltado)
+@enduml

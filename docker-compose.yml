@@ -8,6 +8,8 @@ services:
     ports:
       - "4200:4200"
     restart: unless-stopped
+    environment:
+      - TZ=America/Santiago 
     env_file:
       - .env
     depends_on:

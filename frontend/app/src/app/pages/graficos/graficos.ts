@@ -12,6 +12,8 @@ import { ImagenesPorHoraComponent, SkyFrame } from '../../components/imagenes/im
 
 import { ImagesService } from '../../services/images.api';
 import { IrradianceApi, SeriesOut } from '../../services/irradiance.api';
+import { LoadingService } from '../../services/loading.service';
+
 
 /**
  * Devuelve la fecha de hoy en formato local ISO (yyyy-MM-dd).
@@ -128,7 +130,7 @@ export class GraficosComponent {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return of<SkyFrame[]>([]);
 
       this.errorMsg = '';
-      this.isLoading = true;
+      //this.isLoading = true;
 
       return this.images.streamDayFramesBatched(day, {
         startHHMM: this.START_HHMM,
@@ -151,7 +153,9 @@ export class GraficosComponent {
           this.errorMsg = 'No fue posible cargar las imágenes (stream).';
           return of<SkyFrame[]>([]);
         }),
-        finalize(() => { this.isLoading = false; }),
+        finalize(() => {
+          this.isLoading = false; 
+          this.loadingSrv.hide();}),
         startWith([] as SkyFrame[])
       );
     }),
@@ -202,6 +206,7 @@ export class GraficosComponent {
   constructor(
     private irrApi: IrradianceApi,   // servicio para datos de irradiancia
     private images: ImagesService,   // servicio para imágenes (con stream)
+    private loadingSrv: LoadingService,
   ) {}
 
   /**
@@ -218,6 +223,7 @@ export class GraficosComponent {
 
     this.errorMsg = '';
     this.isLoading = true;
+    this.loadingSrv.show();
 
     this.day$.next(day);     // dispara carga de datos
     this.range$.next(this.selectedRange) // se emite el rango junto con el dia

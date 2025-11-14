@@ -1,0 +1,51 @@
+@startuml
+title Diagrama de Secuencia: Solicitar Registro
+
+actor Usuario
+participant UI as "PAGES - solicitar-registro"
+participant FE_Val as "SERVICES - RegistroService"
+participant ENDPOINT as "API ENDPOINTS - users"
+participant SERVICE as "API SERVICES - users_service"
+participant SQL as "DATA PERSISTENCE - SqlAlchemy"
+database DB as "POSTGRES"
+
+== Initial interaction ==
+
+Usuario -> UI : Abre página "solicitar-registro"
+Usuario -> UI : Completa formulario
+Usuario -> UI : Clic en "Enviar"
+
+UI -> FE_Val : Validar campos
+FE_Val --> UI : Campos válidos
+
+== Endpoint Call ==
+
+UI -> ENDPOINT : POST /users/create_user\nPayload: user_data, justification
+ENDPOINT -> SERVICE : create_user_query(user_data, justification)
+
+SERVICE -> SQL : Buscar usuario por correo
+SQL -> DB : SELECT * FROM usuario\nWHERE correo = user_data.correo
+DB -> SQL : Query Result
+SQL --> SERVICE : User data
+
+alt Correo ya existe
+    SERVICE --> ENDPOINT : Error: "Correo ya registrado"
+    ENDPOINT --> UI : 400 Bad Request\n"Correo ya registrado"
+    UI --> Usuario : Mostrar mensaje de error
+else Correo no existe
+    SERVICE -> SQL : Agregar nuevo usuario
+    SQL -> DB : INSERT INTO usuario (...)
+    DB --> SQL : OK
+    SQL --> SERVICE : OK
+
+    SERVICE -> SQL : Agregar nueva solicitud
+    SQL -> DB : INSERT INTO solicitud (...)
+    DB --> SQL : OK
+    SQL --> SERVICE : OK
+
+    SERVICE --> ENDPOINT : return new_user
+    ENDPOINT --> UI : 200 OK\nPayload: new_user (JSON)
+    UI --> Usuario : Mostrar confirmación
+end
+
+@enduml
