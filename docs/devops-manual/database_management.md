@@ -1,6 +1,22 @@
 # Gestión de Datos
 
-Este documento describe la lógica de los scripts de ingesta de datos y las consideraciones de almacenamiento en las bases de datos de SolarWeb.
+Este documento describe la lógica de los scripts de ingesta de datos, la gestión de migraciones de base de datos y las consideraciones de almacenamiento en las bases de datos de SolarWeb.
+
+-----
+
+### Base de Datos Relacional (PostgreSQL)
+
+PostgreSQL almacena datos estructurados como información de usuarios, solicitudes, y configuraciones del sistema.
+
+**Migraciones y Schema:**
+
+1.  **Ubicación de migraciones:** Las migraciones de base de datos se encuentran en `databases/postgres/db.sql`.
+2.  **Proceso de migración:** Durante el levantamiento de los servicios, un contenedor `migrator` se encarga de ejecutar automáticamente las migraciones en la base de datos.
+3.  **Health Check:** El contenedor de PostgreSQL incluye un verificador de salud que asegura que la base de datos esté lista antes de que otros servicios la utilicen.
+4.  **Datos de prueba:** Existe un archivo `databases/postgres/tests_seed.sql` que contiene datos de prueba. Este se ejecuta cuando se levanta el perfil `test`:
+    ```bash
+    docker compose --profile test up --build
+    ```
 
 -----
 
@@ -35,3 +51,121 @@ Las imágenes de cielo se almacenan en MinIO, un servicio de almacenamiento de o
     YYYY/MM/DD/hh_mm_ss.extension
     ```
       * **Ejemplo:** La imagen de `*20250802213004*` se almacenará en la ruta `2025/08/02/21_30_04.jpg` dentro del bucket.
+
+### Procesamiento Local de Archivos (fileIngestDaemon)
+
+El `fileIngestDaemon` es un servicio que corre **localmente en el Nodo de Despliegue** (no en Docker). Su propósito es procesar imágenes y archivos CSV antes de que se envíen a los servicios de almacenamiento (MinIO e InfluxDB).
+
+**Funcionalidades principales:**
+
+1.  **Monitoreo de imágenes:** Vigila un directorio de origen (`IMAGES_ORIGIN_DIRECTORY`) de forma recursiva.
+2.  **Procesamiento de imágenes:** 
+    - Comprime las imágenes reduciendo sus dimensiones a la mitad
+    - Opcionalmente recorta bordes según la variable `CROP_PIXELS`
+    - Ajusta la calidad JPEG según `JPEG_QUALITY` (default 85)
+3.  **Organización de salida:** Mantiene la estructura relativa de directorios, guardando en `IMAGES_DESTINY_DIRECTORY`
+4.  **Eliminación de origen:** Tras procesar exitosamente, **borra el archivo original**
+5.  **Monitoreo de CSV:** Vigila archivos CSV en `CSV_ORIGIN_DIRECTORY`
+6.  **Tail incremental:** Agrega solo las nuevas líneas de los CSV activos al directorio de destino (`CSV_DESTINY_DIRECTORY`)
+7.  **Estado persistente:** Mantiene un archivo `state_log.csv` que registra timestamps de inicio y último procesamiento para ambos tipos de archivos
+
+**Variables de entorno necesarias:**
+
+```ini
+# Rutas de directorios para imágenes
+IMAGES_ORIGIN_DIRECTORY=~/Pictures/DatosCamera
+IMAGES_DESTINY_DIRECTORY=~/Pictures/DatosCameraComprimido
+
+# Rutas de directorios para CSV
+CSV_ORIGIN_DIRECTORY=~/Downloads/csv
+CSV_DESTINY_DIRECTORY=~/Downloads/Irradiancia
+
+# Configuración de procesamiento de imágenes
+CROP_PIXELS=0                    # píxeles a recortar de cada borde (0 = sin recorte)
+JPEG_QUALITY=85                  # calidad de compresión JPEG (1-100)
+
+# Parámetros de monitoreo
+POLL_INTERVAL=1.0               # segundos entre polls de CSV
+STABLE_WAIT=0.01                # segundos a esperar para confirmar estabilidad de archivo
+
+# Ubicación del archivo de estado
+STATE_LOG_FILE=./state_log.csv
+```
+
+**Configuración como Servicio Systemctl (Nodo de Despliegue):**
+
+El `fileIngestDaemon` se configura manualmente como un servicio systemd para que se ejecute automáticamente al iniciar el servidor.
+
+1.  **Instalar dependencias:**
+    ```bash
+    cd /mnt/e/SolarWeb/databases/fileIngestDaemon
+    python -m venv venv
+    source venv/bin/activate
+    pip install -r requirements.txt
+    ```
+
+2.  **Crear archivo de servicio systemd:**
+    Crear `/etc/systemd/system/file-ingest-daemon.service`:
+    
+    ```ini
+    [Unit]
+    Description=SolarWeb File Ingest Daemon
+    After=network.target
+    
+    [Service]
+    Type=simple
+    User=<usuario>
+    WorkingDirectory=/mnt/e/SolarWeb/databases/fileIngestDaemon
+    Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+    ExecStart=/mnt/e/SolarWeb/databases/fileIngestDaemon/<virtual_environment>/bin/python /mnt/e/SolarWeb/databases/fileIngestDaemon/ingest_watch.py
+    EnvironmentFile=/mnt/e/SolarWeb/databases/fileIngestDaemon/.env
+    Restart=on-failure
+    RestartSec=10
+    StandardOutput=journal
+    StandardError=journal
+    
+    [Install]
+    WantedBy=multi-user.target
+    ```
+
+3.  **Recargar y habilitar el servicio:**
+    ```bash
+    sudo systemctl daemon-reload
+    sudo systemctl enable file-ingest-daemon
+    sudo systemctl start file-ingest-daemon
+    ```
+
+4.  **Verificar estado:**
+    ```bash
+    sudo systemctl status file-ingest-daemon
+    sudo journalctl -u file-ingest-daemon -f    # Ver logs en tiempo real
+    ```
+
+**Gestión del servicio:**
+
+```bash
+# Iniciar el servicio
+sudo systemctl start file-ingest-daemon
+
+# Detener el servicio
+sudo systemctl stop file-ingest-daemon
+
+# Reiniciar
+sudo systemctl restart file-ingest-daemon
+
+# Ver estado
+sudo systemctl status file-ingest-daemon
+
+# Ver logs
+sudo journalctl -u file-ingest-daemon -n 100  # Últimas 100 líneas
+```
+
+**Flujo de procesamiento:**
+
+1. El daemon se inicia y procesa todos los archivos existentes en los directorios de origen
+2. A continuación, monitorea continuamente los directorios usando watchdog
+3. Cuando detecta un archivo nuevo, espera a que sea "estable" (no cambie de tamaño) antes de procesarlo
+4. Las imágenes se comprimen y guardan en la estructura de destino, luego se borra el original
+5. Los CSV se monitorean de forma incremental, agregando solo nuevas líneas
+6. El estado se persiste en `state_log.csv` para recuperación ante fallos
+

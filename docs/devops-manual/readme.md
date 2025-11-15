@@ -8,10 +8,11 @@ Este manual es una guía técnica para los equipos de desarrollo y operaciones. 
 
 El proyecto SolarWeb está diseñado con una arquitectura de **monolito modular con servicios de datos desacoplados**. Esto se gestiona a través de dos nodos de computo.
 
-1.  **Nodo de Despliegue:** Contiene el **Frontend** y el **Backend**, los cuales consumen datos de los servicios en el nodo de datos.
+1.  **Nodo de Despliegue:** Contiene el **Frontend** y el **Backend**, los cuales consumen datos de los servicios en el nodo de datos. Ambos nodos Se comunican mediante de **ZeroTier** por limitaciones tecnicas.
 2.  **Nodo de Datos:** Aloja los servicios de ingesta y almacenamiento de datos. 
     - **MinIO** para las imágenes del cielo.
-    - **InfluxDB** para los datos de irradiancia, GHI, DNI y DHI. 
+    - **InfluxDB** para los datos de irradiancia, GHI, DNI y DHI.
+    - **PostgreSQL** para datos relacionales de usuarios, solicitudes y transacciones.
     - Se incluyen los `uploaders` que automatizan la carga de datos para ambos servicios desde directorios en el nodo.
 
 ----
@@ -24,9 +25,14 @@ El proyecto SolarWeb está diseñado con una arquitectura de **monolito modular 
 
   * **Frontend:** Angular
   * **Backend:** Python, FastAPI
-  * **Bases de Datos:** InfluxDB y MinIO
+  * **Bases de Datos:** 
+    - InfluxDB (series de tiempo)
+    - MinIO (almacenamiento de objetos)
+    - PostgreSQL (datos relacionales)
   * **Contenedores:** Docker, Docker Compose
   * **Servidor Web:** Caddy (para el frontend en producción)
+  * **Conectividad:** ZeroTier (para una red privada virtual)
+  * **Tareas Programadas:** APScheduler (para automatización de procesos)
 
 -----
 
@@ -73,6 +79,7 @@ Más información sobre configuración para despliegue en [deployment de DevOps]
 La documentación detallada se encuentra en esta misma carpeta para mantenerla organizada y versionada.
 
   * [setup-local.md](setup-local.md) : Guía de configuración inicial del entorno, variables de entorno y dependencias para el desarrollo local.
-  * [deployment.md](deployment.md): Pasos para el despliegue en producción.
-  * [database_management.md](database_management.md): Información sobre manejo de bd's en el nodo de datos.
-  * [genesis_ng.md](genesis_ng.md): Genesis del proyecto en ángular.
+  * [deployment.md](deployment.md): Pasos para el despliegue en producción en dos nodos separados.
+  * [database_management.md](database_management.md): Información sobre manejo de base de datos relacionales, migración de esquemas y servicios de ingesta de datos.
+  * [networking_and_security.md](networking_and_security.md): Configuración de redes Docker, ZeroTier y consideraciones de seguridad.
+  * [genesis_ng.md](genesis_ng.md): Genesis del proyecto en Angular.
