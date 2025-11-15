@@ -1,23 +1,103 @@
 @startuml
-title Diagrama de Secuencia: Definir rango de fechas para exportar
+title Exportar por rango de fechas
 
 actor Investigador
-participant UI as "pages - exportar"
-participant FE_Service as "services - exportService"
-participant BE as "Backend API"
-participant DB as "Base de Datos"
+participant UI as "PAGES - exportar"
+participant FE_Service as "SERVICES"
+participant ENDPOINT as "BACKEND ENDPOINT"
+participant SERVICES as "BACKEND SERVICES"
+participant SQL as "DATA PERSISTENCE"
+database DB as "POSTGRES"
+database MINIO as "MINIO"
+database INFLUXDB as "INFLUXDB"
+
+== Interaccion Inicial ==
 
 Investigador -> UI : Abre página "Exportar"
 Investigador -> UI : Selecciona fecha_inicio y fecha_fin
+Investigador -> UI : Selecciona variables a exportar
+Investigador -> UI : Selecciona si quiere imagenes
+Investigador -> UI : Clic en "Exportar"
 
-UI -> FE_Service : exportRange()
+== Guardar log de transaccion ==
 
-FE_Service -> BE : POST /export/range
-FE_Service -> BE : POST /users/save_transaction
-BE -> DB : Obtener fecha mínima y máxima\nde datos disponibles
-DB --> BE : min_fecha, max_fecha
-BE --> FE_Service : Rango disponible\n[min_fecha, max_fecha]
-FE_Service --> Investigador : descargar archivo seleccionado
+UI -> FE_Service : TransactionsAPI\nsaveTransaction()
+FE_Service -> ENDPOINT : POST /users/save_transaction
+ENDPOINT -> SERVICES : save_transaction_query(...)
+SERVICES -> SQL : Insertar log en la tabla "transacciones"
+SQL -> DB : INSERT INTO transacciones (...)
+DB --> SQL : Confirmación de inserción
+SQL --> SERVICES : Confirmación de inserción
+SERVICES --> ENDPOINT : nueva_transaccion
+ENDPOINT --> FE_Service : 200 OK\nPayload: {nueva_transaccion}
+FE_Service --> UI : Confirmación de log guardado
 
+== Descargar rango de fechas ==
+
+UI -> FE_Service : ExportAPI\nexportRange()
+FE_Service -> ENDPOINT : POST /export/range
+
+alt Incluir imagenes
+    ENDPOINT -> SERVICES : export_by_range_query(\n variables, day_init, day_finish,\n fmt, include_images=True)
+
+    SERVICES -> SERVICES : Validar variables y fechas\n- variables no vacías\n- variables ∈ VALID_FIELDS\n- day_init/day_finish presentes
+
+    alt Datos de entrada inválidos
+        SERVICES --> ENDPOINT : ExportError(mensaje_error)
+        ENDPOINT --> FE_Service : 400 Bad Request\n{ detail: mensaje_error }
+        FE_Service --> UI : Mostrar error de exportación
+        UI --> Investigador : Mostrar mensaje\n"Error en parámetros de exportación"
+    else Datos válidos
+        SERVICES -> SERVICES : Parsear fechas\n(day_init, day_finish)
+        SERVICES -> SERVICES : Validar rango\n(day_finish >= day_init)
+        SERVICES -> SERVICES : Generar lista de días\n[d0..d1]
+
+        loop Por cada día en el rango
+            SERVICES -> SQL : InfluxDBClient\nFlux Query\nobtencion datos de irradiancia
+            SQL -> INFLUXDB : Ejecutar consulta
+            INFLUXDB --> SQL : Serie de irradiancia
+            SQL --> SERVICES : Datos de irradiancia\npara el día
+
+            SERVICES -> SQL : Boto3\nObtener imágenes del día\n(bucket: imagenes-cielo)
+            SQL -> MINIO : Descargar imágenes
+            MINIO --> SQL : Imágenes del día
+            SQL --> SERVICES : Imágenes para el día
+
+            SERVICES -> SERVICES : _write_day_to_zip(\n zf, day, variables, fmt,\n include_images=True, bucket_name)
+        end
+
+        SERVICES --> ENDPOINT : ZIP en memoria\n(buf, mime_type="application/zip", filename)
+    end
+
+else No incluir imagenes
+    ENDPOINT -> SERVICES : export_by_range_query(\n variables, day_init, day_finish,\n fmt, include_images=False)
+
+    SERVICES -> SERVICES : Validar variables y fechas\n- variables no vacías\n- variables ∈ VALID_FIELDS\n- day_init/day_finish presentes
+
+    alt Datos de entrada inválidos
+        SERVICES --> ENDPOINT : ExportError(mensaje_error)
+        ENDPOINT --> FE_Service : 400 Bad Request\n{ detail: mensaje_error }
+        FE_Service --> UI : Mostrar error de exportación
+        UI --> Investigador : Mostrar mensaje\n"Error en parámetros de exportación"
+    else Datos válidos
+        SERVICES -> SERVICES : Parsear fechas\n(day_init, day_finish)
+        SERVICES -> SERVICES : Validar rango\n(day_finish >= day_init)
+        SERVICES -> SERVICES : Generar lista de días\n[d0..d1]
+
+        loop Por cada día en el rango
+            SERVICES -> SQL : InfluxDBClient\nFlux Query
+            SQL -> INFLUXDB : Ejecutar consulta
+            INFLUXDB --> SQL : Serie de irradiancia
+            SQL --> SERVICES : Datos de irradiancia\npara el día
+
+            SERVICES -> SERVICES : _write_day_to_zip(\n zf, day, variables, fmt,\n include_images=False, bucket_name)
+        end
+
+        SERVICES --> ENDPOINT : ZIP en memoria\n(buf, mime_type="application/zip", filename)
+    end
+end
+
+ENDPOINT --> FE_Service : StreamingResponse con .zip file latente
+FE_Service --> Investigador : descargar blob (.zip file)\nde las fechas seleccionadas
 
 @enduml

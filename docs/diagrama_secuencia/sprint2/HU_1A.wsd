@@ -63,15 +63,17 @@ else Rechazar solicitud
     SQL -> DB : UPDATE solicitudes\nSET estado = 'rechazada'\nWHERE id = {id}
     DB --> SQL : OK
     SQL --> SERVICES : Confirmación de actualización
-    SERVICES -> SERVICES: Schedule user definitive deletion after 30 days
+    SERVICES -> SERVICES: Schedule user definitive deletion\nafter 30 days
     SERVICES --> ENDPOINT : Confirmación de rechazo
 
     ENDPOINT --> FE_Service : 200 OK\n("Solicitud rechazada")
     FE_Service --> UI : Actualizar tabla\n(remover solicitud rechazada)
     UI --> Administrador : Se muestra tabla actualizada
 
+    == Eliminacion Definitiva tras 30 días ==
+
     SERVICES -> SQL : Eliminar completamente usuario tras 30 días
-    SQL -> DB : DELETE FROM usuarios\nWHERE id = {id} AND fecha_rechazo <= CURRENT_DATE - INTERVAL '30 days'
+    SQL -> DB : DELETE FROM usuarios\nWHERE id = {id} AND fecha_rechazo <=\nCURRENT_DATE - INTERVAL '30 days'
     DB --> SQL : Confirmación de eliminación
     SQL --> SERVICES : Confirmación de eliminación
 end
