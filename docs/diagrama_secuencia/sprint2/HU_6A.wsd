@@ -1,27 +1,40 @@
 @startuml
-title Diagrama de Secuencia: Ver usuarios aprobados eliminados
+title Ver usuarios eliminados
 
 actor Administrador
 participant UI as "pages - usuarios"
 participant FE_Service as "services - usersService"
-participant BE as "Backend API"
-participant DB as "Base de Datos"
+participant ENDPOINT as "API ENDPOINT - users"
+participant SERVICES as "API SERVICES - users_service"
+participant SQL as "DATA PERSISTENCE - SqlAlchemy"
+database DB as "POSTGRES"
 
 Administrador -> UI : Abre modal "Usuarios eliminados"
 
 UI -> FE_Service : getDeletedUsers()
 
-FE_Service -> BE : GET /users/deleted_user
+FE_Service -> ENDPOINT : GET /users/deleted_user
 
-BE -> DB : Consultar usuarios\nestado = 'aprobado' AND eliminado = true
-DB --> BE : Lista de usuarios aprobados eliminados
+ENDPOINT -> SERVICES : get_deleted_users_query(...)
+SERVICES -> SQL : Consultar usuarios eliminados
+SQL -> DB : SELECT * FROM users\nWHERE estado = 'eliminado'
+DB --> SQL : Lista de usuarios eliminados
+SQL --> SERVICES : [usuarios eliminados]
+
+SERVICES -> SQL : Consultar logs de eliminacion para cada usuario
+SQL -> DB : SELECT * FROM usuario_eliminacion_logs\nWHERE user_id IN ([ids usuarios eliminados])
+DB --> SQL : Lista de logs de eliminacion
+SQL --> SERVICES : [logs de usuarios eliminados]
+SERVICES -> SERVICES: Agregar eliminado_en en cada\nusuario de [usuarios eliminados]\nusando [logs de usuarios eliminados]
+
+SERVICES --> ENDPOINT : [usuarios eliminados con fecha de eliminacion]
 
 alt Lista vacía
-    BE --> UI : 200 OK\n[]
-    UI --> Administrador : Mostrar mensaje\n"No hay usuarios aprobados eliminados"
+    ENDPOINT --> UI : 200 OK\n[]
+    UI --> Administrador : Mostrar mensaje\n"No hay usuarios eliminados"
 else Lista con resultados
-    BE --> UI : 200 OK\n[usuarios aprobados eliminados]
-    UI --> Administrador : Mostrar tabla\n"Usuarios aprobados eliminados"
+    ENDPOINT --> UI : 200 OK\n[usuarios eliminados]
+    UI --> Administrador : Mostrar tabla\n"Usuarios eliminados"
 end
 
 @enduml

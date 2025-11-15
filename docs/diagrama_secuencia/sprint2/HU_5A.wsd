@@ -1,26 +1,33 @@
 @startuml
-title Diagrama de Secuencia: Ver lista de solicitudes de acceso
+title Ver lista de solicitudes de acceso
 
 actor Administrador
-participant UI as "pages - solicitudes"
-participant FE_Service as "services - solicitudesService"
-participant BE as "Backend API"
-participant DB as "Base de Datos"
+participant UI as "PAGES - solicitudes"
+participant FE_Service as "SERVICES - solicitudesService"
+participant ENDPOINT as "API ENDPOINT - users"
+participant SERVICES as "API SERVICES - users_service"
+participant SQL as "DATA PERSISTENCE - SqlAlchemy"
+database DB as "POSTGRES"
 
 Administrador -> UI : Abre página "solicitudes de acceso"
 
 UI -> FE_Service :  getPendingWithSolicitudes()
 
-FE_Service -> BE : GET /users/pending_with_solicitudes
+FE_Service -> ENDPOINT : GET /users/pending_with_solicitudes
 
-BE -> DB : Consultar solicitudes\nWHERE estado = 'pendiente'
-DB --> BE : Lista de solicitudes pendientes
+ENDPOINT -> SERVICES : get_pending_users_with_last_solicitud_query(...)
+SERVICES -> SQL : Consultar solicitudes
+SQL -> DB : SELECT * FROM solicitudes\nWHERE estado = 'pendiente'
+DB --> SQL : Lista de solicitudes pendientes
+SQL --> SERVICES : [usuarios pendientes]
+SERVICES -> SERVICES: sort [usuarios pendientes]\nby fecha_solicitud desc
+SERVICES --> ENDPOINT : cantidad de usuarios,\n[usuarios pendientes ordenados]
 
 alt Lista vacía
-    BE --> UI : 200 OK\n[]
+    ENDPOINT --> UI : 200 OK\n[]
     UI --> Administrador : Mostrar mensaje\n"No hay solicitudes pendientes"
 else Lista con resultados
-    BE --> UI : 200 OK\n[solicitudes pendientes]
+    ENDPOINT --> UI : 200 OK\n[usuarios pendientes]
     UI --> Administrador : Mostrar tabla\n"Solicitudes de acceso pendientes"
 end
 
