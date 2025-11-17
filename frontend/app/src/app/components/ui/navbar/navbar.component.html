@@ -19,6 +19,7 @@
 
   <!-- Tabs desktop (se esconden en móvil por CSS) -->
   <nav class="tabs" role="tablist" *ngIf="!isLogin()">
+    <a routerLink="/inicio" routerLinkActive="active" class="tab">Inicio</a>
     <a routerLink="/graficos" routerLinkActive="active" class="tab">Gráficos</a>
     <a routerLink="/exportar" routerLinkActive="active" class="tab">Exportar</a>
     <a *ngIf="auth.isAdmin()" routerLink="/solicitudes" routerLinkActive="active" class="tab">
