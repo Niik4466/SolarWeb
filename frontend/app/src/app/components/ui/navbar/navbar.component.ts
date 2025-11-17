@@ -40,4 +40,11 @@ export class NavbarComponent {
   closeMenu() {
     this.mobileOpen.set(false);
   }
+  logout() {
+    this.auth.logout();           // limpia todo el estado de auth
+    this.closeMenu?.();           // por si estás en móvil
+    this.router.navigate(['/login']);
+  }
+
+
 }

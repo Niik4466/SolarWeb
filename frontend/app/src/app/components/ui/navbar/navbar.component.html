@@ -29,6 +29,11 @@
       Usuarios
     </a>
   </nav>
+  <!-- Botón cerrar sesión (desktop) -->
+  <div class="right" *ngIf="!isLogin() && auth.isLoggedIn()">
+    <button class="btn-logout" (click)="logout()">Cerrar sesión</button>
+  </div>
+
 </header>
 
 <!-- ===== Menú móvil tipo recuadro blanco encima ===== -->
@@ -47,6 +52,7 @@
     </button>
 
     <nav class="mobile-links">
+      <a routerLink="/inicio" routerLinkActive="active" (click)="closeMenu()">Inicio</a>
       <a routerLink="/graficos" routerLinkActive="active" (click)="closeMenu()">Gráficos</a>
       <a routerLink="/exportar" routerLinkActive="active" (click)="closeMenu()">Exportar</a>
       <a *ngIf="auth.isAdmin()" routerLink="/solicitudes" routerLinkActive="active" (click)="closeMenu()">
@@ -55,6 +61,11 @@
       <a *ngIf="auth.isAdmin()" routerLink="/usuarios" routerLinkActive="active" (click)="closeMenu()">
         Usuarios
       </a>
+      <button class="logout-mobile-red" (click)="logout()">
+        Cerrar sesión
+      </button>
+
+
     </nav>
   </div>
 </div>

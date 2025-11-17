@@ -10,7 +10,7 @@ import { AuthService } from '../services/auth.service';
  * de si está autenticado o no.
  *
  * Su función:
- * - Si el usuario YA está logueado → redirige a /graficos
+ * - Si el usuario YA está logueado → redirige a /inicio
  * - Si NO está logueado → redirige a /login
  *
  * Este guard siempre retorna `false`, lo que impide que la ruta
@@ -31,7 +31,7 @@ export const redirectGuard: CanActivateFn = () => {
 
   // Si está autenticado → a la vista principal de la app
   if (auth.isLoggedIn()) {
-    router.navigate(['/graficos']);
+    router.navigate(['/inicio']);
   } 
   // Si NO está autenticado → al login
   else {
