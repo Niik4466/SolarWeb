@@ -8,6 +8,21 @@ class ExportBase(BaseModel):
     format: Literal["csv","json"]
     include_images: bool = False
     images_bucket: Optional[str] = None
+    start_hour: str = "00:00"
+    end_hour: str = "23:59"
+    granularity: Optional[str] = None
+
+    @field_validator("start_hour", "end_hour")
+    @classmethod
+    def check_time_format(cls, v: str) -> str:
+        import re
+        if not re.match(r"^\d{2}:\d{2}$", v):
+            raise ValueError("Formato de hora inválido. Use HH:MM")
+        # Opcional: validar rango 00-23 y 00-59
+        hh, mm = map(int, v.split(":"))
+        if not (0 <= hh <= 23 and 0 <= mm <= 59):
+            raise ValueError("Hora fuera de rango (00:00 - 23:59)")
+        return v
 
 class ExportDayReq(ExportBase):
     date: str
