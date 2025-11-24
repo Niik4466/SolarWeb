@@ -1,0 +1,28 @@
+@startuml
+title Visualizar estado de disco
+
+actor admin
+participant UI as "pages - Panel de estado"
+participant FE_Service as "services - PCStatusService"
+participant ENDPOINT as "API ENDPOINT - PCStatus"
+participant SERVICES as "API SERVICES - pc_status_service"
+participant PERSISTENCE as "DATA PERSISTENCE - PCStatusPersistence"
+
+== Interaccion inicial ==
+
+admin -> UI : Ingresar a pestana "Panel de estado"
+
+== Obtencion del estado del disco ==
+
+UI -> FE_Service : getDiskStatus()
+FE_Service -> ENDPOINT : GET /pc_status/disk
+ENDPOINT -> SERVICES : get_disk_status_query()
+SERVICES -> PERSISTENCE : exec\ndf | grep "/mnt/e"
+
+PERSISTENCE --> SERVICES : Disk status data
+SERVICES -> SERVICES : Process disk status data
+SERVICES --> ENDPOINT : Disk status response
+ENDPOINT --> UI : 200 OK\nDisk status data
+UI --> admin : Mostrar estado del disco
+
+@enduml

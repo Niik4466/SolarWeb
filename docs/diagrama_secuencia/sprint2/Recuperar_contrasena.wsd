@@ -1,0 +1,44 @@
+@startuml
+title Recuperar contrasena
+
+actor usuario
+participant UI as "pages - Login"
+participant FE_Service as "services"
+participant ENDPOINT as "API ENDPOINT"
+participant SERVICES as "API SERVICES"
+participant SQL as "DATA PERSISTENCE - SqlAlchemy"
+database DB as "POSTGRES"
+
+== Interaccion inicial ==
+
+usuario -> UI : Entrar a pagina web
+usuario -> UI : Ingresar correo y contrasena
+UI --> usuario : Credenciales invalidas
+usuario -> UI : Click en "recuperar contrasena"
+
+== Llamada a endpoint de correo electronico ==
+
+UI -> FE_Service : MailService\nsendMailTo(...)\ncon codigo de rec.
+FE_Service -> ENDPOINT : mail\nPOST /mail/send_mail
+ENDPOINT -> SERVICES : mail_service\nsend_mail_query(...)
+
+== Interaccion ingresar nuevas credenciales ==
+
+usuario -> UI : Ingresar codigo de\nrecuperacion enviada por correo
+usuario -> UI : Llenar campos de nueva contrasena\ny confirmar nueva contrasena
+usuario -> UI : Click en "aceptar"
+
+== Cambiar credenciales en la bd ==
+
+UI -> FE_Service : UserService\nchangePassword(userId)
+FE_Service -> ENDPOINT : user\nPUT Users\changePassword\{userId}
+ENDPOINT -> SERVICES : user_service\nchange_password_query({userId})
+SERVICES -> SQL : Change user password query
+SQL --> DB : UPDATE users SET password=...\nWHERE user_id=...
+DB --> SQL : Query result
+SQL --> SERVICES : Password changed successfully
+SERVICES --> ENDPOINT : Changed User
+ENDPOINT --> UI : 200 OK\nContrasena cambiada correctamente
+UI --> usuario : Mostrar mensaje de exito
+
+@enduml
