@@ -2,7 +2,7 @@ fastapi
 uvicorn[standard]
 gunicorn
 influxdb-client
-minio
+minio==7.1.14
 python-dotenv
 pydantic
 pydantic-settings
