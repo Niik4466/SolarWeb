@@ -8,12 +8,22 @@ import { of, Observable, throwError, Subscription } from 'rxjs';
 import { concatMap, tap, finalize, catchError } from 'rxjs/operators';
 
 // ✅ Importar librería de rango de fechas
-import { NgxDaterangepickerMd, LocaleConfig} from 'ngx-daterangepicker-material';
+import { NgxDaterangepickerMd, LocaleConfig } from 'ngx-daterangepicker-material';
 import dayjs from 'dayjs';
 
 type Granularity = 'diario' | 'rango';
 type VariableKey = 'GHI' | 'DNI' | 'DHI';
 type FormatKey = 'csv' | 'json';
+
+// Opcional: para ayudar en el HTML (select de granularidad de datos/imagenes)
+type TimeGranularity =
+  | '1s'
+  | '10s'
+  | '30s'
+  | '1m'
+  | '5m'
+  | '30m'
+  | '1h';
 
 @Component({
   standalone: true,
@@ -40,6 +50,18 @@ export class ExportarPage implements OnDestroy {
   private exporter = inject(ExportApi);
   private transactionsApi = inject(TransactionsApi);
 
+  // Opciones para el select de granularidad (si lo usas en el HTML)
+  granularityOptions: { label: string; value: TimeGranularity | null }[] = [
+    { label: 'Sin agrupar', value: null },
+    { label: '1 segundo', value: '1s' },
+    { label: '10 segundos', value: '10s' },
+    { label: '30 segundos', value: '30s' },
+    { label: '1 minuto', value: '1m' },
+    { label: '5 minutos', value: '5m' },
+    { label: '30 minutos', value: '30m' },
+    { label: '1 hora', value: '1h' },
+  ];
+
   // ===========================
   // Form principal (opciones de exportación)
   // ===========================
@@ -55,6 +77,17 @@ export class ExportarPage implements OnDestroy {
     fechaDiaria: this.fb.control<string | null>(null),
     rangoInicio: this.fb.control<string | null>(null),
     rangoFin: this.fb.control<string | null>(null),
+
+    // 🆕 horas de inicio/fin
+    startHour: this.fb.nonNullable.control<string>('00:00', {
+      validators: [Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)],
+    }),
+    endHour: this.fb.nonNullable.control<string>('23:59', {
+      validators: [Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)],
+    }),
+
+    // 🆕 granularidad de datos/imagenes (puede ser null = sin agrupar)
+    granularity: this.fb.control<TimeGranularity | null>(null),
   });
 
   // ---------------------------
@@ -73,9 +106,6 @@ export class ExportarPage implements OnDestroy {
   // Configuración de rango de fechas (ngx-daterangepicker-material)
   // ===========================
 
-  /**
-   * Configuración del idioma del selector de rango
-   */
   public locale: LocaleConfig = {
     format: 'DD/MM/YYYY',
     displayFormat: 'DD/MM/YYYY',
@@ -91,29 +121,19 @@ export class ExportarPage implements OnDestroy {
     firstDay: 1
   };
 
-  /**
-   * Objeto que almacena el rango de fechas seleccionado visualmente
-   */
   selectedRange: { startDate: dayjs.Dayjs; endDate: dayjs.Dayjs } = {
-    startDate: dayjs().subtract(0, 'day'), // por ejemplo últimos 7 días
+    startDate: dayjs().subtract(0, 'day'),
     endDate: dayjs()
   };
 
-
-  /**
-   * Evento que se dispara cuando el usuario selecciona un rango de fechas
-   * en el calendario interactivo.
-   */
   onDateRangeSelected(event: any) {
     if (!event.startDate || !event.endDate) return;
 
-    // Guardar el rango seleccionado
     this.selectedRange = {
       startDate: event.startDate,
       endDate: event.endDate
     };
 
-    // Actualizar el formulario
     const inicio = event.startDate.format('YYYY-MM-DD');
     const fin = event.endDate.format('YYYY-MM-DD');
 
@@ -121,7 +141,6 @@ export class ExportarPage implements OnDestroy {
     this.rangoInicioSig.set(inicio);
     this.rangoFinSig.set(fin);
   }
-
 
   // ===========================
   // Selectores / helpers
@@ -151,7 +170,6 @@ export class ExportarPage implements OnDestroy {
     return v;
   }
 
-  // computed ahora usa SOLO señales — se actualizará inmediatamente
   puedeExportar = computed(() => {
     const anyVar = this.getSelectedVariables().length > 0;
     if (!anyVar) return false;
@@ -170,7 +188,7 @@ export class ExportarPage implements OnDestroy {
   // Acciones de UI
   // ===========================
 
-  setGranularidad(g: 'diario'|'rango') {
+  setGranularidad(g: 'diario' | 'rango') {
     this.granularidad.set(g);
   }
 
@@ -291,6 +309,12 @@ export class ExportarPage implements OnDestroy {
     const variables = this.getSelectedVariables();
     const format = this.form.value.formato!;
 
+    // 🆕 leemos horas y granularidad del form, y las mapeamos a lo que espera el backend
+    const formVal = this.form.getRawValue();
+    const start_hour = formVal.startHour || '00:00';
+    const end_hour = formVal.endHour || '23:59';
+    const granularity = formVal.granularity || null;
+
     this.statusMsg.set('Preparando descarga...');
 
     if (this.granularidad() === 'diario') {
@@ -303,11 +327,15 @@ export class ExportarPage implements OnDestroy {
         this.statusMsg.set('Exportando múltiples días…');
         this.startProgress(dias.length, 'Exportando múltiples días…');
 
+        // 🆕 pasamos start_hour, end_hour, granularity al backend
         return this.exporter.exportDailyBatch({
           dates: dias,
           variables,
           format,
-          include_images
+          include_images,
+          start_hour,
+          end_hour,
+          granularity,
         }).pipe(
           tap((blob: Blob) => {
             const first = dias[0];
@@ -335,6 +363,9 @@ export class ExportarPage implements OnDestroy {
         variables,
         format,
         include_images,
+        start_hour,
+        end_hour,
+        granularity,
       }).pipe(
         tap((blob: Blob) => {
           const ext = include_images ? 'zip' : (format === 'csv' ? 'csv' : 'json');
@@ -360,8 +391,16 @@ export class ExportarPage implements OnDestroy {
       this.statusMsg.set(`Exportando rango ${inicio} → ${fin}…`);
       this.startProgress(1, `Exportando rango ${inicio} → ${fin}…`);
 
+      // 🆕 también aquí: start_hour, end_hour, granularity
       return this.exporter.exportRange({
-        date_init: inicio, date_finish: fin, variables, format, include_images
+        date_init: inicio,
+        date_finish: fin,
+        variables,
+        format,
+        include_images,
+        start_hour,
+        end_hour,
+        granularity,
       }).pipe(
         tap((blob: Blob) => {
           this.downloadBlob(blob, `export_${inicio}_${fin}.zip`);

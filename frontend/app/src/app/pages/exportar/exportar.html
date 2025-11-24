@@ -153,6 +153,62 @@
           <!-- Nota: En modo 'diario' este valor se ignora según la lógica de exportar.ts -->
         </div>
       </div>
+      
+      <!-- ============================== -->
+      <!-- HORAS DE INICIO Y FIN          -->
+      <!-- ============================== -->
+      <div style="margin-top: 1rem">
+
+        <label class="fw-bold">Rango de horas</label>
+
+        <div class="d-flex flex-column mt-1" style="gap: 0.5rem">
+
+          <div>
+            <label for="startHour">Desde:</label>
+            <input
+              type="time"
+              id="startHour"
+              formControlName="startHour"
+              class="form-control"
+              style="max-width: 130px"
+            />
+          </div>
+
+          <div>
+            <label for="endHour">Hasta:</label>
+            <input
+              type="time"
+              id="endHour"
+              formControlName="endHour"
+              class="form-control"
+              style="max-width: 130px"
+            />
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ============================== -->
+      <!-- GRANULARIDAD (IMÁGENES + DATOS) -->
+      <!-- ============================== -->
+      <div style="margin-top: 1rem">
+
+        <label class="fw-bold">Granularidad</label>
+
+        <select
+          class="form-select mt-1"
+          style="max-width: 180px"
+          formControlName="granularity">
+          <!-- Opciones (ya definidas en exportar.ts) -->
+          <option *ngFor="let g of granularityOptions"
+                  [ngValue]="g.value">
+            {{ g.label }}
+          </option>
+
+        </select>
+
+      </div>
+
 
       <!-- CTA Exportar
            - Se habilita sólo si puedeExportar() es true (validaciones mínimas).

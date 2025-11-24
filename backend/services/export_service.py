@@ -162,7 +162,7 @@ def _zip_with_images(
         # Recolectar imágenes válidas
         valid_images = []
         try:
-            for obj in client.list_objects(bucket_name, prefix=prefix, recursive=True, start_after=start_after_key):
+            for obj in client.list_objects(bucket_name=bucket_name, prefix=prefix, recursive=True, start_after=start_after_key):
                 if obj.object_name.endswith((".jpg", ".jpeg", ".png")):
                     # Early exit optimization
                     img_minutes = _parse_img_time(obj.object_name)
@@ -275,7 +275,7 @@ def _write_day_to_zip(
 
         try:
             valid_images = []
-            for obj in client.list_objects(bucket_name, prefix=prefix, recursive=True, start_after=start_after_key):
+            for obj in client.list_objects(bucket_name = bucket_name, prefix=prefix, recursive=True, start_after=start_after_key):
                 if obj.object_name.lower().endswith((".jpg", ".jpeg", ".png")):
                     # Early exit optimization
                     img_minutes = _parse_img_time(obj.object_name)
