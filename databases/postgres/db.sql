@@ -82,6 +82,19 @@ CREATE INDEX IF NOT EXISTS ix_transaccion_fecha   ON transaccion(exportado_en);
 
 -- 6) Funciones de negocio (opcionales pero útiles)
 
+-- 7) Tabla PASSWORD_RECOVERY_CODE
+CREATE TABLE IF NOT EXISTS password_recovery_code (
+    id          BIGSERIAL PRIMARY KEY,
+    usuario_id  BIGINT NOT NULL REFERENCES usuario(id),
+    code_hash   VARCHAR NOT NULL,
+    created_at  TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    expires_at  TIMESTAMP WITH TIME ZONE NOT NULL,
+    used        BOOLEAN DEFAULT FALSE,
+    attempts    INTEGER DEFAULT 0
+);
+
+
+CREATE INDEX IF NOT EXISTS ix_pwd_recovery_usuario ON password_recovery_code(usuario_id);
 -- Aprobar usuario
 CREATE OR REPLACE FUNCTION aprobar_usuario(p_usuario_id BIGINT, p_admin_id BIGINT)
 RETURNS VOID LANGUAGE plpgsql AS $$

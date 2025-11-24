@@ -101,3 +101,13 @@ class UsuarioEliminacionLogOut(UsuarioEliminacionLogBase):
     eliminado_en: datetime
     model_config = {"from_attributes": True}
 
+
+# --- PASSWORD RECOVERY ---
+class RecoveryCodeRequest(BaseModel):
+    email: EmailStr
+
+class RecoveryCodeVerify(BaseModel):
+    email: EmailStr
+    code: str
+    password: str
+

@@ -37,6 +37,7 @@ class Usuario(Base):
     # Relaciones
     solicitudes: Mapped[List["Solicitud"]] = relationship("Solicitud", back_populates="usuario", cascade="all, delete-orphan")
     transacciones: Mapped[List["Transaccion"]] = relationship("Transaccion", back_populates="usuario", cascade="all, delete-orphan")
+    password_recovery_codes: Mapped[List["PasswordRecoveryCode"]] = relationship("PasswordRecoveryCode", back_populates="usuario", cascade="all, delete-orphan")
     eliminaciones_hechas: Mapped[List["UsuarioEliminacionLog"]] = relationship(
         "UsuarioEliminacionLog",
         back_populates="eliminado_por",
@@ -91,6 +92,22 @@ class Transaccion(Base):
     creado_en: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     usuario: Mapped["Usuario"] = relationship("Usuario", back_populates="transacciones")
+
+
+class PasswordRecoveryCode(Base):
+    __tablename__ = "password_recovery_code"
+    __table_args__ = {"schema": "app"}
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("app.usuario.id"), nullable=False)
+    code_hash: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used: Mapped[bool] = mapped_column(Boolean, default=False)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+
+    usuario: Mapped["Usuario"] = relationship("Usuario", back_populates="password_recovery_codes")
+
 
 class LoginIn(BaseModel):
     email: EmailStr

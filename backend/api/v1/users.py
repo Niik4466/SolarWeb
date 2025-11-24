@@ -259,3 +259,38 @@ def create_transaction(payload: TransaccionCreate, db: Session = Depends(get_db)
         var_dni=payload.var_dni,
         var_global=payload.var_global,
     )
+
+
+# -----------------------------------------------------------
+# PASSWORD RECOVERY
+# -----------------------------------------------------------
+@router.post("/pass/generate_code")
+def generate_recovery_code(
+    payload: RecoveryCodeRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Genera un código de recuperación y lo envía por correo.
+    """
+    generate_recovery_code_query(db, payload.email)
+    # Siempre respondemos lo mismo para no enumerar usuarios
+    return {"message": "Se ha enviado un código de recuperación."}
+
+
+@router.post("/pass/recovery")
+def verify_recovery_code(
+    payload: RecoveryCodeVerify,
+    db: Session = Depends(get_db)
+):
+    """
+    Verifica si el código de recuperación es válido y actualiza la contraseña.
+    """
+    success = verify_recovery_code_query(db, payload.email, payload.code, payload.password)
+    
+    if not success:
+        raise HTTPException(
+            status_code=400, 
+            detail="Código inválido, expirado o correo incorrecto."
+        )
+
+    return {"message": "Contraseña actualizada correctamente."}

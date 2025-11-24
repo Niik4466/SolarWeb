@@ -5,6 +5,9 @@ from models.user import *
 from fastapi import HTTPException
 from core.security import hash_password, verify_password
 from datetime import datetime, timedelta
+import secrets
+import string
+from services.mail_service import send_mail_query
 from apscheduler.schedulers.background import BackgroundScheduler
 
 scheduler = BackgroundScheduler()
@@ -601,3 +604,101 @@ def mark_and_schedule_deletion_query(db: Session, usuario_id: int, eliminado_por
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error al procesar eliminación: {str(e)}")
+
+
+# --------------------
+# Recuperación de Contraseña
+# --------------------
+
+def generate_recovery_code_query(db: Session, email: str):
+    """
+    Genera un código de recuperación, lo guarda en la BD y lo envía por correo.
+    """
+    # 1. Buscar usuario
+    user = get_user_by_email_query(db, email)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    try:
+        # 2. Generar código
+        # 6 dígitos numéricos
+        code = ''.join(secrets.choice(string.digits) for _ in range(6))
+        
+        # 3. Hashear código
+        # Usamos la misma función de hash que para passwords, o una simple si se prefiere.
+        # Dado que es un código temporal, hash_password está bien.
+        hashed_code = hash_password(code)
+
+        # 4. Guardar en BD
+        # Expiración: 15 minutos (ejemplo)
+        expires = datetime.utcnow() + timedelta(minutes=15)
+        
+        recovery_entry = PasswordRecoveryCode(
+            usuario_id=user.id,
+            code_hash=hashed_code,
+            expires_at=expires,
+            used=False
+        )
+        db.add(recovery_entry)
+        db.commit()
+
+        # 5. Enviar correo
+        subject = "Código de recuperación de contraseña"
+        body = f"""
+        <h1>Recuperación de contraseña</h1>
+        <p>Tu código de recuperación es: <strong>{code}</strong></p>
+        <p>Este código expira en 15 minutos.</p>
+        """
+        send_mail_query(email, subject, body)
+
+        return True
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al generar código de recuperación: {str(e)}")
+
+def verify_recovery_code_query(db: Session, email: str, code: str, new_password: str):
+    """
+    Verifica si el código de recuperación es válido y actualiza la contraseña.
+    """
+    # 1. Buscar usuario
+    user = get_user_by_email_query(db, email)
+    if not user:
+        # Retornamos False o lanzamos excepción genérica para no enumerar
+        return False
+
+    # 2. Buscar código válido más reciente
+    # Debe coincidir usuario, no estar usado, y no estar expirado
+    recovery_entry = (
+        db.query(PasswordRecoveryCode)
+        .filter(
+            PasswordRecoveryCode.usuario_id == user.id,
+            PasswordRecoveryCode.used == False,
+            PasswordRecoveryCode.expires_at > datetime.utcnow()
+        )
+        .order_by(PasswordRecoveryCode.created_at.desc())
+        .first()
+    )
+
+    if not recovery_entry:
+        return False
+
+    # 3. Verificar hash del código
+    if verify_password(code, recovery_entry.code_hash):
+        # Código válido: proceder al cambio de contraseña
+        
+        # a) Marcar código como usado
+        recovery_entry.used = True
+        
+        # b) Actualizar contraseña
+        new_hash = hash_password(new_password)
+        user.password_hash = new_hash
+        
+        # c) Guardar cambios
+        db.add(recovery_entry)
+        db.add(user)
+        db.commit()
+        
+        return True
+    
+    return False
