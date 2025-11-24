@@ -44,3 +44,36 @@ def get_series(start: str, stop: str, field: FieldName = "GHI", granularity: str
 
     # Devuelve en el formato que definimos en schema (SeriesOut)
     return SeriesOut(field=field, points=points)
+
+def get_series_export(start: str, stop: str, field: FieldName = "GHI", granularity: str | None = None) -> list[tuple[str, float]]:
+    """
+    Versión simplificada para exportación:
+    - No filtra ceros (o sí, según se quiera, pero el usuario pidió quitar el filtro != 0).
+    - Devuelve lista de tuplas (iso_time, value) en lugar de SeriesOut.
+    """
+    flux = f'''
+    from(bucket: "{settings.INFLUX_BUCKET}")
+        |> range(start: {start}, stop: {stop})
+        |> filter(fn: (r) => r._measurement == "{MEASUREMENT}")
+        |> filter(fn: (r) => r._field == "{field}")
+    '''
+
+    if granularity:
+        flux += f'''
+            |> aggregateWindow(every: {granularity}, fn: mean, createEmpty: false)
+        '''
+
+    flux+=f'''
+        |> keep(columns: ["_time","_value"])
+        |> sort(columns: ["_time"])
+    '''
+
+    tables = query_flux(flux)
+    out = []
+    for t in tables:
+        for rec in t.records:
+            # isoformat() de python a veces incluye +00:00, lo normalizamos a Z
+            ts = rec.get_time().isoformat().replace("+00:00", "Z")
+            val = float(rec.get_value())
+            out.append((ts, val))
+    return out

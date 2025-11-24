@@ -24,7 +24,10 @@ def export_day(req: ExportDayReq):
                 variables=req.variables,
                 date=req.date,
                 format=req.format,
-                include_images=req.include_images, 
+                include_images=req.include_images,
+                start_hour=req.start_hour,
+                end_hour=req.end_hour,
+                granularity=req.granularity,
                 )
     except ExportError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -57,7 +60,10 @@ def export_daily_batch(req: ExportBatchReq):
             variables=req.variables,
             dates=req.dates,
             format=req.format,
-            include_images=req.include_images, 
+            include_images=req.include_images,
+            start_hour=req.start_hour,
+            end_hour=req.end_hour,
+            granularity=req.granularity,
             )
 
     first = req.dates[0]
@@ -87,6 +93,9 @@ def export_by_range(req: ExportByRangeReq):
             day_finish=req.date_finish,
             fmt=req.format,
             include_images=req.include_images,
+            start_hour=req.start_hour,
+            end_hour=req.end_hour,
+            granularity=req.granularity,
         )
     except ExportError as e:
         raise HTTPException(status_code=400, detail=str(e))

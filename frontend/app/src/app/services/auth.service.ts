@@ -177,6 +177,11 @@ export class AuthService {
     this._isLoggedIn.set(false);
     this._email.set(null);
     this._userId.set(null);
+    this.setToken(null);
+  }
+
+  logout() {
+    this.setLoggedOut();
   }
 
   /**

@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { Inicio } from './pages/inicio/inicio';
 import { GraficosComponent } from './pages/graficos/graficos';
 import { ExportarPage } from './pages/exportar/exportar';
 import { SolicitarRegistroComponent } from './pages/auth/solicitar-registro/solicitar-registro';
@@ -27,6 +28,7 @@ export const routes: Routes = [
   // ---------------------------
   // PÁGINAS PRIVADAS (requieren sesión)
   // ---------------------------
+  { path: 'inicio', component: Inicio, canActivate: [authGuard] },
   { path: 'graficos', component: GraficosComponent, canActivate: [authGuard] },
   { path: 'exportar', component: ExportarPage, canActivate: [authGuard] },
   { path: 'solicitudes', component: SolicitudesComponent, canActivate: [authGuard, adminGuard] },
@@ -37,7 +39,7 @@ export const routes: Routes = [
   // ---------------------------
   {
     path: '**',
-    component: LoginComponent,
+    component: Inicio,
     canActivate: [redirectGuard],
   },
 ];
