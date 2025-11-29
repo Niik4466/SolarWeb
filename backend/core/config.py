@@ -49,10 +49,10 @@ class Settings(BaseSettings):
     POSTGRES_PORT: str          # Puerto (por defecto 5432)
 
     # ---------------------------------------------------------
-    # 🔹 Resend (envío de correos)
+    # 🔹 GMAIL (envío de correos)
     # ---------------------------------------------------------
-    RESEND_API_KEY: str         # API Key del servicio Resend (para mandar emails)
-    RESEND_FROM: str            # Email desde el cual se enviarán los correos
+    GMAIL_API_KEY: str         # API Key del servicio GMAIL (para mandar emails)
+    GMAIL_USER: str            # Correo de Gmail para autenticación
 
     # ---------------------------------------------------------
     # 🔹 API / CORS

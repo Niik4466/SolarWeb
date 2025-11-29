@@ -18,7 +18,6 @@ def send_mail(
         return {
             "status": "ok",
             "message": f"Correo enviado a {to}",
-            "resend_id": result.get("id"),
         }
     except HTTPException as e:
         # Repropaga el error HTTP personalizado
