@@ -14,7 +14,7 @@ class NodeStatus(str, Enum):
     DEGRADED = "DEGRADED"   # 1 fallo seguido
     DOWN = "DOWN"           # >=2 fallos seguidos
 
-NODE_ID_PC3000 = "pc3000"
+NODE_ID_PC3000 = "computador del edificio 3000"
 pc3000_state = NodeStatus.OK
 
 # --- Custom Errors ---
@@ -104,11 +104,11 @@ def _send_status_change_alert(node_id: str, new_status: NodeStatus):
         subject = f"Cambio de estado en {node_id}: {new_status.value}"
         
         if new_status == NodeStatus.OK:
-            body = f"<p>El nodo <strong>{node_id}</strong> ha vuelto a estar operativo.</p>"
+            body = f"<p>El <strong>{node_id}</strong> ha vuelto a estar operativo.</p>"
         elif new_status == NodeStatus.DOWN:
-            body = f"<p style='color:red'><strong>ALERTA:</strong> El nodo <strong>{node_id}</strong> parece estar apagado (2 fallos de conexión seguidos).</p>"
+            body = f"<p style='color:red'><strong>ALERTA:</strong> El <strong>{node_id}</strong> parece estar apagado (2 fallos de conexión seguidos).</p>"
         elif new_status == NodeStatus.DEGRADED:
-            body = f"<p>El nodo <strong>{node_id}</strong> está presentando problemas (DEGRADED).</p>"
+            body = f"<p>El <strong>{node_id}</strong> está presentando problemas (DEGRADED).</p>"
 
         for email in admin_emails:
             try:
