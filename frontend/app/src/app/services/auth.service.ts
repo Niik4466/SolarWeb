@@ -8,11 +8,17 @@ import { HttpClient, HttpParams } from '@angular/common/http';
  * - exp: fecha de expiración (timestamp)
  * - iat: fecha de emisión (timestamp)
  */
-type JwtPayload = { sub?: string; exp?: number; iat?: number; [k: string]: any };
+type JwtPayload = {
+  sub?: string;
+  exp?: number;
+  iat?: number;
+  [k: string]: any;
+};
+
+const API_BASE = 'http://127.0.0.1:8000';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  // Inyección de HttpClient para hacer peticiones al backend
   private http = inject(HttpClient);
 
   // =========================================================
@@ -61,9 +67,7 @@ export class AuthService {
    * Señal interna que indica si el usuario es administrador.
    * Se inicializa leyendo desde localStorage.
    */
-  private _isAdmin = signal(
-    localStorage.getItem('isAdmin') === 'true'
-  );
+  private _isAdmin = signal(localStorage.getItem('isAdmin') === 'true');
 
   /**
    * Señal computada para saber si el usuario es admin.
@@ -94,8 +98,11 @@ export class AuthService {
    *  - sincroniza localStorage
    */
   setToken(token: string | null) {
-    if (token) localStorage.setItem(this.TOKEN_KEY, token);
-    else localStorage.removeItem(this.TOKEN_KEY);
+    if (token) {
+      localStorage.setItem(this.TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(this.TOKEN_KEY);
+    }
 
     if (token) {
       const p = this.decodeJwt<JwtPayload>(token);
@@ -123,11 +130,14 @@ export class AuthService {
    */
   private decodeJwt<T = JwtPayload>(jwt: string): T | null {
     try {
-      const [, payloadB64] = jwt.split('.');
+      const parts = jwt.split('.');
+      if (parts.length < 2) return null;
+
+      const payloadB64 = parts[1];
       // Reemplazo de caracteres URL-safe por los estándar de Base64
-      const json = atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'));
-      // decodeURIComponent(escape(...)) ayuda con UTF-8 en navegadores antiguos
-      return JSON.parse(decodeURIComponent(escape(json)));
+      const normalized = payloadB64.replace(/-/g, '+').replace(/_/g, '/');
+      const json = atob(normalized);
+      return JSON.parse(json);
     } catch {
       // Si algo falla en la decodificación, devolvemos null
       return null;
@@ -135,7 +145,7 @@ export class AuthService {
   }
 
   /**
-   * Devuelve el id del usuario autenticado.
+   * Devuelve el id del usuario autenticado (tomado del token si existe).
    * 1. Intenta leer `sub` desde el JWT.
    * 2. Si no existe o no es numérico, usa el valor local de _userId.
    */
@@ -143,7 +153,9 @@ export class AuthService {
     const tok = this.token;
     if (tok) {
       const p = this.decodeJwt<JwtPayload>(tok);
-      if (p?.sub && !isNaN(+p.sub)) return +p.sub;
+      if (p?.sub && !isNaN(+p.sub)) {
+        return +p.sub;
+      }
     }
     return this._userId();
   }
@@ -168,16 +180,19 @@ export class AuthService {
    *  - email
    *  - userId
    *  - token
+   *  - isAdmin
    */
   setLoggedOut() {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userId');
     localStorage.removeItem(this.TOKEN_KEY);
+    localStorage.removeItem('isAdmin');
+
     this._isLoggedIn.set(false);
     this._email.set(null);
     this._userId.set(null);
-    this.setToken(null);
+    this._isAdmin.set(false);
   }
 
   logout() {
@@ -196,8 +211,13 @@ export class AuthService {
    * Getters simples para obtener el id y email actuales
    * sin exponer directamente la señal.
    */
-  getUserId(): number | null { return this._userId(); }
-  getEmail(): string | null { return this._email(); }
+  getUserId(): number | null {
+    return this._userId();
+  }
+
+  getEmail(): string | null {
+    return this._email();
+  }
 
   // =========================================================
   // LLAMADAS OPCIONALES AL BACKEND
@@ -206,13 +226,12 @@ export class AuthService {
   /**
    * Obtiene el id del usuario desde el backend a partir de su email.
    *
-   * @param endpointBase URL base del backend (ej: http://127.0.0.1:8000)
    * @param email correo del usuario
    * @returns Observable con un objeto { id: number }
    */
-  fetchUserIdByEmail(endpointBase: string, email: string) {
+  fetchUserIdByEmail(email: string) {
     const params = new HttpParams().set('email', email);
-    return this.http.get<{ id: number }>(`${endpointBase}/users/by-email`, { params });
+    return this.http.get<{ id: number }>(`${API_BASE}/users/by-email`, { params });
   }
 
   /**
@@ -228,7 +247,7 @@ export class AuthService {
     const token = this.token;
     if (!token) return; // Si no hay token, no hay nada que inicializar
 
-    this.http.get<any>('http://127.0.0.1:8000/users/me').subscribe({
+    this.http.get<any>(`${API_BASE}/users/me`).subscribe({
       next: (user) => {
         // es_admin viene del backend (por ejemplo, booleano)
         const isAdmin = !!user.es_admin;
@@ -242,10 +261,14 @@ export class AuthService {
         }
 
         // Actualiza id si viene en la respuesta
-        if (user.id) {
+        if (user.id != null) {
           this._userId.set(user.id);
           localStorage.setItem('userId', String(user.id));
         }
+
+        // Marcar como logueado si todo fue bien
+        this._isLoggedIn.set(true);
+        localStorage.setItem('isLoggedIn', 'true');
       },
       error: () => {
         // Si algo falla podrías dejar al usuario como deslogueado
