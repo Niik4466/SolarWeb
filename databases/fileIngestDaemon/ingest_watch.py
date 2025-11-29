@@ -124,14 +124,18 @@ def file_is_stable(path: Path, wait: float = STABLE_WAIT):
 
 # Lock para proteger updates al state_log
 state_lock = threading.Lock()
+stop_event = threading.Event()
 
 # Función que procesa una imagen y la borra si fue procesada correctamente.
-def process_image_and_delete(src: Path, csv_state, img_state):
+def process_image_and_delete(src: Path, csv_state_ref, img_state):
     """
     Procesa la imagen (espera a que sea "estable"), la comprime y guarda en IMAGES_DST
     manteniendo la estructura relativa. Si se procesa correctamente, borra el archivo origen
     y actualiza img_state (timestamp) persistiendo en state_log.csv.
-    csv_state and img_state are tuples (start_iso, last_iso)
+    
+    csv_state_ref: dict with "val" containing the current csv_state tuple
+    img_state: tuple (start_iso, last_iso) - current image state known by caller
+    
     Returns updated img_state tuple and boolean whether processed.
     """
     try:
@@ -155,8 +159,10 @@ def process_image_and_delete(src: Path, csv_state, img_state):
                 print(f"[WARN] no se pudo borrar origen {src}: {e}")
             # actualizar estado de imágenes (last timestamp = ahora)
             with state_lock:
+                # Leer el estado CSV más reciente para no sobrescribirlo con uno viejo
+                current_csv_state = csv_state_ref["val"]
                 new_img_state = (img_state[0] or now_iso(), now_iso())
-                write_state_log(csv_state, new_img_state)
+                write_state_log(current_csv_state, new_img_state)
             print(f"[IMG] procesada: {src} -> {outpath} (origen eliminado)")
             return new_img_state, True
         else:
@@ -220,10 +226,12 @@ class ImageEventHandler(FileSystemEventHandler):
             # Intentar varias veces si el archivo cambia de tamaño
             attempts = 3
             for i in range(attempts):
-                with state_lock:
-                    csv_state = tuple(self.csv_state_ref["val"])
+                # Obtener estado actual de imagen
+                with self.img_state_ref["lock"]:
                     img_state = tuple(self.img_state_ref["val"])
-                new_img_state, done = process_image_and_delete(path, csv_state, img_state)
+                
+                # Pasamos csv_state_ref para que process_image_and_delete lea el valor actual bajo lock
+                new_img_state, done = process_image_and_delete(path, self.csv_state_ref, img_state)
                 if done:
                     # Actualizar referencia compartida
                     with self.img_state_ref["lock"]:
@@ -364,7 +372,7 @@ class CSVTailer:
             return 0, None
 
 # ----------------- MAIN -----------------
-def initial_process_existing_images(csv_state, img_state, img_state_ref):
+def initial_process_existing_images(csv_state_ref, img_state, img_state_ref):
     """
     En el inicio, procesar recursivamente todas las imágenes presentes en IMAGES_SRC.
     Después de procesar cada archivo exitosamente se borra el origen.
@@ -376,7 +384,7 @@ def initial_process_existing_images(csv_state, img_state, img_state_ref):
                 continue
             src = Path(root) / f
             # Intentar procesar (espera estabilidad)
-            new_img_state, done = process_image_and_delete(src, csv_state, img_state)
+            new_img_state, done = process_image_and_delete(src, csv_state_ref, img_state)
             if done:
                 with img_state_ref["lock"]:
                     img_state_ref["val"] = new_img_state
@@ -385,6 +393,104 @@ def initial_process_existing_images(csv_state, img_state, img_state_ref):
     if processed_any:
         print(f"[IMG] Inicial: procesadas {processed_any} imágenes existentes.")
     return img_state
+
+def csv_flow(csv_state_ref, img_state_ref):
+    print("[CSV-THREAD] Iniciando flujo CSV...")
+    # Preparar CSVTailer
+    tailer = CSVTailer()
+    active = find_latest_csv_in_source()
+    if active:
+        tailer.open_active(active)
+        print(f"[CSV] activo: {active}")
+    else:
+        print("[CSV] no hay CSVs en origen")
+
+    moved = recover_move_all_except(active)
+    if moved:
+        print(f"[RECOVERY] movidos {moved} archivos CSV al destino")
+
+    if not tailer.active_src:
+        active = find_latest_csv_in_source()
+        if active:
+            tailer.open_active(active)
+
+    while not stop_event.is_set():
+        # CSV tailing
+        added, last_ts = tailer.tail_once()
+        
+        # Obtener estado actual del CSV para actualizarlo
+        with csv_state_ref["lock"]:
+            current_csv_state = csv_state_ref["val"]
+
+        if added:
+            new_csv_state = (current_csv_state[0], last_ts or current_csv_state[1])
+            # Actualizar ref
+            with csv_state_ref["lock"]:
+                csv_state_ref["val"] = new_csv_state
+            
+            # persistir estado
+            with state_lock:
+                # img_state actual desde referencia
+                with img_state_ref["lock"]:
+                    current_img_state = img_state_ref["val"]
+                write_state_log(new_csv_state, current_img_state)
+            print(f"[CSV] agregadas {added} lineas al destino. last_ts={last_ts}")
+            current_csv_state = new_csv_state # update local var
+
+        # Detectar CSV nuevo y hacer switch si corresponde
+        latest = find_latest_csv_in_source()
+        if latest:
+            if (not tailer.active_src) or (latest.resolve() != tailer.active_src.resolve() and latest.stat().st_mtime > (tailer.active_src.stat().st_mtime if tailer.active_src else 0)):
+                prev = tailer.active_src
+                tailer.open_active(latest)
+                if prev and prev.exists():
+                    try:
+                        os.remove(prev)
+                        print(f"[CSV] eliminado antiguo tras cambio: {prev}")
+                    except Exception as e:
+                        print(f"[CSV ERROR] eliminar prev {prev}: {e}")
+                
+                if not current_csv_state[0]:
+                    new_csv_state = (now_iso(), current_csv_state[1])
+                    with csv_state_ref["lock"]:
+                        csv_state_ref["val"] = new_csv_state
+                    current_csv_state = new_csv_state
+
+                # persistir
+                with state_lock:
+                    with img_state_ref["lock"]:
+                        current_img_state = img_state_ref["val"]
+                    write_state_log(current_csv_state, current_img_state)
+                print(f"[CSV] switched active -> {latest}")
+
+        time.sleep(POLL_INTERVAL)
+    
+    tailer.close_active(delete_source=False)
+    print("[CSV-THREAD] Finalizado.")
+
+def image_flow(csv_state_ref, img_state_ref):
+    print("[IMG-THREAD] Iniciando flujo de Imágenes...")
+    
+    # Obtener estado inicial
+    with img_state_ref["lock"]:
+        img_state = img_state_ref["val"]
+
+    # Procesar existentes antes de iniciar watchdog
+    img_state = initial_process_existing_images(csv_state_ref, img_state, img_state_ref)
+
+    # --- Iniciar watchdog observer para IMAGES_SRC ---
+    event_handler = ImageEventHandler(csv_state_ref, img_state_ref)
+    observer = Observer()
+    observer.schedule(event_handler, str(IMAGES_SRC), recursive=True)
+    observer.start()
+    print(f"[WATCHDOG] Observando imágenes en: {IMAGES_SRC}")
+
+    while not stop_event.is_set():
+        time.sleep(1)
+
+    observer.stop()
+    observer.join(timeout=2.0)
+    print("[IMG-THREAD] Finalizado.")
 
 def main():
     # Asegurar dirs
@@ -403,91 +509,34 @@ def main():
     # persistir inicial (por si no existía)
     write_state_log(csv_state, img_state)
 
-    # Preparar CSVTailer (sin cambios)
-    tailer = CSVTailer()
-    active = find_latest_csv_in_source()
-    if active:
-        tailer.open_active(active)
-        print(f"[CSV] activo: {active}")
-    else:
-        print("[CSV] no hay CSVs en origen")
-
-    moved = recover_move_all_except(active)
-    if moved:
-        print(f"[RECOVERY] movidos {moved} archivos CSV al destino")
-
-    if not tailer.active_src:
-        active = find_latest_csv_in_source()
-        if active:
-            tailer.open_active(active)
-
-    # --- IMAGES: inicial procesado de archivos existentes ---
-    # Para permitir que el watchdog handler actualice el estado compartido, usamos un dict wrapper
-    img_state_ref = {"val": img_state, "lock": threading.Lock()}
+    # Referencias compartidas
     csv_state_ref = {"val": csv_state, "lock": threading.Lock()}
+    img_state_ref = {"val": img_state, "lock": threading.Lock()}
 
-    # Procesar existentes antes de iniciar watchdog (y borrarlos si se procesan)
-    img_state = initial_process_existing_images(csv_state, img_state, img_state_ref)
+    # Crear hilos
+    t_csv = threading.Thread(target=csv_flow, args=(csv_state_ref, img_state_ref), name="CSVThread")
+    t_img = threading.Thread(target=image_flow, args=(csv_state_ref, img_state_ref), name="ImgThread")
 
-    # --- Iniciar watchdog observer para IMAGES_SRC ---
-    event_handler = ImageEventHandler(csv_state_ref, img_state_ref)
-    observer = Observer()
-    observer.schedule(event_handler, str(IMAGES_SRC), recursive=True)
-    observer.start()
-    print(f"[WATCHDOG] Observando imágenes en: {IMAGES_SRC}")
+    print("[START] Iniciando threads. Ctrl-C para detener.")
+    t_csv.start()
+    t_img.start()
 
-    print("[START] iniciando loop principal. Ctrl-C para detener.")
     try:
         while True:
-            # CSV tailing (mismo comportamiento que antes)
-            added, last_ts = tailer.tail_once()
-            if added:
-                csv_state = (csv_state[0], last_ts or csv_state[1])
-                # persistir estado
-                with state_lock:
-                    # img_state actual desde referencia
-                    with img_state_ref["lock"]:
-                        current_img_state = img_state_ref["val"]
-                    write_state_log(csv_state, current_img_state)
-                print(f"[CSV] agregadas {added} lineas al destino. last_ts={last_ts}")
-
-            # Detectar CSV nuevo y hacer switch si corresponde (igual que antes)
-            latest = find_latest_csv_in_source()
-            if latest:
-                if (not tailer.active_src) or (latest.resolve() != tailer.active_src.resolve() and latest.stat().st_mtime > (tailer.active_src.stat().st_mtime if tailer.active_src else 0)):
-                    prev = tailer.active_src
-                    tailer.open_active(latest)
-                    if prev and prev.exists():
-                        try:
-                            os.remove(prev)
-                            print(f"[CSV] eliminado antiguo tras cambio: {prev}")
-                        except Exception as e:
-                            print(f"[CSV ERROR] eliminar prev {prev}: {e}")
-                    if not csv_state[0]:
-                        csv_state = (now_iso(), csv_state[1])
-                    # persistir
-                    with state_lock:
-                        with img_state_ref["lock"]:
-                            current_img_state = img_state_ref["val"]
-                        write_state_log(csv_state, current_img_state)
-                    print(f"[CSV] switched active -> {latest}")
-
-            time.sleep(POLL_INTERVAL)
+            time.sleep(1)
     except KeyboardInterrupt:
-        print("\n[SHUTDOWN] terminando. guardando estado y cerrando.")
-    finally:
-        # cerrar observer y tailer
-        try:
-            observer.stop()
-            observer.join(timeout=2.0)
-        except Exception:
-            pass
-        tailer.close_active(delete_source=False)
+        print("\n[SHUTDOWN] Señal de parada recibida.")
+        stop_event.set()
+        t_csv.join()
+        t_img.join()
+        
         # escribir estado final
         with state_lock:
+            with csv_state_ref["lock"]:
+                final_csv_state = csv_state_ref["val"]
             with img_state_ref["lock"]:
                 final_img_state = img_state_ref["val"]
-            write_state_log(csv_state, final_img_state)
+            write_state_log(final_csv_state, final_img_state)
         print("[SHUTDOWN] estado guardado. Bye.")
 
 if __name__ == "__main__":
