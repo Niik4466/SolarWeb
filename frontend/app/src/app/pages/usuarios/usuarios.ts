@@ -3,6 +3,7 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { ReactiveFormsModule, FormControl } from '@angular/forms';
 import { UsersApi, UsuarioOut, TransaccionOut } from '../../services/user.api';
 import { AuthService } from '../../services/auth.service';
+import { MailApi } from '../../services/mail.service';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { startWith, debounceTime, distinctUntilChanged, finalize } from 'rxjs/operators';
 import { LoadingService } from '../../services/loading.service';
@@ -55,6 +56,8 @@ export class UsuariosComponent implements OnInit {
   private api = inject(UsersApi);
   private auth = inject(AuthService);
   private loadingSrv = inject(LoadingService);
+  private mail = inject(MailApi);  
+
 
   /**
    * Obtiene el ID del admin autenticado (según AuthService).
@@ -499,11 +502,28 @@ export class UsuariosComponent implements OnInit {
         if (this.mostrarEliminados()) this.cargarEliminados();
 
         this.pendiente.set(null);
+
+        // ----- CORREO: aprobado -> eliminado -----
+        const subject = 'Cuenta desactivada - SolarWeb';
+        const body = `Hola ${u.nombre},
+
+Tu cuenta en SolarWeb ha sido DESACTIVADA por un administrador.
+Ya no tendrás acceso a la plataforma con el correo: ${u.correo}.
+
+Si necesitas más información, contacta al equipo administrador.
+
+Saludos,
+Equipo SolarWeb`;
+
+        this.mail.sendMail(u.correo, subject, body).subscribe({
+          error: (err) => console.error('Error enviando correo de desactivación', err)
+        });
       },
       error: () => {
         this.error.set('No se pudo eliminar el usuario');
       },
     });
+
   }
 
   /**
@@ -519,6 +539,20 @@ export class UsuariosComponent implements OnInit {
 
         // Recargar desde backend → trae aprobación REAL
         this.cargarAprobados();
+
+        // ----- CORREO: eliminado -> aprobado (restaurado) -----
+        const subject = 'Cuenta reactivada - SolarWeb';
+        const body = `Hola ${u.nombre},
+
+Tu cuenta en SolarWeb ha sido REACTIVADA.
+Ya puedes volver a acceder con tu correo: ${u.correo}.
+
+Saludos,
+Equipo SolarWeb`;
+
+        this.mail.sendMail(u.correo, subject, body).subscribe({
+          error: (err) => console.error('Error enviando correo de reactivación', err)
+        });
       },
       error: () => this.error.set('No se pudo restaurar el usuario'),
     });
