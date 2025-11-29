@@ -4,6 +4,7 @@ import { of } from 'rxjs';
 import { UserService } from '../../services/solicitudes.api';
 import { AuthService } from '../../services/auth.service'; 
 import { LoadingService } from '../../services/loading.service';
+import { MailApi } from '../../services/mail.service';
 import { FormControl, ReactiveFormsModule } from '@angular/forms'; 
 import { catchError, map, finalize, startWith, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -43,6 +44,8 @@ export class SolicitudesComponent implements OnInit {
   private users = inject(UserService);       // servicio que llama a la API de solicitudes/usuarios pendientes
   private auth = inject(AuthService);        // servicio de autenticación (para obtener admin actual)
   private loadingSrv = inject(LoadingService); // overlay global de carga
+  private mail = inject(MailApi);  // Servicio para enviar mails
+
 
   // ---------------------------------------------------------
   // Estado general de la vista
@@ -318,6 +321,20 @@ export class SolicitudesComponent implements OnInit {
         if (!resp) return;
         this.okMsg.set('Usuario aprobado correctamente.');
         this.removerFila(s.id);
+
+        // ----- CORREO: pendiente -> aprobado -----
+        const subject = 'Solicitud aprobada - SolarWeb';
+        const body = `Hola ${s.nombre},
+
+Tu solicitud de acceso a SolarWeb ha sido APROBADA. 
+Ya puedes ingresar con el correo: ${s.correo}.
+
+Saludos,
+Equipo SolarWeb`;
+
+        this.mail.sendMail(s.correo, subject, body).subscribe({
+          error: (err) => console.error('Error enviando correo de aprobación', err)
+        });
       });
 
     // ---- RECHAZAR ----
@@ -345,7 +362,23 @@ export class SolicitudesComponent implements OnInit {
         if (!resp) return;
         this.okMsg.set('Usuario rechazado y registrado con fecha de eliminación.');
         this.removerFila(s.id);
+
+        // ----- CORREO: pendiente -> rechazado -----
+        const subject = 'Solicitud rechazada - SolarWeb';
+        const body = `Hola ${s.nombre},
+
+Lamentamos informarte que tu solicitud de acceso a SolarWeb fue RECHAZADA.
+
+Si crees que se trata de un error, puedes volver a solicitar acceso o contactar al administrador.
+
+Saludos,
+Equipo SolarWeb`;
+
+        this.mail.sendMail(s.correo, subject, body).subscribe({
+          error: (err) => console.error('Error enviando correo de rechazo', err)
+        });
       });
+
 
     } else {
       // Si por alguna razón no hay acción definida
