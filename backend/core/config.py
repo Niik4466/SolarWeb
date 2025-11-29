@@ -55,6 +55,13 @@ class Settings(BaseSettings):
     GMAIL_USER: str            # Correo de Gmail para autenticación
 
     # ---------------------------------------------------------
+    # 🔹 Monitor PC 3000
+    # ---------------------------------------------------------
+    DESTINY_MONITOR_PC: str    # IP o Hostname del PC remoto
+    SSH_USER: str              # Usuario SSH
+    SSH_PASSWORD: str          # Password SSH
+
+    # ---------------------------------------------------------
     # 🔹 API / CORS
     # ---------------------------------------------------------
     API_KEY: Optional[str] = None     # API Key opcional para proteger endpoints

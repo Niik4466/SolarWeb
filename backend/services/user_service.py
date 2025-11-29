@@ -25,6 +25,15 @@ def list_users_query(db: Session):
     """Devuelve todos los usuarios registrados."""
     return db.query(Usuario).all()
 
+def get_admin_emails_query(db: Session) -> List[str]:
+    """
+    Devuelve una lista de correos electrónicos de todos los usuarios
+    que tienen rol de administrador en el sistema.
+    """
+    admins = db.query(Usuario.correo).filter(Usuario.es_admin == True).all()
+    # admins es una lista de tuplas [('email1',), ('email2',)]
+    return [email[0] for email in admins]
+
 def obtain_user_by_id_query(db: Session, usuario_id: int):
     """Obtiene un usuario por su ID."""
     return db.query(Usuario).filter(Usuario.id == usuario_id).first()

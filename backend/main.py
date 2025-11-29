@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.v1 import irradiance, images, export, users, mail
+from api.v1 import irradiance, images, export, users, mail, monitor
+from services.monitor_service import init_monitoring
 
 app = FastAPI(title="Solar API", version="1.0.0")
 
@@ -31,6 +32,11 @@ app.include_router(images.router)
 app.include_router(export.router)
 app.include_router(users.router)
 app.include_router(mail.router)
+app.include_router(monitor.router)
+
+@app.on_event("startup")
+async def startup_event():
+    init_monitoring()
 
 @app.get("/")
 def root():
