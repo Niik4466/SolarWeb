@@ -1,41 +1,116 @@
-import { Component } from '@angular/core';
+// src/app/pages/forgot-password/forgot-password.ts
+import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { AuthService } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-forgot-password',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule],
   templateUrl: './forgot-password.html',
-  styleUrls: ['./forgot-password.scss']
+  styleUrls: ['./forgot-password.scss'],
 })
 export class ForgotPasswordComponent {
-  /**
-   * Dirección de correo del administrador responsable de gestionar
-   * restablecimientos de contraseña.
-   * 
-   * ⚠️ Debe reemplazarse por el correo oficial en producción.
-   */
-  adminEmail = 'admin@solarweb.cl';
+  private fb = inject(FormBuilder);
+  private auth = inject(AuthService);
+  private router = inject(Router);
 
-  /**
-   * Abre el cliente de correo predeterminado del usuario usando un enlace `mailto:`.
-   * 
-   * El email se genera automáticamente con:
-   * - Un asunto predeterminado.
-   * - Un cuerpo preformateado solicitando restablecimiento de contraseña.
-   * 
-   * Notas:
-   * - Este componente NO restablece contraseñas por sí mismo.
-   * - Simplemente facilita al usuario enviar una solicitud manual al administrador.
-   */
-  contactarAdmin() {
-    const subject = encodeURIComponent('Solicitud de restablecimiento de contraseña');
-    const body = encodeURIComponent(
-      `Hola,\n\nHe olvidado mi contraseña y necesito restablecer mi acceso al sistema.\n\nGracias.`
-    );
+  // 1 = pedir código, 2 = cambiar contraseña
+  step = signal<1 | 2>(1);
 
-    // Abre el cliente de correo del sistema operativos
-    window.location.href = `mailto:${this.adminEmail}?subject=${subject}&body=${body}`;
+  loading = signal(false);
+  serverError = signal<string | null>(null);
+  successMessage = signal<string | null>(null);
+
+  // ---- FORM 1: pedir código ----
+  generateForm = this.fb.group({
+    email: ['', [Validators.required, Validators.email]],
+  });
+
+  // ---- FORM 2: cambiar contraseña ----
+  recoveryForm = this.fb.group(
+    {
+      email: ['', [Validators.required, Validators.email]],
+      code: ['', [Validators.required]],
+      password: ['', [Validators.required, Validators.minLength(8)]],
+      confirmPassword: ['', [Validators.required]],
+    },
+    {
+      validators: (group: any) =>
+        group.value.password === group.value.confirmPassword
+          ? null
+          : { passwordMismatch: true },
+    }
+  );
+
+  get passwordMismatch() {
+    return this.recoveryForm.hasError('passwordMismatch');
+  }
+
+  // ================== ACCIONES ==================
+
+  onGenerateCode() {
+    if (this.generateForm.invalid) return;
+
+    this.loading.set(true);
+    this.serverError.set(null);
+    this.successMessage.set(null);
+
+    const email = this.generateForm.value.email!;
+
+    this.auth.generateRecoveryCode(email).subscribe({
+      next: () => {
+        this.loading.set(false);
+        this.successMessage.set(
+          'Si el correo existe, se ha enviado un código de recuperación.'
+        );
+        // Pasamos el correo al segundo formulario y cambiamos de paso
+        this.recoveryForm.patchValue({ email });
+        this.step.set(2);
+      },
+      error: (err) => {
+        console.error(err);
+        this.loading.set(false);
+        this.serverError.set(
+          'Ocurrió un error al enviar el código. Intenta nuevamente.'
+        );
+      },
+    });
+  }
+
+  onRecoverPassword() {
+    if (this.recoveryForm.invalid) return;
+
+    this.loading.set(true);
+    this.serverError.set(null);
+    this.successMessage.set(null);
+
+    const { email, code, password } = this.recoveryForm.value as {
+      email: string;
+      code: string;
+      password: string;
+    };
+
+    this.auth.recoverPassword(email, code, password).subscribe({
+      next: () => {
+        this.loading.set(false);
+        this.successMessage.set(
+          'Contraseña actualizada correctamente. Ahora puedes iniciar sesión.'
+        );
+        // Redirigimos al login (puedes agregar delay si quieres)
+        this.router.navigate(['/login'], {
+          queryParams: { reset: 'success' },
+        });
+      },
+      error: (err) => {
+        console.error(err);
+        this.loading.set(false);
+        this.serverError.set(
+          'Código inválido o expirado. Revisa tus datos e inténtalo de nuevo.'
+        );
+      },
+    });
   }
 }

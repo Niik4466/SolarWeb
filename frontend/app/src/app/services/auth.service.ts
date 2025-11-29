@@ -60,6 +60,27 @@ export class AuthService {
   userId = computed(() => this._userId());
 
   // =========================================================
+  // Recuperacion de contraseña
+  // =========================================================
+
+  generateRecoveryCode(email: string) {
+    return this.http.post<string>(
+      `${API_BASE}/users/pass/generate_code`,
+      { email }
+    );
+  }
+
+  /**
+   * Verifica el código de recuperación y actualiza la contraseña.
+   */
+  recoverPassword(email: string, code: string, password: string) {
+    return this.http.post<string>(
+      `${API_BASE}/users/pass/recovery`,
+      { email, code, password }
+    );
+  }
+
+  // =========================================================
   // ROL DE ADMINISTRADOR
   // =========================================================
 
@@ -206,6 +227,7 @@ export class AuthService {
     localStorage.setItem('userId', String(id));
     this._userId.set(id);
   }
+  
 
   /**
    * Getters simples para obtener el id y email actuales
