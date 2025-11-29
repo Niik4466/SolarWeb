@@ -67,7 +67,7 @@ export class LoginService {
           }
 
           // Si NO viene user_id, lo buscamos por correo
-          return this.auth.fetchUserIdByEmail(environment.apiBase, email).pipe(
+          return this.auth.fetchUserIdByEmail(email).pipe(
             tap((r) => this.auth.setUserId(r.id)),
             map(() => res),
             catchError((err) => {
