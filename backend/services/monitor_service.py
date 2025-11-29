@@ -6,6 +6,7 @@ from core.config import settings
 from services.mail_service import send_mail_query
 from services.user_service import get_admin_emails_query
 from db.postgres import get_sync_session
+import socket
 
 # --- State Definitions ---
 
@@ -142,18 +143,18 @@ def check_pc3000():
         pc3000_state = NodeStatus.OK
 
     except NodeConnectionError as e:
+        # Failure
         print(f"Monitor connection error: {e}")
-        pc3000_failures += 1
 
-        if pc3000_failures == 1 and pc3000_state == NodeStatus.OK:
+        if pc3000_state == NodeStatus.OK:
             pc3000_state = NodeStatus.DEGRADED
-            _send_status_change_alert(NODE_ID_PC3000, NodeStatus.DEGRADED)
 
-        elif pc3000_failures >= 2 and pc3000_state != NodeStatus.DOWN:
+        elif pc3000_state == NodeStatus.DEGRADED:
             pc3000_state = NodeStatus.DOWN
             _send_status_change_alert(NODE_ID_PC3000, NodeStatus.DOWN)
 
     except Exception as e:
+        # Failure
         print(f"Monitor check failed: {e}")
         if pc3000_state == NodeStatus.OK:
             pc3000_state = NodeStatus.DEGRADED
