@@ -69,6 +69,7 @@ def user_login(data: LoginIn, db: Session = Depends(get_db)):
         data={
             "sub": str(login_result["user_id"]),
             "es_admin": login_result["es_admin"],
+            "owner": login_result.get("owner", False),
         }
     )
 

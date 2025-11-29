@@ -40,6 +40,7 @@ class UsuarioOut(UsuarioBase):
     creado_en: datetime
     actualizado_en: datetime
     aprobado_en: Optional[datetime] = None
+    owner: bool
     model_config = {"from_attributes": True}
 
 

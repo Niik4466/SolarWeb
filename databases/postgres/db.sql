@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS usuario (
   apellido         VARCHAR(100),
   password_hash    TEXT          NOT NULL,
   es_admin         BOOLEAN       NOT NULL DEFAULT FALSE,
+  owner            BOOLEAN       NOT NULL DEFAULT FALSE,
   estado           usuario_estado NOT NULL DEFAULT 'pendiente',
   creado_en        TIMESTAMP      NOT NULL DEFAULT now(),
   actualizado_en   TIMESTAMP      NOT NULL DEFAULT now(),
@@ -110,3 +111,8 @@ BEGIN
      SET estado='aprobado', aprobado_en=now()
    WHERE id = p_usuario_id;
 END$$;
+
+-- 8) Crear usuario Owner por defecto
+INSERT INTO usuario (correo, nombre, apellido, password_hash, es_admin, owner, estado, aprobado_en)
+VALUES ('SolarWebUach@gmail.com', 'SolarWeb', 'Uach', '$2b$12$OeJakuWRg.3Y3F4Wsjtj7OWyUYFZ7ZO.U103MlkSjl2Zg30UGhhoC', TRUE, TRUE, 'aprobado', now())
+ON CONFLICT (correo) DO NOTHING;

@@ -105,7 +105,7 @@ def user_login_query(db: Session, email: str, password: str) -> dict:
     estado = getattr(usuario.estado, "value", usuario.estado)  # Enum -> str
 
     if estado == "aprobado":
-        return {"success": True, "estado": "aprobado", "message": "ok", "user_id": usuario.id, "es_admin": usuario.es_admin}
+        return {"success": True, "estado": "aprobado", "message": "ok", "user_id": usuario.id, "es_admin": usuario.es_admin, "owner": usuario.owner}
     if estado == "pendiente":
         return {"success": False, "estado": "pendiente", "message": "su solicitud sigue en estado de espera en aprobacion", "user_id": usuario.id}
     if estado == "eliminado":
@@ -201,6 +201,7 @@ def get_pending_users_with_last_solicitud_query(db: Session):
             "estado": u.estado.value if hasattr(u.estado, "value") else u.estado,
             "justificacion": (s.justificacion if s else None),
             "creado_en": (s.creado_en.isoformat() if s and s.creado_en else (u.creado_en.isoformat() if u.creado_en else None)),
+            "owner": u.owner,
         })
 
     return {"total": len(data), "data": data}
@@ -233,6 +234,8 @@ def get_approved_users_query(db: Session):
             "aprobado_en": (
                 u.aprobado_en.isoformat() if getattr(u, "aprobado_en", None) else None
             ),
+            "owner": u.owner,
+            "admin": u.es_admin
         }
         for u in usuarios
     ]
@@ -276,6 +279,7 @@ def get_deleted_users_query(db: Session):
             "correo": u.correo,
             "estado": u.estado.value if hasattr(u.estado, "value") else u.estado,
             "eliminado_en": (log.eliminado_en.isoformat() if log and log.eliminado_en else None),
+            "owner": u.owner,
         })
 
     data.sort(key=lambda x: x["eliminado_en"] or "", reverse=True)

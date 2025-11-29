@@ -29,6 +29,7 @@ class Usuario(Base):
     apellido: Mapped[Optional[str]] = mapped_column(String(100))
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     es_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    owner: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     estado: Mapped[UsuarioEstado] = mapped_column(Enum(UsuarioEstado), default=UsuarioEstado.pendiente)
     creado_en: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     actualizado_en: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
