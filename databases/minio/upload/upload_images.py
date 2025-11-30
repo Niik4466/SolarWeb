@@ -1,5 +1,6 @@
 import sys
 import os
+import io
 import time
 from datetime import datetime
 import re
@@ -73,8 +74,23 @@ def upload_file(file_path: Path):
             raise
 
     # Subir si no existe
-    print(f"[UPLOAD] {file_path} → {key}")
-    s3.upload_file(str(file_path), bucket_name, key)
+    try:
+        # Compresión en memoria
+        with Image.open(file_path) as original_image:
+            width, height = original_image.size
+            # Resize 50%
+            compressed_image = original_image.resize((width // 2, height // 2), Image.Resampling.LANCZOS)
+            
+            # Guardar en buffer
+            buffer = io.BytesIO()
+            compressed_image.save(buffer, format="JPEG", quality=85)
+            buffer.seek(0)
+            
+            print(f"[UPLOAD] {file_path} (Comprimido) → {key}")
+            s3.upload_fileobj(buffer, bucket_name, key)
+            
+    except Exception as e:
+        print(f"[ERROR] Procesando/Subiendo {file_path}: {e}")
 
 # Subir imágenes existentes
 for file_path in Path(image_dir).rglob("*.*"):
