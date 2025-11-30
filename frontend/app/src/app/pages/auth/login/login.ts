@@ -1,4 +1,4 @@
-// src/app/pages/login/login.ts
+// src/app/pages/auth/login/login.ts
 import { Component, signal, inject } from '@angular/core';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';

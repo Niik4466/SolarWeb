@@ -1,6 +1,7 @@
 // src/app/services/auth.service.ts
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
+import { tap } from 'rxjs/operators';
 
 /**
  * Estructura base de un payload JWT.
@@ -105,6 +106,16 @@ export class AuthService {
   private readonly TOKEN_KEY = 'access_token';
 
   /**
+   * Momento (en ms desde epoch) en que expira el token actual.
+   */
+  private tokenExpirationTime: number | null = null;
+
+  /**
+   * Id del timeout que dispara el pop-up de extender sesión.
+   */
+  private sessionTimeoutId: any = null;
+
+  /**
    * Getter conveniente para obtener el token actual desde localStorage.
    */
   get token(): string | null {
@@ -117,6 +128,7 @@ export class AuthService {
    *  - decodifica el JWT
    *  - actualiza el estado de isAdmin según el payload
    *  - sincroniza localStorage
+   *  - inicia el watcher de expiración para mostrar el pop-up
    */
   setToken(token: string | null) {
     if (token) {
@@ -131,10 +143,22 @@ export class AuthService {
       const isAdminFromToken = p?.['es_admin'] === true || p?.['es_admin'] === 1;
       this._isAdmin.set(isAdminFromToken);
       localStorage.setItem('isAdmin', isAdminFromToken ? 'true' : 'false');
+
+      // Manejo de expiración del token
+      if (p?.exp) {
+        this.tokenExpirationTime = p.exp * 1000; // pasa a milisegundos
+        this.startSessionWatcher();
+      } else {
+        this.tokenExpirationTime = null;
+        this.clearSessionWatcher();
+      }
     } else {
       // Si no hay token, reseteamos el estado de admin
       this._isAdmin.set(false);
       localStorage.removeItem('isAdmin');
+
+      this.tokenExpirationTime = null;
+      this.clearSessionWatcher();
     }
   }
 
@@ -202,6 +226,7 @@ export class AuthService {
    *  - userId
    *  - token
    *  - isAdmin
+   *  - watcher de expiración
    */
   setLoggedOut() {
     localStorage.removeItem('isLoggedIn');
@@ -214,6 +239,9 @@ export class AuthService {
     this._email.set(null);
     this._userId.set(null);
     this._isAdmin.set(false);
+
+    this.tokenExpirationTime = null;
+    this.clearSessionWatcher();
   }
 
   logout() {
@@ -227,7 +255,6 @@ export class AuthService {
     localStorage.setItem('userId', String(id));
     this._userId.set(id);
   }
-  
 
   /**
    * Getters simples para obtener el id y email actuales
@@ -239,6 +266,91 @@ export class AuthService {
 
   getEmail(): string | null {
     return this._email();
+  }
+
+  // =========================================================
+  // WATCHER DE EXPIRACIÓN Y POP-UP
+  // =========================================================
+
+  /**
+   * Inicia o reinicia el timer que mostrará el pop-up
+   * unos minutos antes de que el token expire.
+   */
+  private startSessionWatcher() {
+    if (!this.tokenExpirationTime) {
+      return;
+    }
+
+    // Limpiar timer anterior si existe
+    this.clearSessionWatcher();
+
+    const fiveMinutes = 5 * 60 * 1000; // 5 minutos antes de la expiración
+    const msBeforePrompt = this.tokenExpirationTime - Date.now() - fiveMinutes;
+
+    // Si ya estamos dentro de la ventana de 5 minutos, preguntar de inmediato
+    if (msBeforePrompt <= 0) {
+      this.askToExtendSession();
+      return;
+    }
+
+    this.sessionTimeoutId = setTimeout(() => {
+      this.askToExtendSession();
+    }, msBeforePrompt);
+  }
+
+  /**
+   * Limpia el timeout, si existe.
+   */
+  private clearSessionWatcher() {
+    if (this.sessionTimeoutId) {
+      clearTimeout(this.sessionTimeoutId);
+      this.sessionTimeoutId = null;
+    }
+  }
+
+  /**
+   * Muestra un pop-up sencillo preguntando si se quiere
+   * mantener la sesión activa. Si el usuario acepta,
+   * se llama al endpoint de refresh.
+   */
+  private askToExtendSession() {
+    const keep = window.confirm(
+      'Tu sesión está por expirar. ¿Quieres mantenerla activa?'
+    );
+
+    if (keep) {
+      this.refreshToken().subscribe({
+        error: (err) => {
+          console.warn('Error al refrescar token', err);
+          // Si falla el refresh, no hacemos nada más:
+          // cuando el token expire, el backend responderá 401
+          // y el interceptor se encargará de desloguear.
+        },
+      });
+    }
+    // Si el usuario elige "Cancelar" o cierra el pop-up,
+    // no hacemos nada: el token expirará y el flujo 401 + interceptor sigue igual.
+  }
+
+  /**
+   * Llama al backend para obtener un nuevo token y
+   * lo guarda con setToken().
+   *
+   * Endpoint: POST http://127.0.0.1:8000/users/refresh-token
+   */
+  private refreshToken() {
+    return this.http
+      .post<{ access_token: string; token_type: string }>(
+        `${API_BASE}/users/refresh-token`,
+        {}
+      )
+      .pipe(
+        tap((res) => {
+          if (res.access_token) {
+            this.setToken(res.access_token);
+          }
+        })
+      );
   }
 
   // =========================================================
@@ -263,11 +375,18 @@ export class AuthService {
    * - Si hay token:
    *   - Llama a /users/me
    *   - Actualiza isAdmin, email y userId con la info del backend
+   *   - Recalcula expiración y arranca el watcher
    * - Si la llamada falla, podrías opcionalmente desloguear al usuario.
    */
   initFromBackend() {
     const token = this.token;
     if (!token) return; // Si no hay token, no hay nada que inicializar
+
+    const payload = this.decodeJwt<JwtPayload>(token);
+    if (payload?.exp) {
+      this.tokenExpirationTime = payload.exp * 1000;
+      this.startSessionWatcher();
+    }
 
     this.http.get<any>(`${API_BASE}/users/me`).subscribe({
       next: (user) => {
