@@ -3,10 +3,11 @@ services:
   influxdb:
     image: influxdb:2.7
     container_name: influxdb-solarweb
+    restart: unless-stopped
     ports:
       - "8086:8086"
     volumes:
-      - influxdb2:/var/lib/influxdb2
+      - /mnt/e/influx:/var/lib/influxdb2
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUX_USER}
@@ -27,7 +28,7 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - miniodb2:/data
+      - /mnt/e/minio:/data
     command: server /data --console-address ":9001"
 
   # Uploaders
@@ -36,6 +37,7 @@ services:
       context: ./databases/minio/upload
       dockerfile: Dockerfile
     container_name: minio-uploader-solarweb
+    restart: unless-stopped
     environment:
       - MINIO_ENDPOINT=${MINIO_ENDPOINT}
       - MINIO_ROOT_USER=${MINIO_USER}
@@ -51,6 +53,7 @@ services:
       context: ./databases/influxdb
       dockerfile: Dockerfile
     container_name: influxdb-uploader-solarweb
+    restart: unless-stopped
     environment:
       - INFLUX_ENDPOINT=${INFLUX_ENDPOINT}
       - INFLUX_TOKEN=${INFLUX_TOKEN}
@@ -87,6 +90,4 @@ services:
       "
 
 volumes:
-  influxdb2:
-  miniodb2:
   zerotier-data:
