@@ -492,8 +492,6 @@ def delete_user_permanently_query(usuario_id: int, db: Session = None):
 
         if not usuario:
             raise HTTPException(status_code=404, detail=f"Usuario {usuario_id} no encontrado o no eliminado")
-        if usuario.es_admin == True:
-            raise HTTPException(status_code=403, detail="No se puede eliminar un usuario administrador")
 
         # Eliminar manualmente todos los registros relacionados
         db.query(UsuarioEliminacionLog).filter(
