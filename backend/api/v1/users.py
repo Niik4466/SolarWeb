@@ -237,7 +237,7 @@ def delete_users_scheduled(
     admin: Usuario = Depends(get_current_admin),
 ):
     """
-    Marca uno o varios usuarios como eliminados y programa su eliminación definitiva en 30 días. (solo admin)
+    Marca uno o varios usuarios como eliminados y programa su eliminación definitiva en 30 días. (solo admin y owner)
     """
     resultado = mark_and_schedule_deletion_query(
         db, usuario_id, admin.id

@@ -580,13 +580,23 @@ def mark_and_schedule_deletion_query(db: Session, usuario_id: int, eliminado_por
     Marca un usuario como eliminado y programa su eliminación definitiva.
     """
     try:
+        # Obtenemos el usuario a eliminar
         usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
         if not usuario:
             raise HTTPException(status_code=404, detail=f"Usuario {usuario_id} no encontrado.")
         if usuario.estado == UsuarioEstado.eliminado:
             raise HTTPException(status_code=400, detail=f"Usuario {usuario_id} ya está marcado como eliminado.")
-        if usuario.es_admin == True:
-            raise HTTPException(status_code=403, detail="No se puede eliminar un usuario administrador")
+
+        # Obtenemos el administrador que elimina
+        admin = db.query(Usuario).filter(Usuario.id == eliminado_por_id).first()
+        if not admin:
+            raise HTTPException(status_code=404, detail=f"Administrador {eliminado_por_id} no encontrado.")
+
+        if admin.es_admin == False:
+            raise HTTPException(status_code=403, detail="El usuario que quiere eliminar no es un administrador.")
+        
+        if (admin.es_admin == True and admin.owner == False) and usuario.es_admin == True:
+            raise HTTPException(status_code=403, detail="Solo el dueño puede eliminar a un administrador.")
 
         # Marcar como eliminado
         usuario.estado = UsuarioEstado.eliminado
