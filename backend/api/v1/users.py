@@ -5,6 +5,7 @@ from db.postgres import get_db
 from services.user_service import *
 from schemas.user import *
 from models.user import Usuario, Solicitud
+from datetime import timedelta  # si no lo tienes ya importado arriba
 
 from core.security import create_access_token, get_current_user
 from core.deps import get_current_admin  # dependencia que valida es_admin
@@ -108,6 +109,30 @@ def read_me(current_user: Usuario = Depends(get_current_user)):
     Obtiene la información del usuario actualmente autenticado.
     """
     return current_user
+
+@router.post("/refresh-token", response_model=Token)
+def refresh_access_token(
+    current_user: Usuario = Depends(get_current_user),
+):
+    """
+    Reemite un nuevo access token para el usuario actualmente autenticado.
+    Usa la misma lógica de claims que el login.
+    """
+    # Reutilizamos la misma estructura de data que en /users/log-in
+    access_token = create_access_token(
+        data={
+            "sub": str(current_user.id),
+            "es_admin": current_user.es_admin,
+            "owner": getattr(current_user, "owner", False),
+        }
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+    }
+
+
 
 # -----------------------------------------------------------
 # ADMIN
