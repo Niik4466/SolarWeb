@@ -30,6 +30,7 @@ export type UsuarioOut = {
   nombre: string;
   apellido?: string | null;
   es_admin: boolean;                       // Permite distinguir si un usuario tiene rol administrador
+  owner: boolean;                          // Si es el usuario dueño del sistema
   estado: 'pendiente' | 'aprobado' | 'eliminado';
   creado_en: string;                       // ISO datetime
   actualizado_en: string;

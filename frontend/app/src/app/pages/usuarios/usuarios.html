@@ -16,9 +16,9 @@
       <option value="nombre">Nombre (A–Z)</option>
       <option value="correo">Correo (A–Z)</option>
     </select>
-
   </div>
 
+  <!-- Tabla usuarios activos -->
   <div class="tabla-wrapper">
     <table class="tabla">
       <thead>
@@ -40,25 +40,38 @@
           <td>{{ u.nombre }}</td>
           <td>{{ u.correo }}</td>
           <td>
-            <span class="rol-pill" [class.admin]="u.rol === 'admin'" [class.user]="u.rol === 'user'">
-              {{ u.rol === 'admin' ? 'Administrador' : 'Usuario estándar' }}
+            <span
+              class="rol-pill"
+              [class.owner]="u.rol === 'owner'"
+              [class.admin]="u.rol === 'admin'"
+              [class.user]="u.rol === 'user'"
+            >
+              {{
+                u.rol === 'owner'
+                  ? 'Super owner'
+                  : (u.rol === 'admin' ? 'Administrador' : 'Usuario estándar')
+              }}
             </span>
           </td>
           <td>{{ u.aprobado_el | date:'dd/MM/yyyy HH:mm' }}</td>
           <td class="cent">
             <button class="icono" title="Historial" (click)="abrirHistorial(u)">⟳</button>
           </td>
-          
-          <td class="cent" *ngIf="u.rol !== 'admin'">
-            <button class="icono rojo" title="Eliminar" (click)="abrirConfirmacion(u)">✖</button>
+          <td class="cent">
+            <ng-container *ngIf="puedeEliminar(u); else noEliminarTpl">
+              <button
+                class="icono rojo"
+                title="Eliminar"
+                (click)="abrirConfirmacion(u)"
+              >
+                ✖
+              </button>
+            </ng-container>
           </td>
-
-    
-          <td class="cent" *ngIf="u.rol === 'admin'">—</td>
         </tr>
 
         <tr *ngIf="visibles().length === 0">
-          <td colspan="5" class="vacio">Sin resultados</td>
+          <td colspan="6" class="vacio">Sin resultados</td>
         </tr>
       </tbody>
     </table>
@@ -75,7 +88,6 @@
         <h2>Usuarios eliminados</h2>
         <button class="icono" (click)="mostrarEliminados.set(false)">✕</button>
       </div>
-      
 
       <table class="tabla compacta">
         <thead>
@@ -100,44 +112,24 @@
               <button class="mini" (click)="restaurar(u)">Restaurar</button>
             </td>
             <td class="cent">
-              <button class="mini rojo" (click)="abrirEliminarDefinitivo(u)">Eliminar</button>
+              <ng-container *ngIf="puedeEliminar(u); else noEliminarMiniTpl">
+                <button class="mini rojo" (click)="abrirEliminarDefinitivo(u)">
+                  Eliminar
+                </button>
+              </ng-container>
             </td>
-            <!-- Modal: Eliminación definitiva (usuarios eliminados) -->
-            <div class="modal" *ngIf="pendienteDef() as p" role="dialog" aria-modal="true">
-              <div class="modal-card confirm">
-
-                <div class="modal-head">
-                  <h2>Eliminar definitivamente</h2>
-                  <button class="icono" (click)="cancelarEliminarDefinitivo()" aria-label="Cerrar">✕</button>
-                </div>
-                
-
-
-                <div class="modal-body">
-                  <p>
-                    ¿Seguro que deseas eliminar de forma <strong>permanente</strong> al usuario
-                    <strong>{{ p.nombre }}</strong>?
-                  </p>
-                  <p style="margin-top:.4rem;">Esta acción no se puede deshacer.</p>
-                </div>
-
-                <div class="modal-actions">
-                  <button class="btn" (click)="cancelarEliminarDefinitivo()">Cancelar</button>
-                  <button class="btn peligro" (click)="confirmarEliminarDefinitivo()">Eliminar definitivamente</button>
-                </div>
-              </div>
-            </div>
-
           </tr>
+
           <tr *ngIf="listaEliminados().length === 0">
             <td colspan="6" class="vacio">No hay usuarios eliminados</td>
           </tr>
         </tbody>
       </table>
-      <div class="info-msg">
-        Los usuarios eliminados serán borrados de forma permanente después de <strong>30 días</strong>.
-      </div>
 
+      <div class="info-msg">
+        Los usuarios eliminados serán borrados de forma permanente después de
+        <strong>30 días</strong>.
+      </div>
     </div>
   </div>
 
@@ -190,8 +182,15 @@
     </div>
   </div>
 
-  <!-- Modal: Confirmar eliminación -->
-  <div class="modal" *ngIf="pendiente() as p" role="dialog" aria-modal="true" aria-labelledby="dlg-title" aria-describedby="dlg-desc">
+  <!-- Modal: Confirmar eliminación lógica -->
+  <div
+    class="modal"
+    *ngIf="pendiente() as p"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="dlg-title"
+    aria-describedby="dlg-desc"
+  >
     <div class="modal-card confirm">
       <div class="modal-head">
         <h2 id="dlg-title">Confirmar eliminación</h2>
@@ -199,7 +198,7 @@
       </div>
 
       <div class="modal-body" id="dlg-desc">
-        ¿Seguro que deseas eliminar a <strong>{{ p.nombre }}</strong>?<br/>
+        ¿Seguro que deseas eliminar a <strong>{{ p.nombre }}</strong>?<br />
         Podrás restaurarlo desde <em>Usuarios eliminados</em>.
       </div>
 
@@ -209,4 +208,40 @@
       </div>
     </div>
   </div>
+
+  <!-- Modal: Eliminación definitiva (para usuarios ya eliminados) -->
+  <div
+    class="modal"
+    *ngIf="pendienteDef() as p"
+    role="dialog"
+    aria-modal="true"
+  >
+    <div class="modal-card confirm">
+      <div class="modal-head">
+        <h2>Eliminar definitivamente</h2>
+        <button class="icono" (click)="cancelarEliminarDefinitivo()" aria-label="Cerrar">
+          ✕
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <p>
+          ¿Seguro que deseas eliminar de forma <strong>permanente</strong> al usuario
+          <strong>{{ p.nombre }}</strong>?
+        </p>
+        <p style="margin-top: .4rem;">Esta acción no se puede deshacer.</p>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" (click)="cancelarEliminarDefinitivo()">Cancelar</button>
+        <button class="btn peligro" (click)="confirmarEliminarDefinitivo()">
+          Eliminar definitivamente
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Templates para cuando NO se puede eliminar -->
+  <ng-template #noEliminarTpl>—</ng-template>
+  <ng-template #noEliminarMiniTpl>—</ng-template>
 </div>

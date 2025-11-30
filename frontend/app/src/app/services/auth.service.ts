@@ -96,6 +96,13 @@ export class AuthService {
    */
   isAdmin = computed(() => this._isAdmin());
 
+  /**
+   * Señal interna que indica si el usuario es el SUPER OWNER.
+   * Se inicializa leyendo desde localStorage.
+   */
+  private _isOwner = signal(localStorage.getItem('isOwner') === 'true');
+  isOwner = computed(() => this._isOwner());
+
   // =========================================================
   // TOKEN JWT
   // =========================================================
@@ -131,36 +138,45 @@ export class AuthService {
    *  - inicia el watcher de expiración para mostrar el pop-up
    */
   setToken(token: string | null) {
-    if (token) {
-      localStorage.setItem(this.TOKEN_KEY, token);
-    } else {
-      localStorage.removeItem(this.TOKEN_KEY);
-    }
-
-    if (token) {
-      const p = this.decodeJwt<JwtPayload>(token);
-      // Se considera admin si `es_admin` viene como true o 1
-      const isAdminFromToken = p?.['es_admin'] === true || p?.['es_admin'] === 1;
-      this._isAdmin.set(isAdminFromToken);
-      localStorage.setItem('isAdmin', isAdminFromToken ? 'true' : 'false');
-
-      // Manejo de expiración del token
-      if (p?.exp) {
-        this.tokenExpirationTime = p.exp * 1000; // pasa a milisegundos
-        this.startSessionWatcher();
+      if (token) {
+        localStorage.setItem(this.TOKEN_KEY, token);
       } else {
+        localStorage.removeItem(this.TOKEN_KEY);
+      }
+
+      if (token) {
+        const p = this.decodeJwt<JwtPayload>(token);
+
+        const isAdminFromToken =
+          p?.['es_admin'] === true || p?.['es_admin'] === 1;
+
+        const isOwnerFromToken =
+          p?.['owner'] === true || p?.['owner'] === 1;
+
+        this._isAdmin.set(isAdminFromToken);
+        localStorage.setItem('isAdmin', isAdminFromToken ? 'true' : 'false');
+
+        this._isOwner.set(isOwnerFromToken);
+        localStorage.setItem('isOwner', isOwnerFromToken ? 'true' : 'false');
+
+        if (p?.exp) {
+          this.tokenExpirationTime = p.exp * 1000;
+          this.startSessionWatcher();
+        } else {
+          this.tokenExpirationTime = null;
+          this.clearSessionWatcher();
+        }
+      } else {
+        this._isAdmin.set(false);
+        this._isOwner.set(false);
+        localStorage.removeItem('isAdmin');
+        localStorage.removeItem('isOwner');
+
         this.tokenExpirationTime = null;
         this.clearSessionWatcher();
       }
-    } else {
-      // Si no hay token, reseteamos el estado de admin
-      this._isAdmin.set(false);
-      localStorage.removeItem('isAdmin');
-
-      this.tokenExpirationTime = null;
-      this.clearSessionWatcher();
     }
-  }
+
 
   // =========================================================
   // HELPERS PARA JWT
@@ -234,11 +250,13 @@ export class AuthService {
     localStorage.removeItem('userId');
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem('isAdmin');
+    localStorage.removeItem('isOwner');
 
     this._isLoggedIn.set(false);
     this._email.set(null);
     this._userId.set(null);
     this._isAdmin.set(false);
+    this._isOwner.set(false);
 
     this.tokenExpirationTime = null;
     this.clearSessionWatcher();
@@ -394,6 +412,10 @@ export class AuthService {
         const isAdmin = !!user.es_admin;
         this._isAdmin.set(isAdmin);
         localStorage.setItem('isAdmin', String(isAdmin));
+
+        const isOwner = !!user.owner;
+        this._isOwner.set(isOwner);
+        localStorage.setItem('isOwner', String(isOwner));
 
         // Actualiza email si viene en la respuesta
         if (user.correo) {

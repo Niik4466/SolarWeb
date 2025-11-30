@@ -22,7 +22,7 @@ type UsuarioUI = {
   nombre: string;
   correo: string;
   aprobado_el: string | null;
-  rol: 'admin' | 'user'; 
+  rol: 'owner' | 'admin' | 'user';
   eliminado?: boolean;
   eliminado_el?: string | null;
 };
@@ -163,11 +163,14 @@ export class UsuariosComponent implements OnInit {
   private mapToUI(u: UsuarioOut): UsuarioUI {
     const nombreCompleto = [u.nombre, u.apellido].filter(Boolean).join(' ');
 
-    // Rol: primero intenta leer "rol", si no, usa es_admin.
-    const rol = (
-      (u as any).rol ??
-      (((u as any).es_admin === true) ? 'admin' : 'user')
-    ) as 'admin' | 'user';
+    let rol: 'owner' | 'admin' | 'user';
+    if ((u as any).owner === true) {
+      rol = 'owner';
+    } else if (u.es_admin === true) {
+      rol = 'admin';
+    } else {
+      rol = 'user';
+    }
 
     return {
       id: u.id,
@@ -415,9 +418,12 @@ export class UsuariosComponent implements OnInit {
    * Abre el modal de confirmación de eliminación lógica.
    */
   abrirConfirmacion(u: UsuarioUI) {
+    if (!this.puedeEliminar(u)) {
+      this.error.set('No tienes permisos para eliminar a este usuario.');
+      return;
+    }
     this.pendiente.set(u);
   }
-
   /**
    * Cancela el diálogo de eliminación lógica.
    */
@@ -426,12 +432,39 @@ export class UsuariosComponent implements OnInit {
   }
 
   /**
-   * Abre el modal de confirmación para eliminación definitiva.
+   * Indica si el usuario autenticado puede eliminar (lógica o definitivamente)
+   * al usuario u.
+   *
+   * - Nunca se puede eliminar al OWNER.
+   * - OWNER puede eliminar admins y users (pero excluirActual ya evita que se elimine a sí mismo).
+   * - Admin normal solo puede eliminar usuarios estándar.
+   * - Usuarios estándar no pueden eliminar a nadie.
    */
-  abrirEliminarDefinitivo(u: UsuarioUI) {
-    this.pendienteDef.set(u);
+  puedeEliminar(u: UsuarioUI): boolean {
+    // Target OWNER nunca se puede eliminar
+    if (u.rol === 'owner') return false;
+
+    const esOwner = this.auth.isOwner?.() ?? false;
+    const esAdmin = this.auth.isAdmin?.() ?? false;
+
+    if (esOwner) return true;        // owner puede eliminar a cualquiera menos owner
+    if (esAdmin) return u.rol === 'user';
+
+    return false;
   }
 
+
+  /**
+   * Abre el modal de confirmación para eliminación definitiva.
+   */
+
+  abrirEliminarDefinitivo(u: UsuarioUI) {
+    if (!this.puedeEliminar(u)) {
+      this.error.set('No tienes permisos para eliminar a este usuario.');
+      return;
+    }
+    this.pendienteDef.set(u);
+  }
   /**
    * Cancela el diálogo de eliminación definitiva.
    */
@@ -446,6 +479,12 @@ export class UsuariosComponent implements OnInit {
   confirmarEliminarDefinitivo() {
     const u = this.pendienteDef();
     if (!u) return;
+
+    if (!this.puedeEliminar(u)) {
+      this.error.set('No tienes permisos para eliminar a este usuario.');
+      this.pendienteDef.set(null);
+      return;
+    }
 
     this.error.set(null);
     this.cargando.set(true);
@@ -477,6 +516,12 @@ export class UsuariosComponent implements OnInit {
   confirmarEliminacion() {
     const u = this.pendiente();
     if (!u) return;
+    
+    if (!this.puedeEliminar(u)) {
+      this.error.set('No tienes permisos para eliminar a este usuario.');
+      this.pendiente.set(null);
+      return;
+    }
 
     const adminId = this.auth.getUserId();
     if (!adminId) {
