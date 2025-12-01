@@ -20,7 +20,7 @@ export const routes: Routes = [
     component: LoginComponent,
     canActivate: [redirectGuard],
   },
-  
+  { path: 'inicio', component: Inicio},
   { path: 'login', component: LoginComponent },
   { path: 'solicitar-registro', component: SolicitarRegistroComponent },
   { path: 'forgot-password', component: ForgotPasswordComponent },
@@ -28,7 +28,7 @@ export const routes: Routes = [
   // ---------------------------
   // PÁGINAS PRIVADAS (requieren sesión)
   // ---------------------------
-  { path: 'inicio', component: Inicio, canActivate: [authGuard] },
+  
   { path: 'graficos', component: GraficosComponent, canActivate: [authGuard] },
   { path: 'exportar', component: ExportarPage, canActivate: [authGuard] },
   { path: 'solicitudes', component: SolicitudesComponent, canActivate: [authGuard, adminGuard] },

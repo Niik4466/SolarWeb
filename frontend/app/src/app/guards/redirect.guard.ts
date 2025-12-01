@@ -31,11 +31,11 @@ export const redirectGuard: CanActivateFn = () => {
 
   // Si está autenticado → a la vista principal de la app
   if (auth.isLoggedIn()) {
-    router.navigate(['/inicio']);
+    router.navigate(['/graficos']);
   } 
   // Si NO está autenticado → al login
   else {
-    router.navigate(['/login']);
+    router.navigate(['/inicio']);
   }
 
   // Siempre false para que NO cargue la ruta protegida.
