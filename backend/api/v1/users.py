@@ -211,7 +211,7 @@ def deleted_users(
     """
     Devuelve todos los usuarios eliminados. (solo admin)
     """
-    return get_deleted_users_query(db)
+    return get_deleted_users_query(db, admin)
 
 
 @router.post("/delete_user/{user_id}")
