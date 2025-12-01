@@ -54,7 +54,8 @@ def update_user_power(
 # -----------------------------------------------------------
 @router.post("/log-in")
 def user_login(data: LoginIn, db: Session = Depends(get_db)):
-    login_result = user_login_query(db, data.email, data.password)
+    email_normalized = data.email.strip().lower()
+    login_result = user_login_query(db, email_normalized, data.password)
 
     # 1. ¿falló login?
     if not login_result.get("success"):

@@ -9,6 +9,7 @@ import secrets
 import string
 from services.mail_service import send_mail_query
 from apscheduler.schedulers.background import BackgroundScheduler
+from sqlalchemy import func
 
 scheduler = BackgroundScheduler()
 scheduler.start()
@@ -38,11 +39,20 @@ def obtain_user_by_id_query(db: Session, usuario_id: int):
     """Obtiene un usuario por su ID."""
     return db.query(Usuario).filter(Usuario.id == usuario_id).first()
 
+
+
 def get_user_by_email_query(db: Session, email: str) -> Usuario | None:
     """
-    Obtiene un usuario por su correo inscrito
+    Obtiene un usuario por su correo sin importar mayúsculas/minúsculas.
     """
-    return db.query(Usuario).filter(Usuario.correo == email).first()
+    email_normalized = email.strip().lower()
+
+    return (
+        db.query(Usuario)
+        .filter(func.lower(Usuario.correo) == email_normalized)
+        .first()
+    )
+
 
 def update_user_status_query(db: Session, status: str, user: Usuario):
     """
