@@ -114,5 +114,5 @@ END$$;
 
 -- 8) Crear usuario Owner por defecto
 INSERT INTO usuario (correo, nombre, apellido, password_hash, es_admin, owner, estado, aprobado_en)
-VALUES ('SolarWebUach@gmail.com', 'SolarWeb', 'Uach', '$2b$12$OeJakuWRg.3Y3F4Wsjtj7OWyUYFZ7ZO.U103MlkSjl2Zg30UGhhoC', TRUE, TRUE, 'aprobado', now())
+VALUES ('solarwebuach@gmail.com', 'SolarWeb', 'Uach', '$2b$12$OeJakuWRg.3Y3F4Wsjtj7OWyUYFZ7ZO.U103MlkSjl2Zg30UGhhoC', TRUE, TRUE, 'aprobado', now())
 ON CONFLICT (correo) DO NOTHING;

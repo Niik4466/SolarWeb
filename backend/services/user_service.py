@@ -144,16 +144,15 @@ def create_user_query(db: Session, usuario_data: dict, justificacion: str):
 
     try:
         # Creamos el usuario
-
         hashed = hash_password(usuario_data["password"])
 
         nuevo_usuario = Usuario(
-        correo=usuario_data["correo"],
-        nombre=usuario_data["nombre"],
-        apellido=usuario_data.get("apellido"),
-        password_hash=hashed,
-        es_admin=usuario_data.get("es_admin", False),
-        estado=usuario_data.get("estado", "pendiente")
+            correo=usuario_data["correo"].strip().lower(),
+            nombre=usuario_data["nombre"],
+            apellido=usuario_data.get("apellido"),
+            password_hash=hashed,
+            es_admin=usuario_data.get("es_admin", False),
+            estado=usuario_data.get("estado", "pendiente")
         )
         db.add(nuevo_usuario)
         db.flush()
