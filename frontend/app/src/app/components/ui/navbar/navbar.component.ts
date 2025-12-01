@@ -45,6 +45,13 @@ export class NavbarComponent {
     this.closeMenu?.();           // por si estás en móvil
     this.router.navigate(['/login']);
   }
+  estaEnInicio(): boolean {
+    return this.router.url === '/inicio' || this.router.url === '/';
+  }
+
+  irALogin() {
+    this.router.navigate(['/login']);
+  }
 
 
 }
