@@ -1,261 +1,240 @@
-<!-- exportar.html-->
+<!-- exportar.html -->
+<div class="exportar-page">
+  <h1 class="title">Exportar datos</h1>
 
-<h1 class="title">Exportar datos</h1>
+  <section class="layout" [formGroup]="form">
+    <!-- =======================
+         PANEL IZQUIERDO
+    ======================== -->
+    <div class="left">
 
-<!--
-  Layout principal con reactive forms:
-  - [formGroup]="form" enlaza todo el subtree a tu FormGroup de exportar.ts.
-  - Se divide visualmente en dos paneles: left (fechas) y right (opciones).
--->
-<section class="layout" [formGroup]="form">
-  <!-- =========================================
-       Panel izquierdo: Calendario / selección
-       - Muestra uno de dos bloques según granularidad (signal())
-     ========================================= -->
-  <div class="left">
+      <!-- MODO DIARIO -->
+      <div *ngIf="granularidad() === 'diario'" class="calendar-block">
+        <div class="label">Selecciona un día</div>
 
-    <!-- ======================
-         Modo: Diario
-         - Input date + botón "Agregar".
-         - Lista de chips con las fechas seleccionadas (fechasDiarias()).
-       ====================== -->
-    <div *ngIf="granularidad() === 'diario'" class="calendar-block">
-      <label for="fechaDiaria">Selecciona un día</label>
-      <div class="row add-date">
-        <!-- [formControl] para vincular el control fechaDiaria -->
-        <input id="fechaDiaria" type="date" [formControl]="form.controls.fechaDiaria" />
-        <button type="button" class="btn" (click)="addFechaDiaria()">Agregar</button>
-      </div>
-
-      <!-- Chips de fechas agregadas -->
-      <div class="chips" *ngIf="fechasDiarias().length">
-        <div class="chips-title">Vista previa de fechas seleccionadas:</div>
-        <!-- Angular v17 '@for' con track por valor para mejor rendimiento -->
-        @for (f of fechasDiarias(); track f) {
-          <button
-            type="button"
-            class="chip"
-            (click)="removeFechaDiaria(f)"
-            aria-label="Quitar {{ f }}"
-            title="Quitar {{ f }}"
-          >
-            {{ f }} <span aria-hidden="true">×</span>
+        <div class="row add-date">
+          <input
+            id="fechaDiaria"
+            type="date"
+            [formControl]="form.controls.fechaDiaria"
+          />
+          <button type="button" class="btn" (click)="addFechaDiaria()">
+            Agregar
           </button>
-        }
+        </div>
+
+        <!-- Chips de fechas agregadas -->
+        <div class="chips" *ngIf="fechasDiarias().length">
+          <div class="chips-title">Fechas seleccionadas:</div>
+          @for (f of fechasDiarias(); track f) {
+            <button
+              type="button"
+              class="chip"
+              (click)="removeFechaDiaria(f)"
+              aria-label="Quitar {{ f }}"
+              title="Quitar {{ f }}"
+            >
+              {{ f }} <span aria-hidden="true">×</span>
+            </button>
+          }
+        </div>
       </div>
-    </div>
 
-    <!-- ======================
-         Modo: Rango
-         - Dos inputs date: inicio/fin
-         - Mensaje de validación si inicio > fin
-       ====================== -->
-    <div *ngIf="granularidad() === 'rango'" class="range-block">
+      <!-- MODO RANGO -->
+      <div *ngIf="granularidad() === 'rango'" class="range-block">
 
-      <!-- Feedback superior -->
-      <div class="selected-range" *ngIf="selectedRange">
-        <div class="range-display">
+        <!-- Resumen de rango -->
+        <div *ngIf="selectedRange" class="range-display">
           <strong>Inicio:</strong> {{ selectedRange.startDate.format('DD/MM/YYYY') }}
           &nbsp; — &nbsp;
           <strong>Fin:</strong> {{ selectedRange.endDate.format('DD/MM/YYYY') }}
         </div>
-      </div>
 
-      <!-- Calendario siempre visible -->
-      <div class="calendar-wrapper">
-        <ngx-daterangepicker-material
-          [locale]="locale"
-          [linkedCalendars]="false"
-          [showCustomRangeLabel]="false"
-          [alwaysShowCalendars]="true"
-          [autoApply]="true"
-          [singleDatePicker]="false"
-          [startDate]="selectedRange.startDate"
-          [endDate]="selectedRange.endDate"
-          (choosedDate)="onDateRangeSelected($event)"
-          class="calendar-inline"
-        ></ngx-daterangepicker-material>
-      </div>
+        <!-- Calendario -->
+        <div class="calendar-wrapper">
+          <ngx-daterangepicker-material
+            class="calendar-inline"
+            [locale]="locale"
+            [linkedCalendars]="false"
+            [showCustomRangeLabel]="false"
+            [alwaysShowCalendars]="true"
+            [autoApply]="true"
+            [singleDatePicker]="false"
+            [startDate]="selectedRange.startDate"
+            [endDate]="selectedRange.endDate"
+            (choosedDate)="onDateRangeSelected($event)"
+          ></ngx-daterangepicker-material>
+        </div>
 
-      <!-- Validación -->
-      <p class="muted" *ngIf="form.value.rangoInicio && form.value.rangoFin && form.value.rangoInicio! > form.value.rangoFin!">
-        El inicio no puede ser posterior al fin.
-      </p>
+        <!-- Validación -->
+        <p
+          class="muted"
+          *ngIf="
+            form.value.rangoInicio &&
+            form.value.rangoFin &&
+            form.value.rangoInicio! > form.value.rangoFin!
+          "
+        >
+          El inicio no puede ser posterior al fin.
+        </p>
+      </div>
     </div>
 
-  </div>
+    <!-- =======================
+         PANEL DERECHO
+    ======================== -->
+    <aside class="right">
+      <div class="panel">
+        <!-- Granularidad (diario / rango) -->
+        <div class="panel-title">Configuración de exportación</div>
+        <div class="panel-subtitle">
+          Elige si deseas exportar días individuales o un rango de fechas.
+        </div>
 
-  <!-- =========================================
-       Panel derecho: Opciones de exportación
-       - Granularidad (toggle), Variables, Formato, Incluir imágenes, CTA
-     ========================================= -->
-  <aside class="right">
-    <div class="panel">
-      <!-- Selector de granularidad con botones segmentados
-           - Usa signals (granularidad()) para estado y clases activas.
-           - aria-pressed comunica estado a tecnologías asistivas. -->
-      <div class="panel-title">Granularidad</div>
-      <div class="segmented" role="group" aria-label="Granularidad">
-        <button type="button"
-                class="seg-btn"
-                [class.active]="granularidad() === 'diario'"
-                (click)="setGranularidad('diario')"
-                aria-pressed="{{ granularidad() === 'diario' }}">
-          Diario
-        </button>
-        <button type="button"
-                class="seg-btn"
-                [class.active]="granularidad() === 'rango'"
-                (click)="setGranularidad('rango')"
-                aria-pressed="{{ granularidad() === 'rango' }}">
-          Rango
-        </button>
-      </div>
+        <div class="segmented" role="group" aria-label="Granularidad">
+          <button
+            type="button"
+            class="seg-btn"
+            [class.active]="granularidad() === 'diario'"
+            (click)="setGranularidad('diario')"
+            [attr.aria-pressed]="granularidad() === 'diario'"
+          >
+            Diario
+          </button>
+          <button
+            type="button"
+            class="seg-btn"
+            [class.active]="granularidad() === 'rango'"
+            (click)="setGranularidad('rango')"
+            [attr.aria-pressed]="granularidad() === 'rango'"
+          >
+            Rango
+          </button>
+        </div>
 
-      <!-- Variables (checkboxes independientes)
-           - Enlazadas directamente a los FormControls varGHI/varDNI/varDHI -->
-      <div class="group">
-        <div class="label">Variables</div>
-        <label class="row"><input type="checkbox" [formControl]="form.controls.varGHI" /> GHI</label>
-        <label class="row"><input type="checkbox" [formControl]="form.controls.varDNI" /> DNI</label>
-        <label class="row"><input type="checkbox" [formControl]="form.controls.varDHI" /> DHI</label>
-      </div>
-
-      <!-- Formato e Incluir imágenes
-           - Formato: radios ligados por formControlName="formato"
-           - Incluir imágenes: tiene efecto sólo en modo Rango (el componente TS lo respeta) -->
-      <div class="row between group">
-        <div>
-          <div class="label">Formato</div>
+        <!-- Variables -->
+        <div class="group">
+          <div class="label">Variables</div>
           <label class="row">
-            <input
-              type="radio"
-              name="formato"
-              formControlName="formato"
-              value="csv"
-            /> CSV
+            <input type="checkbox" [formControl]="form.controls.varGHI" />
+            GHI
           </label>
           <label class="row">
-            <input
-              type="radio"
-              name="formato"
-              formControlName="formato"
-              value="json"
-            /> JSON
+            <input type="checkbox" [formControl]="form.controls.varDNI" />
+            DNI
+          </label>
+          <label class="row">
+            <input type="checkbox" [formControl]="form.controls.varDHI" />
+            DHI
           </label>
         </div>
 
-        <div>
-          <div class="label">¿Incluir imágenes?</div>
-          <label class="row">
-            <input type="checkbox" formControlName="incluirImagenes" /> Sí
-          </label>
-          <!-- Nota: En modo 'diario' este valor se ignora según la lógica de exportar.ts -->
-        </div>
-      </div>
-      
-      <!-- ============================== -->
-      <!-- HORAS DE INICIO Y FIN          -->
-      <!-- ============================== -->
-      <div style="margin-top: 1rem">
-
-        <label class="fw-bold">Rango de horas</label>
-
-        <div class="d-flex flex-column mt-1" style="gap: 0.5rem">
-
+        <!-- Formato + incluir imágenes -->
+        <div class="row between group">
           <div>
-            <label for="startHour">Desde:</label>
-            <input
-              type="time"
-              id="startHour"
-              formControlName="startHour"
-              class="form-control"
-              style="max-width: 130px"
-            />
+            <div class="label">Formato</div>
+            <label class="row">
+              <input
+                type="radio"
+                name="formato"
+                formControlName="formato"
+                value="csv"
+              />
+              CSV
+            </label>
+            <label class="row">
+              <input
+                type="radio"
+                name="formato"
+                formControlName="formato"
+                value="json"
+              />
+              JSON
+            </label>
           </div>
 
           <div>
-            <label for="endHour">Hasta:</label>
-            <input
-              type="time"
-              id="endHour"
-              formControlName="endHour"
-              class="form-control"
-              style="max-width: 130px"
-            />
+            <div class="label">¿Incluir imágenes?</div>
+            <label class="row">
+              <input type="checkbox" formControlName="incluirImagenes" />
+              Sí
+            </label>
           </div>
-
         </div>
-      </div>
 
-      <!-- ============================== -->
-      <!-- GRANULARIDAD (IMÁGENES + DATOS) -->
-      <!-- ============================== -->
-      <div style="margin-top: 1rem">
+        <!-- Rango de horas -->
+        <div class="group">
+          <div class="label">Rango de horas</div>
+          <div class="row range-row">
+            <div class="field">
+              <label for="startHour">Desde</label>
+              <input
+                type="time"
+                id="startHour"
+                formControlName="startHour"
+              />
+            </div>
+            <div class="field">
+              <label for="endHour">Hasta</label>
+              <input
+                type="time"
+                id="endHour"
+                formControlName="endHour"
+              />
+            </div>
+          </div>
+        </div>
 
-        <label class="fw-bold">Granularidad</label>
+        <!-- Granularidad de datos/imágenes -->
+        <div class="group">
+          <div class="label">Granularidad de datos</div>
 
-        <select
-          class="form-select mt-1"
-          style="max-width: 180px"
-          formControlName="granularity">
-          <!-- Opciones (ya definidas en exportar.ts) -->
-          <option *ngFor="let g of granularityOptions"
-                  [ngValue]="g.value">
-            {{ g.label }}
-          </option>
+          <select
+            class="form-select mt-1"
+            formControlName="granularity"
+            [ngClass]="{
+              'is-invalid':
+                granularityCtrl.invalid &&
+                (granularityCtrl.touched || granularityCtrl.dirty)
+            }"
+          >
+            <option [ngValue]="null" disabled>
+              Seleccione granularidad…
+            </option>
+            <option *ngFor="let g of granularityOptions" [ngValue]="g.value">
+              {{ g.label }}
+            </option>
+          </select>
 
-        </select>
-
-      </div>
-
-
-      <!-- CTA Exportar
-           - Se habilita sólo si puedeExportar() es true (validaciones mínimas).
-           - Llama a exportar() en click. -->
-      <div class="actions">
-        <button
-          type="button"
-          class="btn primary cta"
-          (click)="exportar()"
-          [disabled]="!puedeExportar() || exporting()"
-          [attr.aria-busy]="exporting()"
-        >
-          <ng-container *ngIf="!exporting(); else exportingTpl">EXPORTAR</ng-container>
-        </button>
-
-        <!-- Botón cancelar (opcional, útil cuando hay varias fechas) -->
-        <button
-          type="button"
-          class="btn"
-          *ngIf="exporting() && progress().total > 1"
-          (click)="cancelExport()"
-        >
-          Cancelar
-        </button>
-
-        <ng-template #exportingTpl>
-          <span class="spinner" aria-hidden="true"></span>
-          <span>
-            Exportando…
-            <ng-container *ngIf="progress().total > 1">
-              {{ progress().done }} / {{ progress().total }}
-            </ng-container>
-          </span>
-        </ng-template>
-      </div>
-
-      <!-- Bloque de feedback: barra + mensaje -->
-      <div class="export-status" role="status" aria-live="polite" *ngIf="exporting() || statusMsg()">
-        <div class="bar" *ngIf="exporting()">
+          <!-- mensaje de error en rojo -->
           <div
-            class="fill"
-            [style.width.%]="(progress().total ? (100 * progress().done / progress().total) : 0)"
-          ></div>
+            class="field-error"
+            *ngIf="
+              granularityCtrl.invalid &&
+              (granularityCtrl.touched || granularityCtrl.dirty)
+            "
+          >
+            Debe seleccionar una granularidad.
+          </div>
         </div>
-        <div class="msg">{{ statusMsg() }}</div>
-      </div>
 
-    </div>
-  </aside>
-</section>
+        
+      
+        <!-- Acciones -->
+        <div class="actions">
+          <button
+            type="button"
+            class="btn primary cta"
+            (click)="exportar()"
+            [disabled]="!puedeExportar()"
+          >
+            EXPORTAR
+          </button>
+        </div>
+
+        <!-- Estado de exportación -->
+        
+      </div>
+    </aside>
+  </section>
+</div>

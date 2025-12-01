@@ -6,6 +6,7 @@ import { ExportApi } from '../../services/export.api';
 import { TransactionsApi, TransaccionCreate } from '../../services/transactions.api';
 import { of, Observable, throwError, Subscription } from 'rxjs';
 import { concatMap, tap, finalize, catchError } from 'rxjs/operators';
+import { LoadingService } from '../../services/loading.service';
 
 // ✅ Importar librería de rango de fechas
 import { NgxDaterangepickerMd, LocaleConfig } from 'ngx-daterangepicker-material';
@@ -49,10 +50,12 @@ export class ExportarPage implements OnDestroy {
   private fb = inject(FormBuilder);
   private exporter = inject(ExportApi);
   private transactionsApi = inject(TransactionsApi);
+  private loadingSrv = inject(LoadingService);
+  
+
 
   // Opciones para el select de granularidad (si lo usas en el HTML)
-  granularityOptions: { label: string; value: TimeGranularity | null }[] = [
-    { label: 'Sin agrupar', value: null },
+  granularityOptions: { label: string; value: TimeGranularity }[] = [
     { label: '1 segundo', value: '1s' },
     { label: '10 segundos', value: '10s' },
     { label: '30 segundos', value: '30s' },
@@ -86,9 +89,12 @@ export class ExportarPage implements OnDestroy {
       validators: [Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)],
     }),
 
-    // 🆕 granularidad de datos/imagenes (puede ser null = sin agrupar)
-    granularity: this.fb.control<TimeGranularity | null>(null),
+   granularity: this.fb.control<TimeGranularity | null>(null, {
+    validators: [Validators.required]
+  }),
+  
   });
+  private granularitySig = signal<TimeGranularity | null>(this.form.controls.granularity.value);
 
   // ---------------------------
   // Señales sincronizadas con el form (para reactividad)
@@ -125,6 +131,7 @@ export class ExportarPage implements OnDestroy {
     startDate: dayjs().subtract(0, 'day'),
     endDate: dayjs()
   };
+  
 
   onDateRangeSelected(event: any) {
     if (!event.startDate || !event.endDate) return;
@@ -148,6 +155,7 @@ export class ExportarPage implements OnDestroy {
 
   constructor() {
     // Sincronizar controles -> señales
+    
     this.subs.push(
       this.form.controls.varGHI.valueChanges.subscribe(v => this.varGHI.set(!!v)),
       this.form.controls.varDNI.valueChanges.subscribe(v => this.varDNI.set(!!v)),
@@ -155,13 +163,16 @@ export class ExportarPage implements OnDestroy {
 
       this.form.controls.rangoInicio.valueChanges.subscribe(v => this.rangoInicioSig.set(v ?? null)),
       this.form.controls.rangoFin.valueChanges.subscribe(v => this.rangoFinSig.set(v ?? null)),
+      this.form.controls.granularity.valueChanges.subscribe(v =>
+        this.granularitySig.set(v ?? null)
+      ),
     );
   }
 
   ngOnDestroy(): void {
     this.subs.forEach(s => s.unsubscribe());
   }
-
+  
   private getSelectedVariables(): VariableKey[] {
     const v: VariableKey[] = [];
     if (this.varGHI()) v.push('GHI');
@@ -173,6 +184,8 @@ export class ExportarPage implements OnDestroy {
   puedeExportar = computed(() => {
     const anyVar = this.getSelectedVariables().length > 0;
     if (!anyVar) return false;
+
+    
 
     const g = this.granularidad();
     if (g === 'diario') {
@@ -187,6 +200,9 @@ export class ExportarPage implements OnDestroy {
   // ===========================
   // Acciones de UI
   // ===========================
+  get granularityCtrl() {
+    return this.form.controls.granularity;
+  }
 
   setGranularidad(g: 'diario' | 'rango') {
     this.granularidad.set(g);
@@ -255,51 +271,68 @@ export class ExportarPage implements OnDestroy {
   // Acción principal: Exportar
   // ===========================
 
-  exportar() {
-    if (!this.puedeExportar() || this.exporting()) return;
-
-    const userIdString = localStorage.getItem('userId');
-    if (!userIdString) {
-      alert('Error de autenticación. No se pudo encontrar su ID de usuario.');
-      return;
-    }
-    const userId = parseInt(userIdString, 10);
-
-    const formVal = this.form.getRawValue();
-
-    const archivosPayload = this.granularidad() === 'diario'
-      ? this.fechasDiarias()
-      : [`${formVal.rangoInicio} - ${formVal.rangoFin}`];
-
-    const payload: TransaccionCreate = {
-      usuario_id: userId,
-      imagenes: !!formVal.incluirImagenes,
-      var_ghi: !!formVal.varGHI,
-      var_dni: !!formVal.varDNI,
-      var_global: !!formVal.varDHI,
-      archivos: archivosPayload
-    };
-
-    const total = this.granularidad() === 'diario'
-      ? Math.max(1, this.fechasDiarias().length)
-      : 1;
-
-    this.startProgress(total, 'Registrando transacción…');
-
-    this.runningSub = this.transactionsApi.saveTransaction(payload).pipe(
-      tap(() => {
-        this.statusMsg.set('Transacción registrada. Iniciando descarga...');
-      }),
-      concatMap(() => this.logicaDeExportacion()),
-    ).subscribe({
-      error: () => {
-        if (!this.statusMsg()?.startsWith('No se pudo')) {
-          alert('No se pudo registrar la transacción en la base de datos. La exportación ha sido cancelada.');
-        }
-        this.endProgress();
+    exportar() {
+      // 🔴 Primero: validar granularidad y disparar el error visual
+      const granularitySelected = !!this.granularitySig();
+      if (!granularitySelected) {
+        this.granularityCtrl.markAsTouched();
+        this.granularityCtrl.markAsDirty();
+        this.granularityCtrl.updateValueAndValidity();
+        return;
       }
-    });
-  }
+
+      // Luego el resto de validaciones normales
+      if (!this.puedeExportar() || this.exporting()) return;
+
+      const userIdString = localStorage.getItem('userId');
+      if (!userIdString) {
+        alert('Error de autenticación. No se pudo encontrar su ID de usuario.');
+        return;
+      }
+      const userId = parseInt(userIdString, 10);
+
+      const formVal = this.form.getRawValue();
+
+      const archivosPayload = this.granularidad() === 'diario'
+        ? this.fechasDiarias()
+        : [`${formVal.rangoInicio} - ${formVal.rangoFin}`];
+
+      const payload: TransaccionCreate = {
+        usuario_id: userId,
+        imagenes: !!formVal.incluirImagenes,
+        var_ghi: !!formVal.varGHI,
+        var_dni: !!formVal.varDNI,
+        var_global: !!formVal.varDHI,
+        archivos: archivosPayload
+      };
+
+      
+
+      // encendemos el overlay global
+      this.loadingSrv.show();
+
+      // llamamos a la lógica de exportación
+      const obs = this.logicaDeExportacion();
+
+      // guardamos la suscripción para poder cancelarla si quieres
+      this.runningSub = obs
+        .pipe(
+          // esto se ejecuta SIEMPRE (éxito o error)
+          finalize(() => {
+            this.loadingSrv.hide();
+          })
+        )
+        .subscribe({
+          next: () => {
+            // ya manejas descargas dentro de logicaDeExportacion()
+          },
+          error: (err) => {
+            console.error('Error en exportación:', err);
+          }
+        });
+    }
+
+
 
   /**
    * Contiene la lógica de exportación (diaria o rango).
@@ -313,7 +346,12 @@ export class ExportarPage implements OnDestroy {
     const formVal = this.form.getRawValue();
     const start_hour = formVal.startHour || '00:00';
     const end_hour = formVal.endHour || '23:59';
-    const granularity = formVal.granularity || null;
+    const granularity = formVal.granularity ;
+    if (!granularity) {
+      // Por seguridad, pero sin alert feo
+      this.statusMsg.set('Debe seleccionar una granularidad.');
+      return of(null);
+    }
 
     this.statusMsg.set('Preparando descarga...');
 
