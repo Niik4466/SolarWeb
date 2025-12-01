@@ -206,7 +206,7 @@ def approved_users(
 @router.get("/deleted_users")
 def deleted_users(
     db: Session = Depends(get_db),
-    #_: Usuario = Depends(get_current_admin),
+    admin: Usuario = Depends(get_current_admin),
 ):
     """
     Devuelve todos los usuarios eliminados. (solo admin)

@@ -251,7 +251,7 @@ def get_approved_users_query(db: Session):
 
     return {"total": len(data), "data": data}
 
-def get_deleted_users_query(db: Session):
+def get_deleted_users_query(db: Session, admin: Usuario):
     """
     Devuelve todos los usuarios con estado 'eliminado', junto con la fecha de eliminación registrada.
     Estructura: { total, data: [ { id, nombre, apellido, correo, estado, eliminado_en } ] }
@@ -260,6 +260,10 @@ def get_deleted_users_query(db: Session):
     usuarios_eliminados = db.query(Usuario).filter(Usuario.estado == UsuarioEstado.eliminado).all()
     if not usuarios_eliminados:
         return {"total": 0, "data": []}
+
+    # Filtrar administradores si el que elimina tiene rol administrador
+    if admin.owner == False:
+        usuarios_eliminados = [u for u in usuarios_eliminados if u.es_admin == False]
 
     ids = [u.id for u in usuarios_eliminados]
 
@@ -288,8 +292,9 @@ def get_deleted_users_query(db: Session):
             "correo": u.correo,
             "estado": u.estado.value if hasattr(u.estado, "value") else u.estado,
             "eliminado_en": (log.eliminado_en.isoformat() if log and log.eliminado_en else None),
-            "owner": u.owner,
+            "es_admin": u.es_admin,
         })
+
 
     data.sort(key=lambda x: x["eliminado_en"] or "", reverse=True)
 
