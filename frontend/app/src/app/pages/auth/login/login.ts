@@ -68,7 +68,7 @@ export class LoginComponent {
           // Caso: login exitoso y usuario APROBADO
           if (res.success && res.estado === 'aprobado') {
             const returnUrl =
-              this.route.snapshot.queryParamMap.get('returnUrl') || '/inicio';
+              this.route.snapshot.queryParamMap.get('returnUrl') || '**';
             this.router.navigateByUrl(returnUrl);
             return;
           }

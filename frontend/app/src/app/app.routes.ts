@@ -39,7 +39,7 @@ export const routes: Routes = [
   // ---------------------------
   {
     path: '**',
-    component: Inicio,
+    component: GraficosComponent,
     canActivate: [redirectGuard],
   },
 ];
