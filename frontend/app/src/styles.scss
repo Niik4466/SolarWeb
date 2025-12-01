@@ -35,3 +35,14 @@ app-root {
 main, .main, .page, .contenido {
   flex: 1 0 auto;
 }
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+/* Fondo solo cuando el body tiene esta clase */
+body.login-bg {
+  background: url('/assets/images/campus-Miraflores.png') no-repeat center center fixed;
+  background-size: cover;
+}
