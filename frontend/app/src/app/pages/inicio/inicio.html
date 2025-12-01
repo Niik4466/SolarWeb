@@ -71,11 +71,20 @@
 
   <!-- Bloque: gestión de acceso -->
   <section class="section-card">
-    <h2>Gestión de acceso y seguridad</h2>
+    <h2>¿Cómo acceder a SolarWeb?</h2>
     <p>
       El acceso a SolarWeb se realiza mediante solicitudes de registro que son
       revisadas por el equipo administrador. Solo cuentas aprobadas pueden
       ingresar y exportar datos.
     </p>
+
+    <!----> Mostrar enlace solo si NO está logeado -->
+    <p *ngIf="!auth.isLoggedIn()">
+      ¿Aún no tienes cuenta?
+      <a routerLink="/solicitar-registro" class="solicitar-link">
+        Solicítala aquí
+      </a>
+    </p>
   </section>
+
 </div>

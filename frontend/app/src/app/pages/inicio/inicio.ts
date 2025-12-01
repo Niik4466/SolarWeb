@@ -1,11 +1,15 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { CommonModule, NgIf } from '@angular/common';
+import { RouterLink } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-inicio',
-  imports: [],
+  standalone: true,
+  imports: [CommonModule, NgIf, RouterLink],
   templateUrl: './inicio.html',
-  styleUrl: './inicio.scss'
+  styleUrls: ['./inicio.scss'],
 })
 export class Inicio {
-
+  auth = inject(AuthService);
 }
