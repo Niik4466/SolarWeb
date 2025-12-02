@@ -129,3 +129,15 @@
     flex-direction: column;
   }
 }
+
+.solicitar-link {
+  color: #0069c0;
+  font-weight: 600;
+  text-decoration: none;
+  margin-left: .2rem;
+
+  &:hover {
+    text-decoration: underline;
+    color: #004a8a;
+  }
+}

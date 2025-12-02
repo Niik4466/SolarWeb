@@ -1,5 +1,5 @@
 // src/app/pages/auth/login/login.ts
-import { Component, signal, inject } from '@angular/core';
+import { Component, signal, inject, OnInit, OnDestroy } from '@angular/core';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
@@ -41,7 +41,7 @@ export class LoginComponent {
    */
   loading = signal(false);
   errorMsg = signal<string | null>(null);
-
+  
   /**
    * Handler del submit del formulario de login.
    */
@@ -68,7 +68,7 @@ export class LoginComponent {
           // Caso: login exitoso y usuario APROBADO
           if (res.success && res.estado === 'aprobado') {
             const returnUrl =
-              this.route.snapshot.queryParamMap.get('returnUrl') || '/inicio';
+              this.route.snapshot.queryParamMap.get('returnUrl') || '**';
             this.router.navigateByUrl(returnUrl);
             return;
           }
@@ -87,5 +87,12 @@ export class LoginComponent {
           this.errorMsg.set(err?.error?.detail ?? 'Error al iniciar sesión.');
         },
       });
+  }
+  ngOnInit(): void {
+    document.body.classList.add('login-bg');
+  }
+
+  ngOnDestroy(): void {
+    document.body.classList.remove('login-bg');
   }
 }
