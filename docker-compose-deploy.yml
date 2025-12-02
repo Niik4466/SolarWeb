@@ -19,8 +19,8 @@ services:
       dockerfile: Dockerfile-production
     container_name: backend-solarweb
     # SOLO PARA DEBUG
-    # ports:
-    #   - "4002:4002"
+    ports:
+      - "4002:4002"
     volumes:
       - ./.env:/app/backend/.env
       - zerotier-data:/var/lib/zerotier-one
@@ -34,7 +34,7 @@ services:
     networks:
       - red_taller_software
 
-  postgres:
+  postgres-solarweb:
     image: postgres:16
     container_name: postgres-solarweb
     restart: unless-stopped
@@ -53,7 +53,25 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
-    
+    networks:
+      - red_taller_software
+
+  migrator:
+    image: postgres:16
+    depends_on:
+      postgres-solarweb:
+        condition: service_healthy
+    volumes:
+      - ./databases/postgres/db.sql:/migrations/01_schema.sql:ro
+    networks:
+      - red_taller_software
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    entrypoint: ["/bin/sh","-c"]
+    command: >
+      "psql -h ${POSTGRES_HOST} -U ${POSTGRES_USER} -d ${POSTGRES_DB} -p ${POSTGRES_PORT} -v ON_ERROR_STOP=1 -f /migrations/01_schema.sql && echo '✅ Migraciones aplicadas' || (echo '❌ Error en migraciones' && exit 1)"
+
+
 volumes:
   postgresdb:
   zerotier-data:
