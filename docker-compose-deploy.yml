@@ -2,7 +2,7 @@ services:
   # ==========================================
   # BASE DE DATOS (Postgres)
   # ==========================================
-  database:
+  database-solarweb:
     image: postgres:16
     container_name: grupo2_solarweb_db
     restart: unless-stopped
@@ -36,16 +36,16 @@ services:
   # ==========================================
   # BACKEND (FastAPI)
   # ==========================================
-  backend:
+  backend-solarweb:
     build:
       context: ./backend
-      dockerfile: ./backend/Dockerfile-production
+      dockerfile: Dockerfile-production
     container_name: grupo2_solarweb_backend
     restart: unless-stopped
     expose:
       - "4002"
     depends_on:
-      - database
+      - database-solarweb
     networks:
       - red_taller_software
     volumes:
@@ -77,7 +77,7 @@ services:
   # ==========================================
   # FRONTEND (Angular)
   # ==========================================
-  frontend:
+  frontend-solarweb:
     build:
       context: ./frontend
       dockerfile: Dockerfile-production
