@@ -1,226 +1,260 @@
 // exportar.scss
-
-// Importa paleta de colores desde el archivo global de estilos
 @use '../../../styles/colors' as *;
 
 // ===============================
-// Variables CSS globales
-// - Escalas de espacio fluidas con clamp()
-// - Radios, ancho máximo y sombra reutilizable
+// Contenedor principal
 // ===============================
-:root {
-  --space-1: clamp(0.25rem, 0.2rem + 0.2vw, 0.5rem);
-  --space-2: clamp(0.5rem, 0.4rem + 0.4vw, 0.9rem);
-  --space-3: clamp(0.75rem, 0.6rem + 0.6vw, 1.25rem);
-  --radius-s: 8px;
-  --radius-m: 12px;
-  --radius-l: 16px;
-  --max-content: 1200px;
-  --shadow-1: 0 1px 2px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04);
+.exportar-page {
+  background: #f3f4f6; // gris suave como el resto del sitio
+  min-height: calc(100vh - 120px); // dejando espacio para navbar y footer
+  padding: 1.5rem 1rem 2rem;
+  box-sizing: border-box;
 }
 
-// Título principal de la página Exportar
+// ===============================
+// Título
+// ===============================
 .title {
   text-align: center;
-  margin: 1rem 0 2rem;
-  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: $color-azul-profundo;
 }
 
 // ===============================
-// Layout principal: grid de 2 columnas
-// - Columna izquierda: calendario
-// - Columna derecha: panel de opciones
+// Layout principal
 // ===============================
 .layout {
+  max-width: 1200px;
+  margin: 0 auto;
   display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 1.25rem;
+  grid-template-columns: minmax(0, 1.5fr) minmax(340px, 0.9fr);
+  gap: 1.5rem;
 }
 
-// Panel izquierdo: bloque de calendario / fechas
-.left {
-  background: $color-blanco-nieve;
-  border: 1px solid #e1e3ea;
-  border-radius: 12px;
-  padding: 1rem;
-}
-
-// Panel derecho: opciones de exportación
+// Tarjetas
+.left,
 .right .panel {
-  background: $color-blanco-nieve;
-  border: 1px solid #d4daeb;
-  border-radius: 16px;
-  padding: 1rem 1rem 1.25rem;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  padding: 1.25rem;
 }
 
-// Título dentro de cada panel
-.panel-title { font-weight: 700; margin-bottom: .5rem; }
+// Panel derecho fijo en desktop
+.right .panel {
+  position: sticky;
+  top: 1.25rem;
+}
 
 // ===============================
-// Segmentación de botones (granularidad)
-// - Botonera estilo pill, botones redondeados
+// Textos internos
+// ===============================
+.panel-title {
+  font-weight: 700;
+  margin-bottom: .35rem;
+  font-size: 1rem;
+  color: #111827;
+}
+
+.panel-subtitle {
+  font-size: .85rem;
+  color: #6b7280;
+  margin-bottom: .75rem;
+}
+
+.label {
+  font-weight: 600;
+  margin-bottom: .25rem;
+  font-size: .9rem;
+  color: #111827;
+}
+
+// ===============================
+// Estructura
+// ===============================
+.group {
+  margin-top: 0.9rem;
+
+  & + .group {
+    margin-top: 0.9rem;
+  }
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.between {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.calendar-block {
+  display: grid;
+  gap: .75rem;
+}
+
+.range-block {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+
+.field {
+  display: grid;
+  gap: .25rem;
+}
+
+// ===============================
+// Controles (inputs/selects)
+// ===============================
+input[type="date"],
+input[type="text"],
+input[type="time"],
+select,
+.form-select {
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  padding: .4rem .55rem;
+  font-size: .9rem;
+  outline: none;
+  background-color: #ffffff;
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+  max-width: 220px;
+}
+
+input[type="date"]:focus,
+input[type="text"]:focus,
+input[type="time"]:focus,
+select:focus,
+.form-select:focus {
+  border-color: $color-azul-profundo;
+  box-shadow: 0 0 0 1px rgba($color-azul-profundo, 0.18);
+  background-color: #f9fafb;
+}
+
+// select de granularidad un poco más ancho
+.form-select[formcontrolname="granularity"] {
+  max-width: 240px;
+}
+
+// ===============================
+// Botones de granularidad (Diario / Rango)
 // ===============================
 .segmented {
   display: inline-flex;
-  background: #cfd6ea;
+  background: #e5edf8;
   border-radius: 999px;
-  padding: .25rem;
+  padding: .2rem;
+  border: 1px solid #c4d0ea;
+}
 
-  .seg-btn {
-    border: 0;
-    background: transparent;
-    padding: .4rem .9rem;
-    border-radius: 999px;
-    cursor: pointer;
+.segmented .seg-btn {
+  border: 0;
+  background: transparent;
+  padding: .35rem .9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: .9rem;
+  color: #1f2937;
+  transition: background .15s ease, color .15s ease;
+}
 
-    &.active {
-      background: #8192c0;
-      color: #fff;
-      font-weight: 700;
-    }
-  }
+.segmented .seg-btn.active {
+  background: $color-azul-profundo;
+  color: #ffffff;
+  font-weight: 600;
 }
 
 // ===============================
-// Utilidades y bloques comunes
+// Chips de fechas
 // ===============================
-.group { margin-top: 1rem; }
-.label { font-weight: 600; margin-bottom: .25rem; }
-.row { display: flex; align-items: center; gap: .5rem; }
-.between { justify-content: space-between; align-items: flex-start; }
+.chips {
+  margin-top: .6rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
 
-.calendar-block, .range-block { display: grid; gap: .75rem; }
-.field { display: grid; gap: .25rem; }
+.chips-title {
+  font-size: .85rem;
+  color: #64748b;
+}
 
-// ===============================
-// Chips de fechas seleccionadas
-// - Botones pill con la fecha y un "×"
-// ===============================
-.chips { margin-top: .75rem; display: grid; gap: .5rem; }
-.chips-title { font-size: .9rem; color: #475569; }
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: .4rem;
-  margin: .25rem;
-  background: #d4daeb;
-  border: none;
+  gap: .25rem;
+  padding: .3rem .6rem;
   border-radius: 999px;
-  padding: .35rem .6rem;
-  font-weight: 600;
+  border: 1px solid #c4d0ea;
+  background: #edf2ff;
+  font-size: .85rem;
+  font-weight: 500;
+  color: #1f2937;
   cursor: pointer;
 }
 
 // ===============================
-// Botones generales
-// - Variante .primary para CTA principal
+// Botones
 // ===============================
 .btn {
-  border: 1px solid #c0c7dc;
-  background: #fff;
-  padding: .5rem .9rem;
-  border-radius: 8px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  padding: .45rem 1.1rem;
+  font-size: .9rem;
+  font-weight: 500;
   cursor: pointer;
-
-  &.primary {
-    background: #6c82b7;
-    color: #fff;
-    border-color: #6c82b7;
-    font-weight: 700;
-  }
-
-  &:disabled {
-    opacity: .5;
-    cursor: not-allowed;
-  }
+  background: #ffffff;
+  color: #111827;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
 
-// Texto secundario / mensajes
-.muted { color: #6b7280; font-size: .9rem; }
-
-// ===============================
-// Responsividad (pantallas <= 900px)
-// - Apila el layout
-// - Hace inputs y botones más cómodos para touch
-// - Ajusta checkboxes y radios para mejor lectura
-// ===============================
-@media (max-width: 900px) {
-  /* 1) Layout en una sola columna */
-  .layout {
-    grid-template-columns: 1fr !important;
-    gap: 1rem;
-  }
-
-  /* 2) Filas apiladas en columna */
-  .row {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-    align-items: stretch !important;
-    gap: .5rem;
-  }
-
-  /* 3) add-date ocupa todo el ancho */
-  .row.add-date {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-  }
-  .row.add-date > * { width: 100% !important; }
-
-  /* 4) range-row también en columna */
-  .row.range-row {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-  }
-  .row.range-row > * { width: 100% !important; }
-
-  /* 5) Inputs y botones adaptados a touch */
-  input[type="date"],
-  input[type="text"],
-  select { width: 100% !important; min-height: 40px; }
-  .btn.cta { width: 100% !important; }
-
-  /* 6) Panel derecho pierde sticky en móvil */
-  .right .panel { position: static !important; }
-
-  /* Ajuste de labels en móviles para mejor alineación */
-  label.row {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: .5rem;
-    grid-template-columns: unset !important;
-    width: auto !important;
-    white-space: nowrap;
-  }
-
-  /* Tamaño cómodo para inputs check/radio */
-  label.row input[type="checkbox"],
-  label.row input[type="radio"] {
-    width: 18px;
-    height: 18px;
-    flex: 0 0 auto;
-  }
-
-  /* Espaciado horizontal entre opciones */
-  .group > label.row {
-    display: inline-flex;
-    align-items: center;
-    gap: .5rem;
-    margin-right: 1rem;
-  }
-  .group > label.row:last-of-type { margin-right: 0; }
-
-  /* También aplica para labels dentro de divs (Formato / Incluir imágenes) */
-  .group > div > label.row {
-    display: inline-flex;
-    align-items: center;
-    gap: .5rem;
-    margin-right: 1rem;
-  }
-  .group > div > label.row:last-of-type { margin-right: 0; }
+.btn.primary {
+  background: $color-azul-profundo;
+  border-color: $color-azul-profundo;
+  color: #ffffff;
 }
 
+.btn:hover:not(:disabled) {
+  background: #f3f4f6;
+}
 
-/* ===== Feedback de exportación ===== */
+.btn.primary:hover:not(:disabled) {
+  background: lighten($color-azul-profundo, 3%);
+}
+
+.btn:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.actions {
+  margin-top: 1.2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+}
+
+// ===============================
+// Texto secundario
+// ===============================
+.muted {
+  color: #6b7280;
+  font-size: .85rem;
+}
+
+// ===============================
+// Feedback de exportación
+// ===============================
 .spinner {
   width: 1rem;
   height: 1rem;
@@ -232,70 +266,192 @@
   animation: spin .8s linear infinite;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
 .export-status {
   margin-top: .75rem;
+
   .bar {
     height: .5rem;
-    background: #e5e7eb; // gris claro
+    background: #e5e7eb;
     border-radius: .25rem;
     overflow: hidden;
     margin-bottom: .35rem;
-    box-shadow: inset 0 0 0 1px rgba(0,0,0,.03);
-    .fill {
-      height: 100%;
-      background: #2f7d32; // verde discreto
-      transition: width .25s ease;
-    }
   }
-  .msg { font-size: .9rem; color: #374151; }
+
+  .bar .fill {
+    height: 100%;
+    background: #16a34a;
+    transition: width .25s ease;
+  }
+
+  .msg {
+    font-size: .9rem;
+    color: #374151;
+  }
 }
 
-/* Botón con spinner: espacio y alineación coherentes */
-.actions .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: .5rem;
-}
-
-/* Calendario rango de fechas personalizado */
-
-.range-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-
+// ===============================
+// Calendario rango (ngx-daterangepicker)
+// ===============================
 .range-display {
-  font-size: 1rem;
-  background: #f7f9fb;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  font-weight: 500;
-  color: #333;
+  font-size: .85rem;
+  background: #f3f4f6;
+  padding: 0.4rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  color: #111827;
 }
 
 .calendar-wrapper {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .calendar-inline {
-  display: block;
   width: 100%;
   max-width: 620px;
-  min-width: 580px;
-  margin: auto;
 }
 
 ::ng-deep .drp-calendar {
-  border-radius: 12px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
 }
 
-::ng-deep .drp-calendar td.available:hover {
-  background-color: #1976d2;
-  color: white;
-  border-radius: 50%;
+.field-error {
+  color: #dc2626;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.form-select.is-invalid {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.18);
+  background-color: #fef2f2;
+}
+
+// ===============================
+// Responsive
+// ===============================
+@media (max-width: 900px) {
+  .exportar-page {
+    padding: 1rem .75rem 1.5rem;
+  }
+
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .right .panel {
+    position: static;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: .5rem;
+  }
+
+  input[type="date"],
+  input[type="text"],
+  input[type="time"],
+  select,
+  .form-select {
+    width: 100% !important;
+  }
+
+  .btn.primary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+
+@media (max-width: 900px) {
+  .exportar-page {
+    padding: 1rem .75rem 1.5rem;
+  }
+
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .right .panel {
+    position: static;
+    margin-top: 0.25rem;
+  }
+
+  /* Fila en columna SOLO para filas "grandes" */
+  .row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: .5rem;
+    align-items: stretch;
+  }
+
+  .row.add-date,
+  .row.range-row {
+    grid-template-columns: 1fr;
+  }
+
+  .row.add-date > *,
+  .row.range-row > * {
+    width: 100%;
+  }
+
+  /* 🔹 PERO para los checkbox / radios, volvemos a inline-flex */
+  .group > label.row,
+  .group > div > label.row {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    grid-template-columns: none;  // por si hereda
+    width: 100%;
+  }
+
+  input[type="date"],
+  input[type="text"],
+  input[type="time"],
+  select,
+  .form-select {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 40px;
+  }
+
+  .btn.primary.cta {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .segmented {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .segmented .seg-btn {
+    flex: 1 1 0;
+    text-align: center;
+  }
+
+  .calendar-wrapper {
+    justify-content: center;
+  }
+
+  .calendar-inline {
+    max-width: 100%;
+  }
 }

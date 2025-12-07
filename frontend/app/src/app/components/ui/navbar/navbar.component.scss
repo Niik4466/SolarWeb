@@ -170,6 +170,35 @@
     box-shadow: 0 0 10px rgba(255,255,255,.2);
   }
 }
+/* ======= Botón Iniciar sesión (Desktop) ======= */
+.btn-login {
+  background: rgba(255, 255, 255, .12);
+  border: 1px solid rgba(255, 255, 255, .22);
+  color: $color-blanco-nieve;
+  padding: .45rem 1.2rem;
+  border-radius: .8rem;
+  cursor: pointer;
+  font-size: .85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: 
+    background .18s ease,
+    border-color .18s ease,
+    box-shadow .18s ease,
+    transform .2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, .18);
+    border-color: rgba(255, 255, 255, .32);
+    box-shadow: 0 0 12px rgba(80, 140, 255, .45);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+    background: rgba(255, 255, 255, .22);
+  }
+}
 
 /* ===== Versión móvil ===== */
 @media (max-width: 720px) {

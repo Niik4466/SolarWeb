@@ -54,7 +54,8 @@ def update_user_power(
 # -----------------------------------------------------------
 @router.post("/log-in")
 def user_login(data: LoginIn, db: Session = Depends(get_db)):
-    login_result = user_login_query(db, data.email, data.password)
+    email_normalized = data.email.strip().lower()
+    login_result = user_login_query(db, email_normalized, data.password)
 
     # 1. ¿falló login?
     if not login_result.get("success"):
@@ -205,12 +206,12 @@ def approved_users(
 @router.get("/deleted_users")
 def deleted_users(
     db: Session = Depends(get_db),
-    #_: Usuario = Depends(get_current_admin),
+    admin: Usuario = Depends(get_current_admin),
 ):
     """
     Devuelve todos los usuarios eliminados. (solo admin)
     """
-    return get_deleted_users_query(db)
+    return get_deleted_users_query(db, admin)
 
 
 @router.post("/delete_user/{user_id}")

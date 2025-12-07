@@ -9,6 +9,7 @@ import secrets
 import string
 from services.mail_service import send_mail_query
 from apscheduler.schedulers.background import BackgroundScheduler
+from sqlalchemy import func
 
 scheduler = BackgroundScheduler()
 scheduler.start()
@@ -38,11 +39,20 @@ def obtain_user_by_id_query(db: Session, usuario_id: int):
     """Obtiene un usuario por su ID."""
     return db.query(Usuario).filter(Usuario.id == usuario_id).first()
 
+
+
 def get_user_by_email_query(db: Session, email: str) -> Usuario | None:
     """
-    Obtiene un usuario por su correo inscrito
+    Obtiene un usuario por su correo sin importar mayúsculas/minúsculas.
     """
-    return db.query(Usuario).filter(Usuario.correo == email).first()
+    email_normalized = email.strip().lower()
+
+    return (
+        db.query(Usuario)
+        .filter(func.lower(Usuario.correo) == email_normalized)
+        .first()
+    )
+
 
 def update_user_status_query(db: Session, status: str, user: Usuario):
     """
@@ -134,16 +144,15 @@ def create_user_query(db: Session, usuario_data: dict, justificacion: str):
 
     try:
         # Creamos el usuario
-
         hashed = hash_password(usuario_data["password"])
 
         nuevo_usuario = Usuario(
-        correo=usuario_data["correo"],
-        nombre=usuario_data["nombre"],
-        apellido=usuario_data.get("apellido"),
-        password_hash=hashed,
-        es_admin=usuario_data.get("es_admin", False),
-        estado=usuario_data.get("estado", "pendiente")
+            correo=usuario_data["correo"].strip().lower(),
+            nombre=usuario_data["nombre"],
+            apellido=usuario_data.get("apellido"),
+            password_hash=hashed,
+            es_admin=usuario_data.get("es_admin", False),
+            estado=usuario_data.get("estado", "pendiente")
         )
         db.add(nuevo_usuario)
         db.flush()
@@ -242,7 +251,7 @@ def get_approved_users_query(db: Session):
 
     return {"total": len(data), "data": data}
 
-def get_deleted_users_query(db: Session):
+def get_deleted_users_query(db: Session, admin: Usuario):
     """
     Devuelve todos los usuarios con estado 'eliminado', junto con la fecha de eliminación registrada.
     Estructura: { total, data: [ { id, nombre, apellido, correo, estado, eliminado_en } ] }
@@ -251,6 +260,10 @@ def get_deleted_users_query(db: Session):
     usuarios_eliminados = db.query(Usuario).filter(Usuario.estado == UsuarioEstado.eliminado).all()
     if not usuarios_eliminados:
         return {"total": 0, "data": []}
+
+    # Filtrar administradores si el que elimina tiene rol administrador
+    if admin.owner == False:
+        usuarios_eliminados = [u for u in usuarios_eliminados if u.es_admin == False]
 
     ids = [u.id for u in usuarios_eliminados]
 
@@ -279,8 +292,9 @@ def get_deleted_users_query(db: Session):
             "correo": u.correo,
             "estado": u.estado.value if hasattr(u.estado, "value") else u.estado,
             "eliminado_en": (log.eliminado_en.isoformat() if log and log.eliminado_en else None),
-            "owner": u.owner,
+            "es_admin": u.es_admin,
         })
+
 
     data.sort(key=lambda x: x["eliminado_en"] or "", reverse=True)
 
