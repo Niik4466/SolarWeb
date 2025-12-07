@@ -137,7 +137,8 @@ export class GraficosComponent {
         endHHMM:   this.END_HHMM,
         sampleEvery: this.FRAME_SAMPLE_EVERY,
         limit: this.FRAME_MAX,
-        bufferMs: this.BATCH_MS
+        bufferMs: this.BATCH_MS,
+        granularity: this.selectedRange,
       }).pipe(
         // Acumula y recorta a FRAME_MAX
         scan((acc, batch) => {

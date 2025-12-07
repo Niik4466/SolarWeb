@@ -46,8 +46,56 @@ export class ImagenesPorHoraComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['startIndex'] || changes['resetKey'] || changes['frames']) {
-      this.resetTo(this.startIndex);      // cuando llegan nuevos frames, recalcula
+    const framesChange = changes['frames'];
+    const otherChanges = changes['startIndex'] || changes['resetKey'];
+
+    // Caso 1: Inicialización o cambio forzado de inputs "estructurales"
+    if (framesChange?.firstChange || otherChanges) {
+      this.resetTo(this.startIndex);
+      this.restartAutoplayIfNeeded();
+      return;
+    }
+
+    // Caso 2: Actualización de frames (streaming). Intentamos mantener "el que estaba" (por tiempo)
+    if (framesChange && !framesChange.firstChange) {
+      const prevFrames = framesChange.previousValue as SkyFrame[] || [];
+      const newFrames  = framesChange.currentValue  as SkyFrame[] || [];
+
+      // Frame que estaba seleccionado
+      const oldIdx = this.index();
+      const oldFrame = prevFrames[oldIdx];
+      
+      let newIdx = -1;
+
+      // Buscamos ese mismo frame (por time) en la nueva lista
+      if (oldFrame) {
+        newIdx = newFrames.findIndex(f => f.time === oldFrame.time);
+      }
+
+      // Si no existe, buscamos el "más cercano" o simplemente nos quedamos en el mismo índice relativo
+      if (newIdx === -1) {
+        // Opción A: Mantener el índice (clamped)
+        // newIdx = Math.min(oldIdx, Math.max(0, newFrames.length - 1));
+        
+        // Opción B (mejor): Buscar el primer frame con tiempo >= al anterior (para no saltar atrás)
+        // Asumiendo que están ordenados.
+        if (oldFrame && newFrames.length > 0) {
+            // Conversión simple para comparar string HH:MM
+            // Ojo: si time es Date, habría que comparar valueOf
+           const val = (f: SkyFrame) => String(f.time);
+           const target = val(oldFrame);
+           newIdx = newFrames.findIndex(f => val(f) >= target);
+           if (newIdx === -1) newIdx = newFrames.length - 1; // si todos son menores, al final
+        } else {
+           newIdx = 0;
+        }
+      }
+      
+      this.index.set(Math.max(0, Math.min(newIdx, newFrames.length - 1)));
+      
+      // SOLO si cambió el frame real al hacer el reajuste, emitimos. 
+      // Pero si logramos mantener el mismo "tiempo", no hace falta emitir cambio de frame,
+      // a menos que la URL haya cambiado (ej. mejor calidad).
       this.restartAutoplayIfNeeded();
     }
   }

@@ -112,6 +112,7 @@ export class ImagesService {
     sampleEvery?: number; // 10
     limit?: number;       // 5000
     startAfter?: string;  // cursor opcional
+    granularity?: string; // '1s', '30s', '1m', '5m', '10m', '15m', '30m', '1h'
   }): Observable<SkyFrame> {
     // Cancela el stream anterior si está vivo
     this.cancelCurrentStream();
@@ -126,6 +127,7 @@ export class ImagesService {
     if (opts?.startHHMM) params.set('start_hhmm', opts.startHHMM);
     if (opts?.endHHMM)   params.set('end_hhmm',  opts.endHHMM);
     if (opts?.startAfter)params.set('start_after', opts.startAfter);
+    if (opts?.granularity) params.set('granularity', opts.granularity);
 
     const url = `${API_BASE}/images/stream?${params.toString()}`;
     const controller = new AbortController();
@@ -187,8 +189,10 @@ export class ImagesService {
     limit?: number;
     startAfter?: string;
     bufferMs?: number;     // default 100ms
+    granularity?: string;  // default '5m'
   }): Observable<SkyFrame[]> {
     const bufferMs = opts?.bufferMs ?? 100;
+    const granularity = opts?.granularity ?? '5m';
     return this.streamDayFrames(dayISO, opts).pipe(
       bufferTime(bufferMs),
       // emite solo si hay elementos en el lote
