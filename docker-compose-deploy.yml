@@ -1,26 +1,53 @@
 services:
-  frontend-solarweb-production:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile-production
-    container_name: frontend-solarweb
-    # SOLO PARA DEBUG
-    # ports:
-    #   - "3002:80"
+  # ==========================================
+  # BASE DE DATOS (Postgres)
+  # ==========================================
+  database:
+    image: postgres:16
+    container_name: grupo2_solarweb_db
     restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      PGPORT: ${POSTGRES_PORT}
     volumes:
-      - ./frontend/Caddyfile:/etc/caddy/Caddyfile
+      - db_data:/var/lib/postgresql/data/pgdata
+      - ./databases/postgres/db.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - red_taller_software
-
-  backend-solarweb:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "512M"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "{{.Name}}"
+    labels:
+      - "org.uach.group=grupo2"
+      - "org.uach.project=solarweb"
+      - "org.uach.service=database"
+      - "logging=portmail" 
+  # ==========================================
+  # BACKEND (FastAPI)
+  # ==========================================
+  backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile-production
-    container_name: backend-solarweb
-    # SOLO PARA DEBUG
-    # ports:
-    #   - "4002:4002"
+      dockerfile: ./backend/Dockerfile-production
+    container_name: grupo2_solarweb_backend
+    restart: unless-stopped
+    expose:
+      - "4002"
+    depends_on:
+      - database
+    networks:
+      - red_taller_software
     volumes:
       - ./.env:/app/backend/.env
       - zerotier-data:/var/lib/zerotier-one
@@ -31,33 +58,55 @@ services:
       - SYS_ADMIN
     devices:
       - /dev/net/tun
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "700M"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "{{.Name}}"
+    labels:
+      - "org.uach.group=grupo2"
+      - "org.uach.project=solarweb"
+      - "org.uach.service=backend"
+      - "logging=portmail" 
+  # ==========================================
+  # FRONTEND (Angular)
+  # ==========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile-production
+    container_name: grupo2_solarweb_frontend
+    restart: unless-stopped
+    expose:
+      - "3002"
     networks:
       - red_taller_software
-
-  postgres:
-    image: postgres:16
-    container_name: postgres-solarweb
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      PGDATA: /var/lib/postgresql/data/pgdata
-      PGPORT: ${POSTGRES_PORT}
-    #ports:
-      #- "5002:5002"
-    volumes:
-      - postgresdb:/var/lib/postgresql/data/pgdata
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -p ${POSTGRES_PORT}"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
+    deploy:
+      resources:
+        limits:
+          cpus: "0.30"
+          memory: "400M"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "{{.Name}}"
+    labels:
+      - "org.uach.group=grupo2"
+      - "org.uach.project=solarweb"
+      - "org.uach.service=frontend"
+      - "logging=portmail" 
     
 volumes:
-  postgresdb:
   zerotier-data:
-
+  db_data:
 
 # Configuracion de red
 networks:
