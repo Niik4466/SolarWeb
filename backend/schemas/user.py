@@ -63,12 +63,20 @@ class SolicitudOut(SolicitudBase):
 
 
 # --- TRANSACCION ---
+# --- TRANSACCION ---
+class TransaccionEstado(str, Enum):
+    pendiente = "pendiente"
+    listo = "listo"
+    error = "error"
+    expirado = "expirado"
+
 class TransaccionBase(BaseModel):
     archivos: Optional[List[str]] = None
     imagenes: bool = False
     var_ghi: bool = False
     var_dni: bool = False
     var_global: bool = False
+    estado: TransaccionEstado = TransaccionEstado.pendiente
 
 
 class TransaccionCreate(TransaccionBase):

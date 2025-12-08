@@ -1,6 +1,6 @@
 # backend/schemas/export.py
 from typing import Literal, List, Dict, Optional, Set
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, EmailStr
 from datetime import datetime
 
 class ExportBase(BaseModel):
@@ -51,4 +51,12 @@ class ExportBatchReq(ExportBase):
                 out.append(v)
         return sorted(out)  # orden estable para nombre de archivo
 
+class ExportAsyncBaseReq(BaseModel):
+    user_id: int 
+    email: EmailStr 
+    
+class ExportBatchAsyncReq(ExportBatchReq, ExportAsyncBaseReq):
+    pass
 
+class ExportRangeAsyncReq(ExportByRangeReq, ExportAsyncBaseReq):
+    pass

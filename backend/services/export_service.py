@@ -1,20 +1,186 @@
-# backend/services/export_service.py
 from schemas.export import *
 from db.influxdb import query_flux
 from core.config import settings
 import csv
 import zipfile
 import io
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from minio import Minio
-from minio.error import S3Error
 from minio.error import S3Error
 from datetime import datetime, timezone, timedelta
 from services.image_service import floor_datetime
 from services.irradiance_service import get_series_export
 from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import List, Dict, Literal, Optional, Any
+from db.postgres import get_sync_session
+from services.mail_service import send_mail_query
+from services.user_service import create_transaction_entry_query, update_transaction_status_query
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 MEASUREMENT = "radiacion_solar"
 VALID_FIELDS = {"GHI", "DNI", "DHI"}
+
+# -------------------
+# Queue & Worker
+# -------------------
+
+@dataclass
+class ExportJob:
+    user_id: int | str  # Identificador usuario (o email)
+    email: str          # Correo para notificar
+    job_type: str       # "daily_batch" | "range"
+    params: dict        # Parámetros de la función de exportación
+    transaction_id: int # ID de la transacción en DB
+
+export_queue: asyncio.Queue = asyncio.Queue()
+_executor = ThreadPoolExecutor(max_workers=1) # Para ejecutar la lógica síncrona de generación ZIP sin bloquear
+export_scheduler = AsyncIOScheduler()
+
+async def enqueue_export_job(user_id: int | str, email: str, job_type: str, params: dict, transaction_id: int):
+    job = ExportJob(user_id=user_id, email=email, job_type=job_type, params=params, transaction_id=transaction_id)
+    await export_queue.put(job)
+
+async def export_worker():
+    print("Export Worker Started")
+    if not export_scheduler.running:
+        export_scheduler.start()
+        
+    while True:
+        job: ExportJob = await export_queue.get()
+        try:
+            await process_export_job(job)
+        except Exception as e:
+            print(f"Error processing export job {job}: {e}")
+            update_transaction_status(job.transaction_id, "error")
+        finally:
+            export_queue.task_done()
+
+# -------------------
+# Async Transaccion / MinIO Helper
+# -------------------
+
+def create_transaction_entry(user_id: int, var_ghi: bool, var_dni: bool, var_global: bool, imagenes: bool) -> int:
+    """Wrapper local para compatibilidad o llama directo a user_service."""
+    db = get_sync_session()
+    try:
+        return create_transaction_entry_query(db, user_id, var_ghi, var_dni, var_global, imagenes)
+    finally:
+        db.close()
+
+def update_transaction_status(t_id: int, status: str, files: List[str] = None):
+    db = get_sync_session()
+    try:
+        update_transaction_status_query(db, t_id, status, files)
+    finally:
+        db.close()
+
+def upload_file_to_minio(bucket: str, filename: str, data: bytes):
+    client = _minio_client()
+    if not client.bucket_exists(bucket):
+        client.make_bucket(bucket)
+    
+    client.put_object(
+        bucket, filename, io.BytesIO(data), len(data),
+        content_type="application/zip"
+    )
+
+def delete_file_from_minio(bucket: str, filename: str, transaction_id: int):
+    """
+    Función callback para el scheduler.
+    Elimina archivo y actualiza estado a 'expirado'.
+    """
+    try:
+        # Delete file from minIO
+        client = _minio_client()
+        client.remove_object(bucket, filename)
+        print(f"Deleted expired export: {filename}")
+        
+        # Update DB
+        update_transaction_status(transaction_id, "expirado")
+    except Exception as e:
+        print(f"Error checking/deleting file {filename}: {e}")
+
+async def process_export_job(job: ExportJob):
+    print(f"Processing job {job.transaction_id} for {job.email}")
+    
+    # 1. Generar ZIP (Cpu bound, run in iterator)
+    # Seleccionamos la función según job_type
+    loop = asyncio.get_running_loop()
+    
+    zip_bytes = None
+    filename_zip = ""
+
+    # Determinar nombre archivo
+    now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # Limpiamos email para filename
+    safe_email = job.email.replace("@", "_at_").replace(".", "_")
+    filename_zip = f"{safe_email}_{now_str}.zip"
+    
+    bucket_export = "exportaciones"
+
+    try:
+        if job.job_type == "daily_batch":
+            # wrapper para llamar export_daily_batch_query que devuelve BytesIO
+            def run_daily():
+                buf = export_daily_batch_query(**job.params)
+                return buf.getvalue()
+            
+            zip_bytes = await loop.run_in_executor(_executor, run_daily)
+            
+        elif job.job_type == "range":
+            def run_range():
+                # export_by_range_query returns (bytes, type, name)
+                b, _, _ = export_by_range_query(**job.params)
+                # Ojo: export_by_range_query retorna (BytesIO, str, str) en la versión actual?
+                # Revisando codigo original: return buf, "application/zip", zip_name
+                if hasattr(b, "getvalue"): return b.getvalue()
+                return b
+            
+            zip_bytes = await loop.run_in_executor(_executor, run_range)
+        
+        else:
+            raise ValueError("Unknown job type")
+
+        # 2. Subir a MinIO
+        # Ejecutar bloqueo IO en thread también es buena práctica, aunque minio-py es síncrono
+        await loop.run_in_executor(_executor, upload_file_to_minio, bucket_export, filename_zip, zip_bytes)
+        
+        # 3. Actualizar DB
+        update_transaction_status(job.transaction_id, "listo", [filename_zip])
+        
+        # 4. Enviar Correo
+        # Ajustar según deploy
+        # Construir URL descarga
+        base_url = "http://localhost:8000" 
+        download_url = f"{base_url}/export/exports/{filename_zip}"
+        
+        body = f"""
+        <p>Hola,</p>
+        <p>Tu exportación solicitada está lista.</p>
+        <p><a href="{download_url}">Descargar Archivo ZIP</a></p>
+        <p>El enlace expirará en 24 horas.</p>
+        """
+        
+        send_mail_query(job.email, "Tu exportación está lista", body)
+        
+        # 5. Programar borrado
+        if export_scheduler.running:
+             run_date = datetime.now() + timedelta(hours=24)
+             export_scheduler.add_job(
+                 delete_file_from_minio, 
+                 'date', 
+                 run_date=run_date, 
+                 args=[bucket_export, filename_zip, job.transaction_id]
+             )
+        else:
+            print("Warning: Scheduler not running, file cleanup won't happen.")
+
+    except Exception as e:
+        print(f"Failed to process job: {e}")
+        update_transaction_status(job.transaction_id, "error")
+
 
 # -------------------
 # Error logico para el Exportar

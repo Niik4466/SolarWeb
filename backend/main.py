@@ -2,10 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.v1 import irradiance, images, export, users, mail, monitor
 from services.monitor_service import init_monitoring
+from services.export_service import export_worker
+import asyncio
 
 app = FastAPI(title="Solar API", version="1.0.0")
 
-# 👇 Aquí configuras CORS
+# Configuración CORS
 ALLOWED_ORIGINS = [
     "http://localhost",
     "http://localhost:8000",
@@ -36,7 +38,10 @@ app.include_router(monitor.router)
 
 @app.on_event("startup")
 async def startup_event():
+    # Iniciar worker de monitorización en background
     init_monitoring()
+    # Iniciar worker de exportación en background
+    asyncio.create_task(export_worker())
 
 @app.get("/")
 def root():

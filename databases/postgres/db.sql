@@ -67,15 +67,23 @@ CREATE TABLE IF NOT EXISTS solicitud (
 CREATE INDEX IF NOT EXISTS ix_solicitud_usuario  ON solicitud(usuario_id);
 
 -- 5) Tabla TRANSACCION (N por usuario)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'transaccion_estado') THEN
+    CREATE TYPE transaccion_estado AS ENUM ('pendiente','listo','error','expirado');
+  END IF;
+END$$;
+
 CREATE TABLE IF NOT EXISTS transaccion (
     id                 BIGSERIAL PRIMARY KEY,
     usuario_id         BIGINT     NOT NULL REFERENCES usuario(id),
     archivos           TEXT[]     NULL,
-    exportado_en  TIMESTAMP  NULL,
+    exportado_en       TIMESTAMP  NULL,
     imagenes           BOOLEAN    NOT NULL DEFAULT FALSE,
-    var_ghi                BOOLEAN    NOT NULL DEFAULT FALSE,
-    var_dni                BOOLEAN    NOT NULL DEFAULT FALSE,
-    var_global             BOOLEAN    NOT NULL DEFAULT FALSE,
+    var_ghi            BOOLEAN    NOT NULL DEFAULT FALSE,
+    var_dni            BOOLEAN    NOT NULL DEFAULT FALSE,
+    var_global         BOOLEAN    NOT NULL DEFAULT FALSE,
+    estado             transaccion_estado NOT NULL DEFAULT 'pendiente',
     creado_en          TIMESTAMP  NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS ix_transaccion_usuario ON transaccion(usuario_id);

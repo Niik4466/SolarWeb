@@ -78,6 +78,12 @@ class Solicitud(Base):
     usuario: Mapped["Usuario"] = relationship("Usuario", back_populates="solicitudes")
 
 
+class TransaccionEstado(str, enum.Enum):
+    pendiente = "pendiente"
+    listo = "listo"
+    error = "error"
+    expirado = "expirado"
+
 class Transaccion(Base):
     __tablename__ = "transaccion"
     __table_args__ = {"schema": "app"}
@@ -90,6 +96,7 @@ class Transaccion(Base):
     var_ghi: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     var_dni: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     var_global: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    estado: Mapped[TransaccionEstado] = mapped_column(Enum(TransaccionEstado), default=TransaccionEstado.pendiente, nullable=False)
     creado_en: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     usuario: Mapped["Usuario"] = relationship("Usuario", back_populates="transacciones")

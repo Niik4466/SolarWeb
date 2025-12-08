@@ -417,7 +417,8 @@ def save_transaction_query(
 ):
     """
     Guarda una nueva transacción de exportar realizada por un usuario.
-    Se deja el campo 'exportado_en' como NULL
+    Se dejan los campos estado como completado y exportado_en en la fecha actual
+    dado que se utiliza en los endpoints de exportación sincrona
     """
     try:
         # Validaciones mínimas
@@ -429,11 +430,12 @@ def save_transaction_query(
         nueva_transaccion = Transaccion(
             usuario_id=user_id,
             archivos=files,
+            estado=TransaccionEstado.completado,
             imagenes=images,
             var_ghi=var_ghi,
             var_dni=var_dni,
             var_global=var_global,
-            exportado_en=None,  # explícitamente NULL
+            exportado_en=datetime.utcnow(),
             creado_en=datetime.utcnow()
         )
 
@@ -449,6 +451,49 @@ def save_transaction_query(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error al guardar la transacción: {str(e)}")
+
+def create_transaction_entry_query(db: Session, user_id: int, var_ghi: bool, var_dni: bool, var_global: bool, imagenes: bool) -> int:
+    """Crea la transacción en estado 'pendiente' y retorna el ID."""
+    try:
+        nueva_transaccion = Transaccion(
+            usuario_id=user_id,
+            estado=TransaccionEstado.pendiente,
+            var_ghi=var_ghi,
+            var_dni=var_dni,
+            var_global=var_global,
+            imagenes=imagenes,
+            exportado_en=None,
+            creado_en=datetime.utcnow()
+        )
+        db.add(nueva_transaccion)
+        db.commit()
+        db.refresh(nueva_transaccion)
+        return nueva_transaccion.id
+    except Exception as e:
+        db.rollback()
+        raise e
+
+def update_transaction_status_query(db: Session, t_id: int, status: str, files: List[str] = None):
+    try:
+        # Recuperar transacción
+        t = db.query(Transaccion).filter(Transaccion.id == t_id).first()
+        if not t:
+            return # O lanzar error
+        
+        # Mapear string a Enum si es necesario, o usar string directo si Enum acepta
+        # status viene como "listo", "error", etc.
+        t.estado = TransaccionEstado(status) if status in TransaccionEstado._value2member_map_ else t.estado
+        
+        if files:
+             t.archivos = files
+             t.exportado_en = datetime.utcnow()
+        
+        db.add(t)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        # Log error?
+        pass
 
 def create_transaccion_query(db: Session, data: dict):
     """
