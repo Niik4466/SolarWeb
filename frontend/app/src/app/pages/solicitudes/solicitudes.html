@@ -82,15 +82,27 @@
       <h2>Confirmar otorgamiento de acceso</h2>
       <p>¿Está seguro de conceder acceso a <strong>{{ sel()?.nombre }}</strong>?</p>
 
-      <p class="label">Tipo de permiso:</p>
-      <label class="radio">
-        <input type="radio" name="role" [checked]="rol()==='admin'" (change)="rol.set('admin')" />
-        Administrador
-      </label>
-      <label class="radio">
-        <input type="radio" name="role" [checked]="rol()==='user'" (change)="rol.set('user')" />
-        Usuario estándar
-      </label>
+      <!-- Solo el superowner puede elegir el rol -->
+      <div *ngIf="auth.isOwner()">
+
+        <p class="label">Tipo de permiso:</p>
+
+        <label class="radio">
+          <input type="radio" name="role" 
+                [checked]="rol()==='admin'" 
+                (change)="rol.set('admin')" />
+          Administrador
+        </label>
+
+        <label class="radio">
+          <input type="radio" name="role" 
+                [checked]="rol()==='user'" 
+                (change)="rol.set('user')" />
+          Usuario estándar
+        </label>
+
+      </div>
+
 
       <div class="modal-actions">
         <button class="ok" (click)="confirmar()">Confirmar</button>

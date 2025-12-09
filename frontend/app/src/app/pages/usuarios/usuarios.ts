@@ -381,6 +381,8 @@ export class UsuariosComponent implements OnInit {
         if (err.status === 404) {
           this.privados_histCache.set(u.id, []);   // caché vacío
           this.errorHist.set(null);                // sin error
+          this.cargandoHist.set(false);
+          return;
         } else {
           // otros errores sí son reales (500, 0, etc.)
           this.errorHist.set('No se pudo cargar el historial de transacciones.');

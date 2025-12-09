@@ -43,10 +43,11 @@ export class SolicitudesComponent implements OnInit {
   // Inyección de servicios
   // ---------------------------------------------------------
   private users = inject(UserService);       // servicio que llama a la API de solicitudes/usuarios pendientes
-  private auth = inject(AuthService);        // servicio de autenticación (para obtener admin actual)
+  auth = inject(AuthService);        // servicio de autenticación (para obtener admin actual)
   private loadingSrv = inject(LoadingService); // overlay global de carga
   private mail = inject(MailApi);  // Servicio para enviar mails
 
+  
 
   // ---------------------------------------------------------
   // Estado general de la vista
@@ -267,10 +268,18 @@ export class SolicitudesComponent implements OnInit {
   abrirAprobar(s: Solicitud)  {
     this.sel.set(s);
     this.accion.set('aprobar');
-    this.rol.set('user');
+
+    // Si es moderador, solo puede dar rol "user"
+    if (!this.auth.isOwner()) {
+      this.rol.set('user'); // forzado
+    } else {
+      this.rol.set('user'); // valor por defecto (luego superowner puede cambiar)
+    }
+
     this.okMsg.set(null);
     this.error.set(null);
   }
+
 
   /**
    * Abre el modal para rechazar una solicitud.
@@ -316,28 +325,37 @@ export class SolicitudesComponent implements OnInit {
 
     // ---- APROBAR ----
     if (this.accion() === 'aprobar') {
-      const admin = this.rol() === 'admin';
 
-      this.users.approveUser(Number(s.id), admin).pipe(
-        catchError(err => {
-          this.error.set(`No se pudo aprobar: ${err?.status || ''} ${err?.statusText || ''}`);
-          return of(null);
-        }),
-        finalize(() => {
-          this.enviando.set(false);
-          this.loadingSrv.hide();
-        })
-      ).subscribe(resp => {
-        if (!resp) return;
-        this.okMsg.set('Usuario aprobado correctamente.');
-        this.removerFila(s.id);
+    let asignarAdmin = this.rol() === 'admin';
 
-        // ----- CORREO: pendiente -> aprobado -----
-        const email = getEstadoCuentaEmail('aprobada', {
-          nombre: s.nombre,
-          correo: s.correo,
-          rol: this.rol(), // 'admin' | 'user'
-        });
+    // Si NO es superowner, jamás puede asignar admin
+    if (!this.auth.isOwner()) {
+      asignarAdmin = false;
+    }
+
+    this.users.approveUser(Number(s.id), asignarAdmin).pipe(
+      catchError(err => {
+        this.error.set(`No se pudo aprobar: ${err?.status || ''} ${err?.statusText || ''}`);
+        return of(null);
+      }),
+      finalize(() => {
+        this.enviando.set(false);
+        this.loadingSrv.hide();
+      })
+    ).subscribe(resp => {
+      if (!resp) return;
+      this.okMsg.set('Usuario aprobado correctamente.');
+      this.removerFila(s.id);
+
+      // ----- CORREO: pendiente -> aprobado -----
+      const subject = 'Solicitud aprobada - SolarWeb';
+      const body = `Hola ${s.nombre},
+
+Tu solicitud de acceso a SolarWeb ha sido APROBADA. 
+Ya puedes ingresar con el correo: ${s.correo}.
+
+Saludos,
+Equipo SolarWeb`;
 
         this.mail.sendMail(s.correo, email.subject, email.bodyHtml).subscribe({
           error: (err) =>
