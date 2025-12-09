@@ -29,7 +29,7 @@
           <th>Correo</th>
           <th>Fecha solicitud</th>
           <th>Justificación</th>
-          <th style="width:120px;">Acciones</th>
+          
         </tr>
       </thead>
 
@@ -52,10 +52,7 @@
             <button type="button" class="btn-ver" (click)="abrirJustificacion(s)">Ver</button>
           </td>
 
-          <td class="acciones" [attr.data-label]="'Acciones'">
-            <button class="btn-rechazar" (click)="abrirRechazar(s)" title="Rechazar">✖</button>
-            <button class="btn-aprobar"  (click)="abrirAprobar(s)"  title="Aprobar">✔</button>
-          </td>
+         
         </tr>
 
         <!-- Caso 1: no hay solicitudes en el backend -->
@@ -115,15 +112,31 @@
   <!-- Modal de justificación completa -->
   <div class="modal" *ngIf="verJust()">
     <button class="close" (click)="cerrarJustificacion()" aria-label="Cerrar">×</button>
+
     <h2>Nombre: {{ justSel()?.nombre }}</h2>
     <p class="muted">Correo: {{ justSel()?.correo }}</p>
-    <h3>Justificación: </h3>
+
+    <h3>Justificación:</h3>
     <div class="just-body">
       {{ justSel()?.justificacion }}
     </div>
 
-    <div class="modal-actions">
-      <button class="ok" (click)="cerrarJustificacion()">Cerrar</button>
+    <!-- ACCIONES DE APROBAR/RECHAZAR SOLO AQUÍ -->
+    <div class="modal-actions double">
+      
+      <!-- RECHAZAR -->
+      <button class="btn-rechazar big"
+              (click)="abrirRechazarDesdeJust(justSel())">
+        ✖ Rechazar
+      </button>
+      
+      <!-- APROBAR -->
+      <button class="btn-aprobar big"
+              (click)="abrirAprobarDesdeJust(justSel())">
+        ✔ Aprobar
+      </button>
+
     </div>
   </div>
+
 </div>

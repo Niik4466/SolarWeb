@@ -113,7 +113,8 @@ export class SolicitudesComponent implements OnInit {
   verJust = signal(false);
 
   // Datos de la justificación seleccionada (nombre, correo, texto)
-  justSel = signal<{ nombre: string; correo: string; justificacion: string } | null>(null);
+  justSel = signal<Solicitud | null>(null);
+
 
   // ---------------------------------------------------------
   // Ciclo de vida
@@ -228,11 +229,7 @@ export class SolicitudesComponent implements OnInit {
    * Abre el modal de justificación para una solicitud dada.
    */
   abrirJustificacion(s: Solicitud) {
-    this.justSel.set({
-      nombre: s.nombre,
-      correo: s.correo,
-      justificacion: s.justificacion,
-    });
+    this.justSel.set(s);
     this.verJust.set(true);
   }
 
@@ -242,6 +239,18 @@ export class SolicitudesComponent implements OnInit {
   cerrarJustificacion() {
     this.verJust.set(false);
     this.justSel.set(null);
+  }
+
+  abrirAprobarDesdeJust(s: Solicitud | null) {
+    if (!s) return;
+    this.cerrarJustificacion();
+    this.abrirAprobar(s);
+  }
+
+  abrirRechazarDesdeJust(s: Solicitud | null) {
+    if (!s) return;
+    this.cerrarJustificacion();
+    this.abrirRechazar(s);
   }
 
   // ---------------------------------------------------------
