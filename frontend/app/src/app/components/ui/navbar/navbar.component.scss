@@ -200,6 +200,62 @@
   }
 }
 
+.right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Indicador de disco */
+.storage-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #ffffff;
+  opacity: 0.9;
+}
+
+.storage-label {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.storage-bar-outer {
+  width: 120px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15) inset;
+}
+
+.storage-bar-inner {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.35s ease, background-color 0.25s ease;
+}
+
+/* Colores según nivel */
+.storage-bar-inner.ok {
+  background: #2ecc71; // verde
+}
+
+.storage-bar-inner.warn {
+  background: #f1c40f; // amarillo
+}
+
+.storage-bar-inner.danger {
+  background: #e74c3c; // rojo
+}
+
+.storage-percent {
+  min-width: 2.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ===== Versión móvil ===== */
 @media (max-width: 720px) {
   .nav {
