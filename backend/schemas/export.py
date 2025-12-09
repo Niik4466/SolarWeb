@@ -3,6 +3,8 @@ from typing import Literal, List, Dict, Optional, Set
 from pydantic import BaseModel, field_validator, EmailStr
 from datetime import datetime
 
+MetricLiteral = Literal["mean", "min", "max", "sum"]  # puedes ajustar nombres
+
 class ExportBase(BaseModel):
     variables: List[Literal["GHI","DNI","DHI"]]
     format: Literal["csv","json"]
@@ -11,6 +13,7 @@ class ExportBase(BaseModel):
     start_hour: str = "00:00"
     end_hour: str = "23:59"
     granularity: Optional[str] = None
+    metrics: Optional[List[MetricLiteral]] = None   # <--- NUEVO
 
     @field_validator("start_hour", "end_hour")
     @classmethod

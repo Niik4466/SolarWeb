@@ -1,3 +1,4 @@
+# backend/api/v1/export.py
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request
 from fastapi.responses import StreamingResponse, PlainTextResponse, JSONResponse, FileResponse
 from datetime import datetime, timezone
@@ -31,6 +32,7 @@ def export_day(req: ExportDayReq):
                 start_hour=req.start_hour,
                 end_hour=req.end_hour,
                 granularity=req.granularity,
+                metrics=req.metrics,
                 )
     except ExportError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -67,6 +69,7 @@ def export_daily_batch(req: ExportBatchReq):
             start_hour=req.start_hour,
             end_hour=req.end_hour,
             granularity=req.granularity,
+            metrics=req.metrics,
             )
 
     first = req.dates[0]
@@ -97,6 +100,7 @@ def export_by_range(req: ExportByRangeReq):
             start_hour=req.start_hour,
             end_hour=req.end_hour,
             granularity=req.granularity,
+            metrics=req.metrics,
         )
     except ExportError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -15,6 +15,7 @@ import dayjs from 'dayjs';
 type Granularity = 'diario' | 'rango';
 type VariableKey = 'GHI' | 'DNI' | 'DHI';
 type FormatKey = 'csv' | 'json';
+type MetricKey = 'mean' | 'min' | 'max' | 'sum';
 
 // Opcional: para ayudar en el HTML (select de granularidad de datos/imagenes)
 type TimeGranularity =
@@ -92,7 +93,10 @@ export class ExportarPage implements OnDestroy {
    granularity: this.fb.control<TimeGranularity | null>(null, {
     validators: [Validators.required]
   }),
-  
+  metricMean: this.fb.nonNullable.control<boolean>(false),
+  metricMin:  this.fb.nonNullable.control<boolean>(false),
+  metricMax:  this.fb.nonNullable.control<boolean>(false),
+  metricSum:  this.fb.nonNullable.control<boolean>(false), 
   });
   private granularitySig = signal<TimeGranularity | null>(this.form.controls.granularity.value);
 
@@ -107,6 +111,11 @@ export class ExportarPage implements OnDestroy {
   private rangoFinSig = signal<string | null>(this.form.controls.rangoFin.value);
 
   private subs: Subscription[] = [];
+  private metricMean = signal<boolean>(this.form.controls.metricMean.value);
+  private metricMin  = signal<boolean>(this.form.controls.metricMin.value);
+  private metricMax  = signal<boolean>(this.form.controls.metricMax.value);
+  private metricSum  = signal<boolean>(this.form.controls.metricSum.value);
+
 
   // ===========================
   // Configuración de rango de fechas (ngx-daterangepicker-material)
@@ -166,6 +175,11 @@ export class ExportarPage implements OnDestroy {
       this.form.controls.granularity.valueChanges.subscribe(v =>
         this.granularitySig.set(v ?? null)
       ),
+      this.form.controls.metricMean.valueChanges.subscribe(v => this.metricMean.set(!!v)),
+      this.form.controls.metricMin.valueChanges.subscribe(v => this.metricMin.set(!!v)),
+      this.form.controls.metricMax.valueChanges.subscribe(v => this.metricMax.set(!!v)),
+      this.form.controls.metricSum.valueChanges.subscribe(v => this.metricSum.set(!!v)),
+
     );
   }
 
@@ -252,6 +266,16 @@ export class ExportarPage implements OnDestroy {
       this.runningSub.unsubscribe();
     }
     this.endProgress();
+  }
+
+  private getSelectedMetrics(): MetricKey[] {
+    const v = this.form.getRawValue();
+    const metrics: MetricKey[] = [];
+    if (v.metricMean) metrics.push('mean');
+    if (v.metricMin)  metrics.push('min');
+    if (v.metricMax)  metrics.push('max');
+    if (v.metricSum)  metrics.push('sum'); // esto es kWh/m2 en el backend
+    return metrics;
   }
 
   // ===========================
@@ -347,6 +371,7 @@ export class ExportarPage implements OnDestroy {
     const start_hour = formVal.startHour || '00:00';
     const end_hour = formVal.endHour || '23:59';
     const granularity = formVal.granularity ;
+    const metrics = this.getSelectedMetrics();
     if (!granularity) {
       // Por seguridad, pero sin alert feo
       this.statusMsg.set('Debe seleccionar una granularidad.');
@@ -374,6 +399,7 @@ export class ExportarPage implements OnDestroy {
           start_hour,
           end_hour,
           granularity,
+          metrics,
         }).pipe(
           tap((blob: Blob) => {
             const first = dias[0];
@@ -404,9 +430,16 @@ export class ExportarPage implements OnDestroy {
         start_hour,
         end_hour,
         granularity,
+        metrics,
       }).pipe(
         tap((blob: Blob) => {
-          const ext = include_images ? 'zip' : (format === 'csv' ? 'csv' : 'json');
+          const hasMetrics = metrics && metrics.length > 0;
+          const returnsZip = include_images || hasMetrics;
+
+          const ext = returnsZip
+            ? 'zip'
+            : (format === 'csv' ? 'csv' : 'json');
+
           this.downloadBlob(blob, `export_${day}.${ext}`);
           this.tickProgress(`Descargado ${day}`);
         }),
@@ -439,6 +472,7 @@ export class ExportarPage implements OnDestroy {
         start_hour,
         end_hour,
         granularity,
+        metrics,
       }).pipe(
         tap((blob: Blob) => {
           this.downloadBlob(blob, `export_${inicio}_${fin}.zip`);

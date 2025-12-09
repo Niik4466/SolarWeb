@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
 const API_BASE = 'http://127.0.0.1:8000';
+export type MetricKey = 'mean' | 'min' | 'max' | 'sum';
 
 // Opcional: tipo para las granularidades que tienes en backend
 export type TimeGranularity =
@@ -19,10 +20,10 @@ type CommonExportBody = {
   format: 'csv'|'json';
   include_images: boolean;
   images_bucket?: string;
-  // 🆕 nuevos campos
   start_hour?: string;        // "HH:MM"
   end_hour?: string;          // "HH:MM"
   granularity?: TimeGranularity | null;
+  metrics?: MetricKey[];
 };
 
 /** Día único */

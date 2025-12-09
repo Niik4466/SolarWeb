@@ -128,6 +128,33 @@
             DHI
           </label>
         </div>
+        <!-- MÉTRICAS -->
+        <div class="group">
+          <div class="label">Métricas por día</div>
+          <p class="muted">
+            Se generara en un archivo "metrics" dentro del ZIP exportado.
+          </p>
+
+          <label class="row">
+            <input type="checkbox" formControlName="metricMean" />
+            Promedio diario (mean, W/m²)
+          </label>
+
+          <label class="row">
+            <input type="checkbox" formControlName="metricMin" />
+            Mínimo diario (min, W/m²)
+          </label>
+
+          <label class="row">
+            <input type="checkbox" formControlName="metricMax" />
+            Máximo diario (max, W/m²)
+          </label>
+
+          <label class="row">
+            <input type="checkbox" formControlName="metricSum" />
+            Energía diaria (sum → kWh/m²)
+          </label>
+        </div>
 
         <!-- Formato + incluir imágenes -->
         <div class="row between group">
@@ -218,8 +245,6 @@
           </div>
         </div>
 
-        
-      
         <!-- Acciones -->
         <div class="actions">
           <button
@@ -232,8 +257,8 @@
           </button>
         </div>
 
-        <!-- Estado de exportación -->
-        
+        <!-- Aquí puedes seguir con el estado de exportación si lo muestras en la UI -->
+
       </div>
     </aside>
   </section>

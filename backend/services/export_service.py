@@ -1,10 +1,13 @@
+# backend/services/export_service.py
 from schemas.export import *
 from db.influxdb import query_flux
 from core.config import settings
 import csv
+import json
 import zipfile
 import io
 import asyncio
+import statistics
 from concurrent.futures import ThreadPoolExecutor
 from minio import Minio
 from minio.error import S3Error
@@ -21,6 +24,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 MEASUREMENT = "radiacion_solar"
 VALID_FIELDS = {"GHI", "DNI", "DHI"}
+VALID_METRICS = {"mean", "min", "max", "sum"} #sum = energía kWh/m2
+
 
 # -------------------
 # Queue & Worker
@@ -263,6 +268,104 @@ def _build_table(variables: List[str], start: str, stop: str, granularity: str |
     rows = [timeline[k] for k in sorted(timeline.keys())]
     return rows
 
+def _compute_daily_metrics(
+    day: str,
+    rows: List[Dict[str, Any]],
+    variables: List[str],
+    metrics: List[str]
+) -> Dict[str, Any]:
+    """
+    Calcula métricas por día y variable.
+    - mean: promedio aritmético de irradiancia (W/m2)
+    - min, max: mínimo y máximo de irradiancia (W/m2)
+    - sum: energía diaria aproximada en kWh/m2 (integración temporal)
+    """
+    result: Dict[str, Any] = {"day": day}
+    if not rows:
+        return result
+
+    selected = [m for m in metrics if m in VALID_METRICS]
+    if not selected:
+        return result
+
+    for var in variables:
+        vals = [r[var] for r in rows if r.get(var) is not None]
+        if not vals:
+            continue
+
+        if "mean" in selected:
+            result[f"{var}_mean"] = statistics.fmean(vals)
+        if "min" in selected:
+            result[f"{var}_min"] = min(vals)
+        if "max" in selected:
+            result[f"{var}_max"] = max(vals)
+        if "sum" in selected:
+            # aquí sum ≡ energía diaria kWh/m2
+            result[f"{var}_kwh_m2"] = _compute_energy_kwh_from_rows(rows, var)
+
+    return result
+    
+def _compute_energy_kwh_from_rows(
+    rows: List[Dict[str, Any]],
+    var: str
+) -> float:
+    """
+    Integra la irradiancia (W/m2) de 'var' a lo largo del día para obtener kWh/m2.
+    Usa regla del trapecio entre puntos consecutivos.
+    """
+    points: List[tuple[datetime, float]] = []
+
+    for r in rows:
+        if var not in r or r[var] is None:
+            continue
+        ts = r.get("time")
+        if not ts:
+            continue
+        # ts viene como "2025-04-08T12:30:00Z" -> compatible con fromisoformat tras reemplazar Z
+        try:
+            t = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        except Exception:
+            continue
+        try:
+            v = float(r[var])
+        except (TypeError, ValueError):
+            continue
+        points.append((t, v))
+
+    if len(points) < 2:
+        return 0.0
+
+    # Asegurar orden por tiempo
+    points.sort(key=lambda x: x[0])
+
+    area_ws_per_m2 = 0.0
+    for (t0, v0), (t1, v1) in zip(points, points[1:]):
+        dt = (t1 - t0).total_seconds()
+        if dt <= 0:
+            continue
+        # regla del trapecio
+        area_ws_per_m2 += (v0 + v1) / 2.0 * dt
+
+    # De W·s/m2 a kWh/m2
+    wh_per_m2 = area_ws_per_m2 / 3600.0
+    kwh_per_m2 = wh_per_m2 / 1000.0
+    return kwh_per_m2
+
+def _make_metrics_csv(metrics_rows: List[Dict[str, Any]]) -> bytes:
+    """
+    metrics_rows: lista de dicts con las columnas ya calculadas (day, GHI_mean, etc.)
+    """
+    if not metrics_rows:
+        return b""
+
+    fieldnames = list(metrics_rows[0].keys())
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=fieldnames, extrasaction="ignore")
+    writer.writeheader()
+    for row in metrics_rows:
+        writer.writerow(row)
+    return buf.getvalue().encode("utf-8")
+
 def _make_csv(rows: List[Dict], variables: List[str]) -> bytes:
     buf = io.StringIO()
     headers = ["time"] + variables
@@ -395,9 +498,18 @@ def _write_day_to_zip(
     start_hour: str = "00:00",
     end_hour: str = "23:59",
     granularity: str | None = None,
+    metrics: Optional[List[str]] = None,                 # <--- NUEVO
+    metrics_rows: Optional[List[Dict[str, Any]]] = None,
 ):
     start, stop = _day_bounds_utc(day, start_hour, end_hour)
     rows = _build_table(variables, start, stop, granularity)
+
+    # ===== NUEVO: calcular métricas de este día =====
+    if metrics and metrics_rows is not None:
+        mrow = _compute_daily_metrics(day, rows, variables, metrics)
+        if len(mrow) > 1:  # tiene algo más que 'day'
+            metrics_rows.append(mrow)
+    # ===============================================
 
     # archivo de datos por día
     if fmt == "csv":
@@ -506,48 +618,71 @@ def export_day_query(
         start_hour: str = "00:00",
         end_hour: str = "23:59",
         granularity: str | None = None,
+        metrics: Optional[List[str]] = None,   # <--- NUEVO
 ):
     """
     Lógica pura: genera los datos y devuelve (bytes, media_type, filename)
+
+    - Si NO hay imágenes ni métricas => CSV/JSON plano (como antes).
+    - Si hay imágenes o métricas      => ZIP con:
+        data/YYYY-MM-DD.(csv|json)
+        + opcionalmente metrics.(csv|json)
+        + opcionalmente images/...
     """
-    start, stop = _day_bounds_utc(date, start_hour, end_hour)
-    rows = _build_table(variables, start, stop, granularity)
+    # Caso simple: sin imágenes ni métricas
+    if not include_images and not metrics:
+        start, stop = _day_bounds_utc(date, start_hour, end_hour)
+        rows = _build_table(variables, start, stop, granularity)
 
-    # JSON plano (sin imágenes)
-    if format == "json" and not include_images:
-        filename = f"irradiance_{date}.json"
-        data_bytes = json.dumps(rows).encode("utf-8")
-        media_type = "application/json"
-        return data_bytes, media_type, filename
+        if format == "json":
+            filename = f"irradiance_{date}.json"
+            data_bytes = json.dumps(rows).encode("utf-8")
+            media_type = "application/json"
+            return data_bytes, media_type, filename
 
-    # CSV plano (sin imágenes)
-    if format == "csv" and not include_images:
+        # CSV
         data_bytes = _make_csv(rows, variables)
         filename = f"irradiance_{date}.csv"
         media_type = "text/csv"
         return data_bytes, media_type, filename
 
-    # Con imágenes: empaquetar en ZIP
-    if format == "csv":
-        data_bytes = _make_csv(rows, variables)
-        data_name = f"irradiance_{date}.csv"
-    else:
-        data_bytes = json.dumps(rows).encode("utf-8")
-        data_name = f"irradiance_{date}.json"
-
+    # Caso ZIP: porque hay imágenes o métricas
     bucket_imgs = images_bucket or "imagenes-cielo"
-    zip_buf = _zip_with_images(
-        data_bytes=data_bytes,
-        data_name=data_name,
-        day=date,
-        bucket_name=bucket_imgs,
-        start_hour=start_hour,
-        end_hour=end_hour,
-        granularity=granularity,
-    )
+    buf = io.BytesIO()
+    metrics_rows: List[Dict[str, Any]] = []
 
+    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        # Reutilizamos la misma función que para rango/batch
+        _write_day_to_zip(
+            zf=zf,
+            day=date,
+            variables=variables,
+            fmt=format,
+            include_images=include_images,
+            bucket_name=bucket_imgs,
+            start_hour=start_hour,
+            end_hour=end_hour,
+            granularity=granularity,
+            metrics=metrics,
+            metrics_rows=metrics_rows,
+        )
+
+        # Archivo de métricas (si corresponde)
+        if metrics and metrics_rows:
+            if format == "csv":
+                m_bytes = _make_metrics_csv(metrics_rows)
+                m_name = "metrics.csv"
+            else:
+                m_bytes = json.dumps(metrics_rows).encode("utf-8")
+                m_name = "metrics.json"
+
+            zf.writestr(m_name, m_bytes)
+
+    buf.seek(0)
+    zip_bytes = buf.getvalue()
     zip_name = f"export_{date}.zip"
-    return zip_buf, "application/zip", zip_name
+    return zip_bytes, "application/zip", zip_name
+
 
 def export_daily_batch_query(
         variables: List[str], 
@@ -558,10 +693,13 @@ def export_daily_batch_query(
         start_hour: str = "00:00",
         end_hour: str = "23:59",
         granularity: str | None = None,
+        metrics: Optional[List[str]] = None,
 ):
     bucket_imgs = images_bucket or "imagenes-cielo"
+    
 
     buf = io.BytesIO()
+    metrics_rows: List[Dict[str, Any]] = []  
     with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
         for day in dates:
             _write_day_to_zip(
@@ -574,9 +712,23 @@ def export_daily_batch_query(
                 start_hour=start_hour,
                 end_hour=end_hour,
                 granularity=granularity,
+                metrics=metrics,
+                metrics_rows=metrics_rows,
             )
+        # ---- NUEVO: escribir archivo de métricas si corresponde
+        if metrics and metrics_rows:
+            if format == "csv":
+                data_bytes = _make_metrics_csv(metrics_rows)
+                metrics_name = "metrics.csv"
+            else:
+                data_bytes = json.dumps(metrics_rows).encode("utf-8")
+                metrics_name = "metrics.json"
+
+            zf.writestr(metrics_name, data_bytes)
     buf.seek(0)
+
     return buf
+    
 
 def export_by_range_query(
         images_bucket: str = "imagenes-cielo",
@@ -588,6 +740,7 @@ def export_by_range_query(
         start_hour: str = "00:00",
         end_hour: str = "23:59",
         granularity: str | None = None,
+        metrics: Optional[List[str]] = None,         
 ) -> tuple[bytes, str, str]:
     """
     Genera un ZIP con archivos `data/YYYY-MM-DD.(csv|json)` para cada día en el rango
@@ -623,6 +776,8 @@ def export_by_range_query(
     bucket_imgs = images_bucket or "imagenes-cielo"
 
     buf = io.BytesIO()
+    metrics_rows: List[Dict[str, Any]] = []          # <--- NUEVO
+
     with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
         for day in days:
             # Reutiliza la función que ya sabe cómo escribir datos + imágenes por día
@@ -636,8 +791,21 @@ def export_by_range_query(
                 start_hour=start_hour,
                 end_hour=end_hour,
                 granularity=granularity,
+                metrics=metrics,             # <--- NUEVO
+                metrics_rows=metrics_rows,   # <--- NUEVO
             )
 
+        # ---- NUEVO: archivo de métricas
+        if metrics and metrics_rows:
+            if fmt == "csv":
+                data_bytes = _make_metrics_csv(metrics_rows)
+                metrics_name = "metrics.csv"
+            else:
+                data_bytes = json.dumps(metrics_rows).encode("utf-8")
+                metrics_name = "metrics.json"
+
+            zf.writestr(metrics_name, data_bytes)
+        # ---------------------------------------
     # Nombre final
     zip_name = f"export_{day_init}_{day_finish}.zip"
 
