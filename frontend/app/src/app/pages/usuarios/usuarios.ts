@@ -8,6 +8,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { startWith, debounceTime, distinctUntilChanged, finalize } from 'rxjs/operators';
 import { LoadingService } from '../../services/loading.service';
 import { HttpErrorResponse } from '@angular/common/http';
+import { getEstadoCuentaEmail } from '../../services/mail-template/estado_cuenta';
 
 // -----------------------------------------------------------
 // Tipos de apoyo para la UI
@@ -549,19 +550,15 @@ export class UsuariosComponent implements OnInit {
         this.pendiente.set(null);
 
         // ----- CORREO: aprobado -> eliminado -----
-        const subject = 'Cuenta desactivada - SolarWeb';
-        const body = `Hola ${u.nombre},
+        const email = getEstadoCuentaEmail('desactivada', {
+          nombre: u.nombre,
+          correo: u.correo,
+        });
 
-Tu cuenta en SolarWeb ha sido DESACTIVADA por un administrador.
-Ya no tendrás acceso a la plataforma con el correo: ${u.correo}.
-
-Si necesitas más información, contacta al equipo administrador.
-
-Saludos,
-Equipo SolarWeb`;
-
-        this.mail.sendMail(u.correo, subject, body).subscribe({
-          error: (err) => console.error('Error enviando correo de desactivación', err)
+        // Si tu MailApi solo acepta un body: usa el HTML como body
+        this.mail.sendMail(u.correo, email.subject, email.bodyHtml).subscribe({
+          error: (err) =>
+            console.error('Error enviando correo de desactivación', err),
         });
       },
       error: () => {
@@ -586,17 +583,14 @@ Equipo SolarWeb`;
         this.cargarAprobados();
 
         // ----- CORREO: eliminado -> aprobado (restaurado) -----
-        const subject = 'Cuenta reactivada - SolarWeb';
-        const body = `Hola ${u.nombre},
+        const email = getEstadoCuentaEmail('reactivada', {
+          nombre: u.nombre,
+          correo: u.correo,
+        });
 
-Tu cuenta en SolarWeb ha sido REACTIVADA.
-Ya puedes volver a acceder con tu correo: ${u.correo}.
-
-Saludos,
-Equipo SolarWeb`;
-
-        this.mail.sendMail(u.correo, subject, body).subscribe({
-          error: (err) => console.error('Error enviando correo de reactivación', err)
+        this.mail.sendMail(u.correo, email.subject, email.bodyHtml).subscribe({
+          error: (err) =>
+            console.error('Error enviando correo de reactivación', err),
         });
       },
       error: () => this.error.set('No se pudo restaurar el usuario'),

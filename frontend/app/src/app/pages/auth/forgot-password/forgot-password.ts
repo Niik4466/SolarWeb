@@ -64,7 +64,7 @@ export class ForgotPasswordComponent {
       next: () => {
         this.loading.set(false);
         this.successMessage.set(
-          'Si el correo existe, se ha enviado un código de recuperación.'
+          'Se ha enviado un código de recuperación.'
         );
         // Pasamos el correo al segundo formulario y cambiamos de paso
         this.recoveryForm.patchValue({ email });

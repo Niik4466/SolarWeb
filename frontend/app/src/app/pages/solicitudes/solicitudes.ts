@@ -8,6 +8,7 @@ import { MailApi } from '../../services/mail.service';
 import { FormControl, ReactiveFormsModule } from '@angular/forms'; 
 import { catchError, map, finalize, startWith, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { getEstadoCuentaEmail } from '../../services/mail-template/estado_cuenta';
 
 // -----------------------------------------------------------
 // Tipos de apoyo para la UI
@@ -332,18 +333,17 @@ export class SolicitudesComponent implements OnInit {
         this.removerFila(s.id);
 
         // ----- CORREO: pendiente -> aprobado -----
-        const subject = 'Solicitud aprobada - SolarWeb';
-        const body = `Hola ${s.nombre},
-
-Tu solicitud de acceso a SolarWeb ha sido APROBADA. 
-Ya puedes ingresar con el correo: ${s.correo}.
-
-Saludos,
-Equipo SolarWeb`;
-
-        this.mail.sendMail(s.correo, subject, body).subscribe({
-          error: (err) => console.error('Error enviando correo de aprobación', err)
+        const email = getEstadoCuentaEmail('aprobada', {
+          nombre: s.nombre,
+          correo: s.correo,
+          rol: this.rol(), // 'admin' | 'user'
         });
+
+        this.mail.sendMail(s.correo, email.subject, email.bodyHtml).subscribe({
+          error: (err) =>
+            console.error('Error enviando correo de aprobación', err),
+        });
+
       });
 
     // ---- RECHAZAR ----
@@ -373,19 +373,16 @@ Equipo SolarWeb`;
         this.removerFila(s.id);
 
         // ----- CORREO: pendiente -> rechazado -----
-        const subject = 'Solicitud rechazada - SolarWeb';
-        const body = `Hola ${s.nombre},
-
-Lamentamos informarte que tu solicitud de acceso a SolarWeb fue RECHAZADA.
-
-Si crees que se trata de un error, puedes volver a solicitar acceso o contactar al administrador.
-
-Saludos,
-Equipo SolarWeb`;
-
-        this.mail.sendMail(s.correo, subject, body).subscribe({
-          error: (err) => console.error('Error enviando correo de rechazo', err)
+        const email = getEstadoCuentaEmail('rechazada', {
+          nombre: s.nombre,
+          correo: s.correo,
         });
+
+        this.mail.sendMail(s.correo, email.subject, email.bodyHtml).subscribe({
+          error: (err) =>
+            console.error('Error enviando correo de rechazo', err),
+        });
+
       });
 
 

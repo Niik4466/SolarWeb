@@ -700,19 +700,15 @@ def generate_recovery_code_query(db: Session, email: str):
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
     try:
-        # 2. Generar código
-        # 6 dígitos numéricos
+        # 2. Generar código (6 dígitos)
         code = ''.join(secrets.choice(string.digits) for _ in range(6))
-        
+
         # 3. Hashear código
-        # Usamos la misma función de hash que para passwords, o una simple si se prefiere.
-        # Dado que es un código temporal, hash_password está bien.
         hashed_code = hash_password(code)
 
-        # 4. Guardar en BD
-        # Expiración: 15 minutos (ejemplo)
+        # 4. Guardar en BD (expira en 15 min)
         expires = datetime.utcnow() + timedelta(minutes=15)
-        
+
         recovery_entry = PasswordRecoveryCode(
             usuario_id=user.id,
             code_hash=hashed_code,
@@ -722,15 +718,84 @@ def generate_recovery_code_query(db: Session, email: str):
         db.add(recovery_entry)
         db.commit()
 
-        # 5. Enviar correo
-        subject = "Código de recuperación de contraseña"
-        body = f"""
-        <h1>Recuperación de contraseña</h1>
-        <p>Tu código de recuperación es: <strong>{code}</strong></p>
-        <p>Este código expira en 15 minutos.</p>
-        """
-        send_mail_query(email, subject, body)
+        # 5. Enviar correo (HTML bonito)
+        subject = "SolarWeb – Código de recuperación de contraseña"
+        body = f"""<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <title>Código de recuperación de contraseña</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body style="margin:0;padding:0;background-color:#0f172a;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:#0f172a;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;background-color:#0b1120;border-radius:12px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.35);">
+            
+            <!-- Header -->
+            <tr>
+              <td style="padding:24px 32px;background:linear-gradient(135deg,#0b1120,#1d4ed8);color:#e5e7eb;">
+                <h1 style="margin:0;font-size:22px;font-weight:600;">
+                  SolarWeb
+                </h1>
+                <p style="margin:4px 0 0;font-size:13px;opacity:0.85;">
+                  Universidad Austral de Chile · Campus Miraflores
+                </p>
+              </td>
+            </tr>
 
+            <!-- Cuerpo -->
+            <tr>
+              <td style="padding:24px 32px;background-color:#020617;color:#e5e7eb;">
+                <h2 style="margin:0 0 16px;font-size:20px;font-weight:600;">
+                  Recuperación de contraseña
+                </h2>
+
+                <p style="margin:0 0 12px;font-size:14px;line-height:1.6;">
+                  Has solicitado recuperar tu contraseña de acceso a <strong>SolarWeb</strong>.
+                </p>
+
+                <p style="margin:0 0 8px;font-size:14px;line-height:1.6;">
+                  Utiliza el siguiente código para completar el proceso:
+                </p>
+
+                <p style="margin:16px 0 16px;font-size:26px;font-weight:700;letter-spacing:0.25em;text-align:center;color:#fbbf24;">
+                  <span style="display:inline-block;padding:10px 18px;border-radius:999px;background-color:#111827;border:1px solid #fbbf24;">
+                    {code}
+                  </span>
+                </p>
+
+                <p style="margin:0 0 12px;font-size:13px;line-height:1.6;color:#d1d5db;">
+                  Este código es válido por <strong>15 minutos</strong>. Si no lo utilizas en ese tiempo, deberás solicitar uno nuevo.
+                </p>
+
+                <p style="margin:12px 0 0;font-size:12px;line-height:1.6;color:#9ca3af;">
+                  Si tú no solicitaste este cambio, puedes ignorar este correo. Tu contraseña actual seguirá siendo válida.
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td style="padding:16px 24px;background-color:#020617;border-top:1px solid rgba(148,163,184,.35);">
+                <p style="margin:0 0 4px;font-size:11px;color:#6b7280;">
+                  Este mensaje fue generado automáticamente por la plataforma <strong>SolarWeb</strong>.
+                </p>
+                <p style="margin:0;font-size:11px;color:#4b5563;">
+                  Si necesitas ayuda adicional, contacta al equipo administrador por los canales oficiales.
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>"""
+
+        send_mail_query(email, subject, body)
         return True
 
     except Exception as e:
