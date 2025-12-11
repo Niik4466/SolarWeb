@@ -169,3 +169,15 @@ app-imagenes-por-hora {
 .empty-state h3 {
   margin: 0 0 .5rem 0;
 }
+
+.empty-chart {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #6b7280;
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.9rem;
+}
