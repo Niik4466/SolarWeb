@@ -152,7 +152,9 @@ export class SolicitarRegistroComponent {
    *    - En error: muestra mensaje proveniente del backend o uno genérico.
    */
   enviar() {
+    // limpiamos error y modal de éxito anterior
     this.mostrandoError.set(null);
+    this.enviado.set(false);
 
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -204,5 +206,7 @@ export class SolicitarRegistroComponent {
           this.mostrandoError.set(msg);
         },
       });
+
+
   }
 }
