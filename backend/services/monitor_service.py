@@ -28,7 +28,7 @@ last_logo_dir_size: Optional[int] = None
 # Disk Alert State
 last_disk_alert_time: Optional[datetime] = None
 disk_alert_count: int = 0
-DISK_THRESHOLD_PCT = 0.0
+DISK_THRESHOLD_PCT = 90.0
 
 # --- Custom Errors ---
 
