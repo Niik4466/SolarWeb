@@ -152,35 +152,34 @@ export class SolicitarRegistroComponent {
    *    - En error: muestra mensaje proveniente del backend o uno genérico.
    */
   enviar() {
-    // limpiamos error anterior
     this.mostrandoError.set(null);
 
-    // si el formulario no cumple las validaciones, no se envía
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
-    // mostramos overlay de carga
     this.loadingSrv.show();
 
     this.registroSrv
       .solicitarRegistro(this.form.value as any)
-      .pipe(
-        // finalize se ejecuta tanto en éxito como en error → es ideal para ocultar loading
-        finalize(() => this.loadingSrv.hide())
-      )
+      .pipe(finalize(() => this.loadingSrv.hide()))
       .subscribe({
         next: () => {
-          // marcado como enviado: se puede usar para mostrar modal de éxito
           this.enviado.set(true);
-          // limpiamos campos del formulario
           this.form.reset();
         },
-        error: (err: HttpErrorResponse) => {
+        error: (err: any) => {
+          console.error('Error en solicitar registro:', err);
+
+          // 🚨 BACKEND CAÍDO
+          if (err?.backendDown) {
+            this.mostrandoError.set(err.message);
+            return;
+          }
+
           const emailCtrl = this.form.get('email');
 
-          // 👇 Caso específico: correo ya usado (estado aprobado o pendiente)
           if (
             err.status === 400 &&
             typeof err.error?.detail === 'string' &&
@@ -189,7 +188,6 @@ export class SolicitarRegistroComponent {
             const msg =
               'Ya existe una cuenta aprobada o una solicitud pendiente asociada a este correo.';
 
-            // marcar el campo email con un error propio
             emailCtrl?.setErrors({
               ...(emailCtrl.errors || {}),
               alreadyUsed: true,
@@ -199,7 +197,6 @@ export class SolicitarRegistroComponent {
             return;
           }
 
-          // 👇 resto de errores (fallback)
           const msg =
             (err.error && (err.error.detail || err.error.msg)) ||
             err.message ||
