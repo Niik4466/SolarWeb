@@ -88,6 +88,9 @@
       <a *ngIf="auth.isAdmin()" routerLink="/usuarios" routerLinkActive="active" (click)="closeMenu()">
         Usuarios
       </a>
+      <a *ngIf="auth.isAdmin()" routerLink="/monitor-pc" routerLinkActive="active" class="tab">
+        Estado del sistema
+      </a>
       <button class="logout-mobile-red" (click)="logout()">
         Cerrar sesión
       </button>
