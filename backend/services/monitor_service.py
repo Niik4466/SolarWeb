@@ -7,7 +7,7 @@ from services.mail_service import send_mail_query
 from services.user_service import get_admin_emails_query
 from db.postgres import get_sync_session
 import socket
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # --- State Definitions ---
 
@@ -24,6 +24,11 @@ LOGO_DIR_PATH = "/mnt/c/Users/usuario/Documents/GitHub/LOGO"
 pc3000_state = Status.OK
 logo_dir_state = Status.OK
 last_logo_dir_size: Optional[int] = None
+
+# Disk Alert State
+last_disk_alert_time: Optional[datetime] = None
+disk_alert_count: int = 0
+DISK_THRESHOLD_PCT = 0.0
 
 # --- Custom Errors ---
 
@@ -203,6 +208,23 @@ def _handle_invariant_directory_alert(status: Status):
     
     _send_alert(subject, body)
 
+def _handle_disk_limit_alert(used_pct: float, total_bytes: int, used_bytes: int):
+    """Alerta de espacio en disco crítico."""
+    subject = f"ALERTA: Espacio en disco crítico en {PC_NAME}"
+    total_gb = total_bytes / (1024**3)
+    used_gb = used_bytes / (1024**3)
+    
+    body = (
+        f"<p style='color:red'><strong>CRÍTICO:</strong> El uso de disco ha superado el {DISK_THRESHOLD_PCT}%.</p>"
+        f"<ul>"
+        f"<li>Uso actual: <strong>{used_pct}%</strong></li>"
+        f"<li>Espacio usado: {used_gb:.2f} GB</li>"
+        f"<li>Espacio total: {total_gb:.2f} GB</li>"
+        f"</ul>"
+        f"<p>Por favor liberar espacio en <code>/mnt/e</code>.</p>"
+    )
+    _send_alert(subject, body)
+
 # --- Job Logic ---
 
 def check_pc3000():
@@ -259,6 +281,49 @@ def check_pc3000():
         if pc3000_state == Status.OK:
             pc3000_state = Status.DEGRADED
 
+def check_disk_usage_alert():
+    """
+    Job periódico exclusivo para disco.
+    Alerta si uso > 90% con backoff exponencial.
+    """
+    global disk_alert_count, last_disk_alert_time
+    
+    try:
+        data = get_remote_disk_usage()
+        used_pct = data["used_pct"]
+        
+        if used_pct > DISK_THRESHOLD_PCT:
+            now = datetime.now()
+            should_alert = False
+            
+            if disk_alert_count == 0:
+                # Primera vez -> Alerta
+                should_alert = True
+                disk_alert_count = 1
+                last_disk_alert_time = now
+            else:
+                # Veces subsecuentes -> Chequear backoff
+                # Estrategia: 1h, 2h, 4h, 8h ...
+                # count=1 (ya enviada 1) -> wait 1h
+                # count=2 (ya enviada 2) -> wait 2h
+                hours_to_wait = 1 * (2 ** (disk_alert_count - 1))
+                if last_disk_alert_time and (now - last_disk_alert_time) >= timedelta(hours=hours_to_wait):
+                    should_alert = True
+                    disk_alert_count += 1
+                    last_disk_alert_time = now
+            
+            if should_alert:
+                _handle_disk_limit_alert(used_pct, data["total_bytes"], data["used_bytes"])
+        else:
+            # Recuperado o bajo umbral -> Reset
+            if disk_alert_count > 0:
+                print(f"Disk usage normal ({used_pct}%), resetting alert state.")
+            disk_alert_count = 0
+            last_disk_alert_time = None
+
+    except Exception as e:
+        print(f"Disk check failed: {e}")
+
 # --- Scheduler Entrypoint ---
 
 scheduler: Optional[AsyncIOScheduler] = None
@@ -271,7 +336,13 @@ def init_monitoring():
     if scheduler is None:
         scheduler = AsyncIOScheduler()
         
-        # Job recurrente cada 1 minuto
-        scheduler.add_job(check_pc3000, 'interval', seconds=30)
+        # Job recurrente cada 1 minuto (status y dir size)
+        scheduler.add_job(check_pc3000, 'interval', minutes=1)
+        
+        # Job monitoreo de disco (cada 30 min)
+        scheduler.add_job(check_disk_usage_alert, 'interval', minutes=30)
+        
+        # Ejecutar una vez al inicio para estado inicial
+        scheduler.add_job(check_disk_usage_alert, next_run_time=datetime.now())
         
         scheduler.start()
