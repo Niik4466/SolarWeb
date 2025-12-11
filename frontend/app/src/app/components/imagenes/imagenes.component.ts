@@ -29,6 +29,9 @@ export class ImagenesPorHoraComponent implements OnInit, OnDestroy, OnChanges {
   @Input() maxHeight = 300;
   @Input() ratio: string = '4 / 3';
   @Input() resetKey?: number;   // para forzar reinicio externo si quieres
+  @Input() isStreaming: boolean = false;
+
+
 
   @Output() frameChange = new EventEmitter<SkyFrame>();
 
