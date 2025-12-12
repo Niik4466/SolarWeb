@@ -2,6 +2,7 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { tap } from 'rxjs/operators';
+import {Router} from "@angular/router";
 
 /**
  * Estructura base de un payload JWT.
@@ -21,6 +22,7 @@ const API_BASE = 'http://127.0.0.1:8000';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private http = inject(HttpClient);
+  private router = inject(Router);
 
   // =========================================================
   // ESTADO BÁSICO DE AUTENTICACIÓN (LOGIN, EMAIL, USER ID)
@@ -345,9 +347,11 @@ export class AuthService {
           // y el interceptor se encargará de desloguear.
         },
       });
+    } else {
+      // Si el usuario elige NO mantener la sesión -> se cierra sesión
+      this.logout();
+      this.router.navigate(['/login']);
     }
-    // Si el usuario elige "Cancelar" o cierra el pop-up,
-    // no hacemos nada: el token expirará y el flujo 401 + interceptor sigue igual.
   }
 
   /**

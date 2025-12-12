@@ -1,5 +1,7 @@
 CREATE EXTENSION IF NOT EXISTS citext; -- sirve para que el correo no distinga mayúsculas/minúsculas
 CREATE SCHEMA IF NOT EXISTS app AUTHORIZATION CURRENT_USER; -- sirve para organizar tablas y evitar conflictos de nombres
+CREATE EXTENSION IF NOT EXISTS pgcrypto with schema public; -- sirve para funciones de hashing
+CREATE EXTENSION IF NOT EXISTS citext; -- sirve para que el correo no distinga mayúsculas/minúsculas
 SET search_path TO app, public; -- le dice a Postgres que use el esquema app por defecto
 
 -- 1) Tipos ENUM (ajusta valores si lo necesitas)
@@ -25,10 +27,11 @@ CREATE TABLE IF NOT EXISTS usuario (
   aprobado_en      TIMESTAMP
 );
 
--- Unicidad de correo global (si quieres permitir reutilizar correo tras eliminación,
--- cámbialo por un índice parcial sobre estado<>'eliminado')
-ALTER TABLE usuario
-  ADD CONSTRAINT ux_usuario_correo UNIQUE (correo);
+-- Unicidad de correo solo para usuarios no eliminados (permite reutilizar correo tras eliminación)
+-- Se crea un índice único parcial sobre estado<>'eliminado'
+CREATE UNIQUE INDEX IF NOT EXISTS ux_usuario_correo_activo
+  ON usuario(correo)
+  WHERE estado <> 'eliminado';
 
 -- Trigger para mantener actualizado_en
 CREATE OR REPLACE FUNCTION set_actualizado_en()
@@ -124,3 +127,30 @@ END$$;
 INSERT INTO usuario (correo, nombre, apellido, password_hash, es_admin, owner, estado, aprobado_en)
 VALUES ('solarwebuach@gmail.com', 'SolarWeb', 'Uach', '$2b$12$OeJakuWRg.3Y3F4Wsjtj7OWyUYFZ7ZO.U103MlkSjl2Zg30UGhhoC', TRUE, TRUE, 'aprobado', now())
 ON CONFLICT (correo) DO NOTHING;
+
+-- Crear usuario de prueba no admin
+INSERT INTO usuario (correo, nombre, apellido, password_hash, es_admin, owner, estado, aprobado_en)
+VALUES (
+  'user@test.com',
+  'Usuario',
+  'De Prueba',
+  crypt('Test123', gen_salt('bf')),
+  FALSE,
+  FALSE,
+  'aprobado',
+  now()
+)
+ON CONFLICT (correo) DO NOTHING;
+-- crear usuario de prueba admin
+INSERT INTO usuario (correo, nombre, apellido, password_hash, es_admin, owner, estado, aprobado_en)
+VALUES (
+  'admin@test.com',
+  'Admin',
+  'De Prueba',
+  crypt('Test123', gen_salt('bf')),
+  TRUE,
+  FALSE,
+  'aprobado',
+  now()
+)
+ON CONFLICT (correo) DO NOTHING; 
