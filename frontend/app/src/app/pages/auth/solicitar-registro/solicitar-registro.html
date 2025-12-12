@@ -96,7 +96,7 @@
     </p>
   </form>
 
-  <!-- Modal -->
+  <!-- ✅ Modal de éxito -->
   <div class="modal-backdrop" *ngIf="enviado()"></div>
   <div class="modal" *ngIf="enviado()">
     <h2>Solicitud enviada</h2>
@@ -106,7 +106,19 @@
     </p>
     <button type="button" routerLink="/login" class="modal-primary">Volver a inicio</button>
   </div>
+
+  <!-- 🔴 Modal de error (backend caído, correo ya usado, etc.) -->
+  <div class="modal-backdrop modal-backdrop-error" *ngIf="mostrandoError()"></div>
+  <div class="modal modal-error" *ngIf="mostrandoError() as msg">
+    <h2>Ocurrió un problema</h2>
+    <p>{{ msg }}</p>
+    <button
+      type="button"
+      class="modal-primary modal-error-btn"
+      (click)="mostrandoError.set(null)"
+    >
+      Cerrar
+    </button>
+  </div>
 </div>
-
-
 

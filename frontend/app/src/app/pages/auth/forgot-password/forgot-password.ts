@@ -63,22 +63,26 @@ export class ForgotPasswordComponent {
     this.auth.generateRecoveryCode(email).subscribe({
       next: () => {
         this.loading.set(false);
-        this.successMessage.set(
-          'Se ha enviado un código de recuperación.'
-        );
-        // Pasamos el correo al segundo formulario y cambiamos de paso
+        this.successMessage.set('Se ha enviado un código de recuperación.');
         this.recoveryForm.patchValue({ email });
         this.step.set(2);
       },
       error: (err) => {
-        console.error(err);
         this.loading.set(false);
+
+        // 🚨 BACKEND CAÍDO
+        if (err?.backendDown) {
+          this.serverError.set(err.message);
+          return;
+        }
+
         this.serverError.set(
           'Ocurrió un error al enviar el código. Intenta nuevamente.'
         );
-      },
+      }
     });
   }
+
 
   onRecoverPassword() {
     if (this.recoveryForm.invalid) return;
@@ -99,18 +103,23 @@ export class ForgotPasswordComponent {
         this.successMessage.set(
           'Contraseña actualizada correctamente. Ahora puedes iniciar sesión.'
         );
-        // Redirigimos al login (puedes agregar delay si quieres)
         this.router.navigate(['/login'], {
           queryParams: { reset: 'success' },
         });
       },
       error: (err) => {
-        console.error(err);
         this.loading.set(false);
+
+        // 🚨 BACKEND CAÍDO
+        if (err?.backendDown) {
+          this.serverError.set(err.message);
+          return;
+        }
+
         this.serverError.set(
           'Código inválido o expirado. Revisa tus datos e inténtalo de nuevo.'
         );
-      },
+      }
     });
   }
 }

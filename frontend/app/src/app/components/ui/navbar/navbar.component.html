@@ -32,38 +32,13 @@
       <a *ngIf="auth.isAdmin()" routerLink="/usuarios" routerLinkActive="active" class="tab">
         Usuarios
       </a>
+      <a *ngIf="auth.isAdmin()" routerLink="/monitor-pc" routerLinkActive="active" class="tab">
+        Estado del sistema
+      </a>
     </ng-container>
   </nav>
 <!-- Zona derecha del navbar -->
 <div class="right" *ngIf="!isLogin() ">
-
-  <!-- Indicador de uso de disco -->
-  <div
-    class="storage-indicator"
-    *ngIf="auth.isLoggedIn() && auth.isAdmin() && diskUsage()"
-  >
-    <span class="storage-label">Disco</span>
-
-    <div
-      class="storage-bar-outer"
-      role="progressbar"
-      aria-label="Uso de disco"
-      [attr.aria-valuenow]="diskUsage()?.used_pct ?? 0"
-      aria-valuemin="0"
-      aria-valuemax="100"
-    >
-      <div
-        class="storage-bar-inner"
-        [style.width.%]="diskUsage()?.used_pct || 0"
-        [ngClass]="storageLevel()"
-      ></div>
-    </div>
-
-    <span class="storage-percent">
-      {{ (diskUsage()?.used_pct || 0) | number:'1.0-0' }}%
-    </span>
-  </div>
-
   <!-- Botón cerrar sesión (desktop) -->
   <button
     *ngIf="auth.isLoggedIn(); else loginBtnTpl"
@@ -112,6 +87,9 @@
       </a>
       <a *ngIf="auth.isAdmin()" routerLink="/usuarios" routerLinkActive="active" (click)="closeMenu()">
         Usuarios
+      </a>
+      <a *ngIf="auth.isAdmin()" routerLink="/monitor-pc" routerLinkActive="active" class="tab">
+        Estado del sistema
       </a>
       <button class="logout-mobile-red" (click)="logout()">
         Cerrar sesión

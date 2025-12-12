@@ -35,6 +35,12 @@
       >
     </div>
   </div>
+  <!-- 👇 nuevo mensaje explicativo -->
+  <div class="slider-hint" *ngIf="isStreaming && frames.length > 0">
+    Cargando más imágenes… ({{ frames.length }} disponibles hasta ahora)
+  </div>
+
+
 </div>
 
 <ng-template #empty>

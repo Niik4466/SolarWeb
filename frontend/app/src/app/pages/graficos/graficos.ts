@@ -5,7 +5,7 @@ import { CommonModule } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { BehaviorSubject, forkJoin, of, combineLatest } from 'rxjs';
-import { switchMap, map, catchError, shareReplay, scan, startWith, finalize } from 'rxjs/operators';
+import { switchMap, map, catchError, shareReplay, scan, startWith, finalize, tap } from 'rxjs/operators';
 
 import { IrradianceChartComponent, Serie } from '../../components/charts/irradiance-chart/irradiance-chart';
 import { ImagenesPorHoraComponent, SkyFrame } from '../../components/imagenes/imagenes.component';
@@ -95,6 +95,10 @@ export class GraficosComponent {
   errorMsg = '';         // mensajes de error
   resetCounter = 0;      // contador para forzar reset de los gráficos
 
+  // banderas para saber cuándo termina la carga de frames y series
+  private framesDone = false;
+  private seriesDone = false;
+  private framesStreamingFinished = true;
   // =====================
   // Gestion de granularidad
   // =====================
@@ -132,6 +136,10 @@ export class GraficosComponent {
       this.errorMsg = '';
       //this.isLoading = true;
 
+      this.framesDone = false;
+      this.framesStreamingFinished = false;
+
+
       return this.images.streamDayFramesBatched(day, {
         startHHMM: this.START_HHMM,
         endHHMM:   this.END_HHMM,
@@ -149,14 +157,27 @@ export class GraficosComponent {
         }, [] as SkyFrame[]),
         // Ordena por hora para estabilidad visual
         map(list => sortFramesByTime(list)),
+        // En cuanto haya al menos 1 imagen, se marca como done
+     
+        tap(list => {
+          if (!this.framesDone && list.length > 0) {
+            this.framesDone = true;
+            this.stopLoadingIfReady();
+          }
+        }),
         catchError(err => {
           console.error('[Graficos] frames stream error', err);
           this.errorMsg = 'No fue posible cargar las imágenes (stream).';
           return of<SkyFrame[]>([]);
         }),
         finalize(() => {
-          this.isLoading = false; 
-          this.loadingSrv.hide();}),
+          if (!this.framesDone) {
+            this.framesDone = true;
+            this.stopLoadingIfReady();
+          }
+          this.framesStreamingFinished = true;
+        }),
+
         startWith([] as SkyFrame[])
       );
     }),
@@ -172,6 +193,9 @@ export class GraficosComponent {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return of<Serie[]>([]);
       const startISO = `${day}T00:00:00Z`;
       const stopISO  = `${day}T23:59:59Z`;
+
+      // Para cada nueva búsqueda, reiniciar el estado de series
+      this.seriesDone = false;
 
       return forkJoin([
         this.irrApi.getSeries({ startISO, stopISO, field: 'GHI', granularity: this.selectedRange, limit: 200000 }),
@@ -194,6 +218,11 @@ export class GraficosComponent {
             { name: 'Difusa',  data: fillMissingTimestamps(toXY(dhi) as any, start, stop, stepMs) },
           ] as Serie[];
         }),
+        // En cuanto se reciben las series, se marca como done
+        tap(() => {
+          this.seriesDone = true;
+          this.stopLoadingIfReady();
+        }),
         catchError(err => {
           console.error('[Graficos] series error', err);
           this.errorMsg = 'No fue posible cargar las series de irradiancia.';
@@ -210,6 +239,13 @@ export class GraficosComponent {
     private loadingSrv: LoadingService,
   ) {}
 
+  private stopLoadingIfReady() {
+    if (!this.isLoading) return;        // ya está apagado
+    if (this.framesDone && this.seriesDone) {
+      this.isLoading = false;
+      this.loadingSrv.hide();
+    }
+  }
   /**
    * Acción de búsqueda: valida la fecha y actualiza el stream `day$`.
    * También reinicia los gráficos (resetCounter).
@@ -225,6 +261,10 @@ export class GraficosComponent {
     this.errorMsg = '';
     this.isLoading = true;
     this.loadingSrv.show();
+
+    // Reiniciar banderas paranueva búsqueda
+    this.framesDone = false;
+    this.seriesDone = false;
 
     this.day$.next(day);     // dispara carga de datos
     this.range$.next(this.selectedRange) // se emite el rango junto con el dia
@@ -273,4 +313,10 @@ resetToToday(): void {
    * Handler para cuando cambia un frame en la UI (placeholder).
    */
   onFrameChange(_f: SkyFrame) {}
+  get isFramesStreaming(): boolean {
+    // Hay stream de imágenes activo mientras el observable no ha terminado
+    return !this.framesStreamingFinished;
+  }
+
+  
 }

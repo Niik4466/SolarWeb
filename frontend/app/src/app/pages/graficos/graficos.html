@@ -60,10 +60,21 @@
 
     <!-- Gráfico -->
     <div class="chart">
-      <app-irradiance-chart
-        [timeSeries]="true"
-        [series]="(series$ | async) ?? []">
-      </app-irradiance-chart>
+      @if (isLoading) {
+        <div class="empty-chart">
+          Cargando datos de irradiancia…
+        </div>
+      } @else if (!(seriesEmpty$ | async)) {
+        <app-irradiance-chart
+          [timeSeries]="true"
+          [series]="(series$ | async) ?? []">
+        </app-irradiance-chart>
+      } @else {
+        <div class="empty-chart">
+          <h3>Sin datos de irradiancia para este día</h3>
+          <p>Solo se encontraron imágenes del cielo.</p>
+        </div>
+      }
     </div>
 
     <!-- Galería de imágenes -->
@@ -78,6 +89,7 @@
           [showHeader]="true"
           [maxHeight]="320"
           [ratio]="'16 / 9'"
+          [isStreaming]="isFramesStreaming" 
           (frameChange)="onFrameChange($event)">
         </app-imagenes-por-hora>
 

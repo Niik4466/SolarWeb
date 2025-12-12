@@ -1,0 +1,97 @@
+<div class="contenedor">
+
+  <!-- HEADER con botón a la derecha -->
+  <div class="header-bar">
+    <h1>Estado del sistema</h1>
+
+    <button class="btn-actualizar"
+            (click)="refresh()"
+            [disabled]="loading()">
+      {{ loading() ? 'Actualizando…' : 'Actualizar estado' }}
+    </button>
+  </div>
+
+  <p class="last-update" *ngIf="lastUpdate() as ts">
+    Última actualización: {{ ts | date:'dd/MM/yyyy HH:mm:ss' }}
+  </p>
+
+  <!-- alerta general -->
+  <div class="alerta" *ngIf="hasWarning() && !loading()">
+    <strong>Atención:</strong>
+    <span *ngIf="diskUsedPct() > 80">
+      el disco del PC3000 está sobre el 80% de uso.
+    </span>
+    <span *ngIf="!dataServiceOk() || !logoServiceOk()">
+      hay servicios remotos que no están respondiendo correctamente.
+    </span>
+  </div>
+
+  <!-- tarjeta: disco -->
+    <section class="tarjeta">
+    <header class="tarjeta-header">
+        <h2>Uso del disco PC3000</h2>
+
+        <!-- 👇 pill usando el mismo % y colores -->
+        <span class="estado-pill" [ngClass]="diskLevel()">
+        {{ diskUsedPct() | number:'1.0-0' }}%
+        </span>
+    </header>
+
+    <p class="tarjeta-sub">Uso de almacenamiento</p>
+
+    <div class="barra-uso">
+        <div
+        class="barra-uso-fill"
+        [style.width.%]="diskUsedPct()"
+        [ngClass]="diskLevel()"
+        ></div>
+    </div>
+
+    <p class="tarjeta-foot">
+        {{ diskSummary() }}
+    </p>
+    </section>
+
+
+  <!-- tarjeta: servicios remotos -->
+  <section class="tarjeta">
+    <header class="tarjeta-header">
+      <h2>Servicios PC3000</h2>
+    </header>
+
+    <div class="fila-estado">
+      <div>
+        <span class="titulo-fila">Servicio de datos</span>
+        <span class="desc-fila">Comunicación de irradiancia con SolarWeb</span>
+      </div>
+      <span
+        class="badge"
+        [class.badge-ok]="dataServiceOk()"
+        [class.badge-error]="!dataServiceOk()"
+      >
+        {{ dataServiceOk() ? 'Activo' : 'Sin respuesta' }}
+      </span>
+    </div>
+
+    <div class="fila-estado">
+      <div>
+        <span class="titulo-fila">Servicio LOGO</span>
+        <span class="desc-fila">Comunicación con controlador LOGO</span>
+      </div>
+      <span
+        class="badge"
+        [class.badge-ok]="logoServiceOk()"
+        [class.badge-error]="!logoServiceOk()"
+      >
+        {{ logoServiceOk() ? 'Activo' : 'Sin respuesta' }}
+      </span>
+    </div>
+  </section>
+
+  <!-- loader inicial (opcional, igual que antes) -->
+  <div class="loader-wrapper" *ngIf="loading() && !lastUpdate()">
+    <div class="spinner"></div>
+    <p>Cargando estado del sistema…</p>
+  </div>
+</div>
+<!-- Cierre del contenedor -->
