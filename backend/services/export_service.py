@@ -38,13 +38,52 @@ class ExportJob:
     job_type: str       # "daily_batch" | "range"
     params: dict        # Parámetros de la función de exportación
     transaction_id: int # ID de la transacción en DB
+    estimated_size: int = 0
 
 export_queue: asyncio.Queue = asyncio.Queue()
+CURRENT_QUEUE_SIZE_BYTES: int = 0
 _executor = ThreadPoolExecutor(max_workers=1) # Para ejecutar la lógica síncrona de generación ZIP sin bloquear
 export_scheduler = AsyncIOScheduler()
 
 async def enqueue_export_job(user_id: int | str, email: str, job_type: str, params: dict, transaction_id: int):
-    job = ExportJob(user_id=user_id, email=email, job_type=job_type, params=params, transaction_id=transaction_id)
+    # Calcular estimado para actualizar tracking
+    est_size = 0
+    try:
+        d_count = 0
+        if job_type == "daily_batch":
+            dates = params.get("dates")
+            if dates and isinstance(dates, (list, tuple)):
+                d_count = len(dates)
+        elif job_type == "range":
+            d_init = params.get("day_init")
+            d_finish = params.get("day_finish")
+            if d_init and d_finish:
+                t0 = datetime.strptime(d_init, "%Y-%m-%d")
+                t1 = datetime.strptime(d_finish, "%Y-%m-%d")
+                d_count = (t1 - t0).days + 1
+        
+        if d_count > 0:
+            est_size = estimate_export_size(
+                days_count=d_count,
+                start_hour=params.get("start_hour", "00:00"),
+                end_hour=params.get("end_hour", "23:59"),
+                granularity=params.get("granularity"),
+                include_images=params.get("include_images", False)
+            )
+    except Exception as e:
+        print(f"Error estimating size for queue: {e}")
+
+    global CURRENT_QUEUE_SIZE_BYTES
+    CURRENT_QUEUE_SIZE_BYTES += est_size
+
+    job = ExportJob(
+        user_id=user_id, 
+        email=email, 
+        job_type=job_type, 
+        params=params, 
+        transaction_id=transaction_id,
+        estimated_size=est_size
+    )
     await export_queue.put(job)
 
 async def export_worker():
@@ -54,12 +93,19 @@ async def export_worker():
         
     while True:
         job: ExportJob = await export_queue.get()
+
         try:
             await process_export_job(job)
         except Exception as e:
             print(f"Error processing export job {job}: {e}")
             update_transaction_status(job.transaction_id, "error")
         finally:
+            # Descontar del tamaño global de la cola luego de procesar (o fallar)
+            global CURRENT_QUEUE_SIZE_BYTES
+            CURRENT_QUEUE_SIZE_BYTES -= job.estimated_size
+            if CURRENT_QUEUE_SIZE_BYTES < 0:
+                CURRENT_QUEUE_SIZE_BYTES = 0
+            
             export_queue.task_done()
 
 # -------------------
@@ -805,9 +851,163 @@ def export_by_range_query(
                 metrics_name = "metrics.json"
 
             zf.writestr(metrics_name, data_bytes)
-        # ---------------------------------------
-    # Nombre final
-    zip_name = f"export_{day_init}_{day_finish}.zip"
-
+    
     buf.seek(0)
-    return buf, "application/zip", zip_name
+    zip_bytes = buf.getvalue()
+    
+    # Filename
+    filename = f"export_range_{day_init}_{day_finish}.zip"
+    
+    return zip_bytes, "application/zip", filename
+
+# -------------------
+# Storage Limits & Estimation
+# -------------------
+
+MAX_EXPORT_STORAGE_BYTES = 100 * 1024 * 1024 * 1024  # 100 GB
+CSV_BYTES_PER_RECORD = 5  # ~300kb for 86400 records (aprox)
+IMAGE_BYTES_AVG = 40 * 1024 # 40 KB (aprox)
+
+def _parse_granularity_seconds(granularity: str | None) -> int:
+    """Parsea la granularidad (ej: '10s', '1m') a segundos. Default 1s."""
+    if not granularity:
+        return 1
+    
+    # Mapeo simple basado en lo que usa el sistema
+    mapping = {
+        "1s": 1,
+        "10s": 10,
+        "30s": 30,
+        "1m": 60,
+        "5m": 300,
+        "30m": 1800,
+        "1h": 3600
+    }
+    return mapping.get(granularity, 1)
+
+def _calculate_seconds_in_interval(start_hour: str, end_hour: str) -> int:
+    """Calcula la duración en segundos entre dos horas 'HH:MM'."""
+    try:
+        sh, sm = map(int, start_hour.split(":"))
+        eh, em = map(int, end_hour.split(":"))
+        start_secs = sh * 3600 + sm * 60
+        end_secs = eh * 3600 + em * 60
+        duration = end_secs - start_secs
+        return max(0, duration)
+    except ValueError:
+        return 86400 # fallback full day
+
+def _calculate_image_intersection_seconds(start_hour: str, end_hour: str) -> int:
+    """
+    Calcula cuántos segundos del rango solicitado caen dentro de 06:00 - 22:00.
+    """
+    # Rango imágenes fijo: 06:00 (21600s) a 22:00 (79200s)
+    IMG_START = 6 * 3600
+    IMG_END = 22 * 3600
+    
+    try:
+        # Calcular rango de imagenes solicitado
+        sh, sm = map(int, start_hour.split(":"))
+        eh, em = map(int, end_hour.split(":"))
+        req_start = sh * 3600 + sm * 60
+        req_end = eh * 3600 + em * 60
+        
+        # Intersección entre las horas pedidas y las existentes
+        inter_start = max(req_start, IMG_START)
+        inter_end = min(req_end, IMG_END)
+        
+        # Devuelve la duración de la intersección
+        return max(0, inter_end - inter_start)
+
+    except ValueError:
+        return 0
+
+def estimate_export_size(
+    days_count: int,
+    start_hour: str = "00:00",
+    end_hour: str = "23:59",
+    granularity: str | None = None,
+    include_images: bool = False
+) -> int:
+    """
+    Estima el tamaño en bytes de la exportación.
+    """
+    gran_secs = _parse_granularity_seconds(granularity)
+    
+    # 1. Estimación CSV
+    # Duración solicitada por día
+    duration_secs = _calculate_seconds_in_interval(start_hour, end_hour)
+    if duration_secs == 0: duration_secs = 86400
+    
+    rows_per_day = duration_secs / gran_secs
+    csv_size = days_count * rows_per_day * CSV_BYTES_PER_RECORD
+    
+    # 2. Estimación Imágenes
+    img_size = 0
+    if include_images:
+        # Imágenes solo entre 06:00 y 22:00.
+        # Frecuencia base de imágenes: cada 10s (aprox).
+        # Si granularidad > 10s, usamos granularidad. Si < 10s, usamos 10s (limitado por fuente).
+        img_step = max(10, gran_secs)
+        
+        valid_duration = _calculate_image_intersection_seconds(start_hour, end_hour)
+        images_per_day = valid_duration / img_step
+        img_size = days_count * images_per_day * IMAGE_BYTES_AVG
+
+    total_est = int(csv_size + img_size)
+    return total_est
+
+def get_export_bucket_usage() -> int:
+    """Calcula el uso actual del bucket de exportaciones."""
+    client = _minio_client()
+    bucket = "exportaciones"
+    total_size = 0
+    
+    if not client.bucket_exists(bucket):
+        return 0
+        
+    # List objects recursive
+    # Nota: esto puede ser lento si hay millones de objetos.
+    try:
+        objects = client.list_objects(bucket, recursive=True)
+        for obj in objects:
+            total_size += obj.size
+    except Exception as e:
+        print(f"Error checking bucket size: {e}")
+        return 0
+        
+    return total_size
+
+def validate_export_feasibility(
+    days_count: int,
+    start_hour: str = "00:00",
+    end_hour: str = "23:59",
+    granularity: str | None = None,
+    include_images: bool = False
+):
+    """
+    Verifica si hay espacio suficiente. Lanza ExportError si no.
+    """
+    estimated = estimate_export_size(
+        days_count, start_hour, end_hour, granularity, include_images
+    )
+    
+    current_usage = get_export_bucket_usage()
+    # Usar variable global trackeada
+    queue_usage = CURRENT_QUEUE_SIZE_BYTES
+    
+    if estimated > 600 * 1024 * 1024:
+        raise ExportError(
+            f"La exportación estimada ({estimated/1024**3:.2f}GB) excede el límite máximo de 600MB."
+        )
+    
+
+    if current_usage + estimated + queue_usage > MAX_EXPORT_STORAGE_BYTES:
+        raise ExportError(
+            f"Límite de almacenamiento de exportaciones excedido (100GB). "
+            f"Uso actual: {current_usage/1024**3:.2f}GB. "
+            f"Cola pendiente: {queue_usage/1024**3:.2f}GB. "
+            f"Estimado nueva exportación: {estimated/1024**3:.2f}GB."
+        )
+    
+    print(f"Export valid. Current: {current_usage/1024**2:.1f}MB, Est: {estimated/1024**2:.1f}MB")

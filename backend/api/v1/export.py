@@ -126,6 +126,20 @@ async def export_daily_batch_async(req: ExportBatchAsyncReq):
     if any(v not in VALID_FIELDS for v in req.variables):
         raise HTTPException(400, "Variable no válida.")
 
+    # 0. Validar viabilidad (límites)
+    from services.export_service import validate_export_feasibility
+    try:
+        # daily batch: req.dates es lista de dias. days_count = len
+        validate_export_feasibility(
+            days_count=len(req.dates),
+            start_hour=req.start_hour,
+            end_hour=req.end_hour,
+            granularity=req.granularity,
+            include_images=req.include_images
+        )
+    except ExportError as e:
+        raise HTTPException(400, str(e))
+
     # 1. Crear transacción en DB
     try:
         t_id = create_transaction_entry(
@@ -158,6 +172,26 @@ async def export_by_range_async(req: ExportRangeAsyncReq):
     # Validaciones previas básicas igual que en sync (opcional, pq se hará en worker, pero mejor fail fast)
     if not req.date_init or not req.date_finish:
          raise HTTPException(400, "Fechas requeridas")
+
+    # 0. Validar viabilidad (límites)
+    from services.export_service import validate_export_feasibility
+    try:
+        # Calcular days_count
+        d0 = datetime.strptime(req.date_init, "%Y-%m-%d")
+        d1 = datetime.strptime(req.date_finish, "%Y-%m-%d")
+        delta = (d1 - d0).days + 1
+        
+        validate_export_feasibility(
+            days_count=delta,
+            start_hour=req.start_hour,
+            end_hour=req.end_hour,
+            granularity=req.granularity,
+            include_images=req.include_images
+        )
+    except ValueError:
+         raise HTTPException(400, "Fechas inválidas")
+    except ExportError as e:
+        raise HTTPException(400, str(e))
 
     try:
         t_id = create_transaction_entry(
