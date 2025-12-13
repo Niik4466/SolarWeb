@@ -1,6 +1,6 @@
 // src/app/pages/graficos/graficos.ts
 
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
@@ -86,7 +86,10 @@ function fillMissingTimestamps(
   styleUrls: ['./graficos.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush, // Optimiza la detección de cambios
 })
-export class GraficosComponent {
+export class GraficosComponent implements OnInit {
+  ngOnInit(): void {
+    this.onBuscar();
+  }
 
   // =====================
   // Estado de la UI
