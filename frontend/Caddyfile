@@ -1,7 +1,24 @@
 :80 {
-  root * /usr/share/caddy
-  file_server
-  try_files {path} /index.html
+  # API
+  handle_path /api/* {
+    reverse_proxy backend-solarweb:4002
+  }
+
+  # Soporte Swagger cuando lo miras vía /api/docs
+  handle /openapi.json {
+    reverse_proxy backend-solarweb:4002
+  }
+  handle /docs* {
+    reverse_proxy backend-solarweb:4002
+  }
+
+  # SPA
+  handle {
+    root * /usr/share/caddy
+    try_files {path} /index.html
+    file_server
+  }
+
   log {
     output stdout
     level debug

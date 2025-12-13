@@ -9,7 +9,7 @@ import { switchMap, tap, catchError, map, take } from 'rxjs/operators';
 
 export const environment = {
   production: false,
-  apiBase: 'http://127.0.0.1:8000',
+  apiBase: '/api',
 };
 
 /**

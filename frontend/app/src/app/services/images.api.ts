@@ -26,8 +26,7 @@ export type MinioListResponse = {
    ========================= */
 
 // Mueve a environments en prod
-const API_BASE = 'http://127.0.0.1:8000';
-
+const API_BASE = '/api';
 function pad2(n: number): string { return n < 10 ? '0' + n : String(n); }
 
 function minioObjectToSkyFrame(o: MinioObject, bucket: string): SkyFrame | null {

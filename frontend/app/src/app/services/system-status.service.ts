@@ -2,8 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-const API_BASE = 'http://127.0.0.1:8000';
-export interface DiskUsage {
+const API_BASE = '/api';export interface DiskUsage {
   total_bytes: number;
   used_bytes: number;
   used_pct: number;
