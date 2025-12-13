@@ -7,6 +7,12 @@ import { TransactionsApi, TransaccionCreate } from '../../services/transactions.
 import { of, Observable, throwError, Subscription } from 'rxjs';
 import { concatMap, tap, finalize, catchError } from 'rxjs/operators';
 import { LoadingService } from '../../services/loading.service';
+import type { ExportAsyncResponse } from '../../services/export.api';
+import { HttpErrorResponse } from '@angular/common/http';
+
+
+type ExportResult = Blob | ExportAsyncResponse | null;
+
 
 // ✅ Importar librería de rango de fechas
 import { NgxDaterangepickerMd, LocaleConfig } from 'ngx-daterangepicker-material';
@@ -242,6 +248,10 @@ export class ExportarPage implements OnDestroy {
   exporting = signal(false);
   statusMsg = signal<string | null>(null);
   progress = signal<{ total: number; done: number }>({ total: 0, done: 0 });
+
+  errorMsg = signal<string | null>(null);
+  errorTitle = signal<string>('No se pudo exportar');
+  errorHint = signal<string | null>(null);
   private runningSub?: import('rxjs').Subscription;
 
   private startProgress(total: number, msg?: string) {
@@ -266,6 +276,21 @@ export class ExportarPage implements OnDestroy {
       this.runningSub.unsubscribe();
     }
     this.endProgress();
+  }
+  clearErrorBanner() {
+    this.errorMsg.set(null);
+    this.errorHint.set(null);
+  }
+
+  private extractBackendMessage(err: unknown): string | null {
+    if (err instanceof HttpErrorResponse) {
+      const e: any = err.error;
+      if (typeof e === 'string') return e;
+      if (e?.detail) return typeof e.detail === 'string' ? e.detail : JSON.stringify(e.detail);
+      if (e?.message) return typeof e.message === 'string' ? e.message : JSON.stringify(e.message);
+    }
+    const anyErr: any = err;
+    return (anyErr?.message ?? null) as string | null;
   }
 
   private getSelectedMetrics(): MetricKey[] {
@@ -296,6 +321,7 @@ export class ExportarPage implements OnDestroy {
   // ===========================
 
     exportar() {
+      this.clearErrorBanner();
       // 🔴 Primero: validar granularidad y disparar el error visual
       const granularitySelected = !!this.granularitySig();
       if (!granularitySelected) {
@@ -314,6 +340,11 @@ export class ExportarPage implements OnDestroy {
         return;
       }
       const userId = parseInt(userIdString, 10);
+      const email = localStorage.getItem('userEmail');
+      if (!email) {
+        alert('No se pudo encontrar tu correo para enviarte la exportación.');
+        return;
+      }
 
       const formVal = this.form.getRawValue();
 
@@ -362,7 +393,7 @@ export class ExportarPage implements OnDestroy {
    * Contiene la lógica de exportación (diaria o rango).
    * Es llamada por 'exportar()' y debe devolver un Observable.
    */
-  logicaDeExportacion(): Observable<Blob | null> {
+  logicaDeExportacion(): Observable<ExportResult> {
     const variables = this.getSelectedVariables();
     const format = this.form.value.formato!;
 
@@ -372,6 +403,7 @@ export class ExportarPage implements OnDestroy {
     const end_hour = formVal.endHour || '23:59';
     const granularity = formVal.granularity ;
     const metrics = this.getSelectedMetrics();
+    
     if (!granularity) {
       // Por seguridad, pero sin alert feo
       this.statusMsg.set('Debe seleccionar una granularidad.');
@@ -387,11 +419,17 @@ export class ExportarPage implements OnDestroy {
       const include_images = !!this.form.value.incluirImagenes;
 
       if (dias.length > 1) {
-        this.statusMsg.set('Exportando múltiples días…');
-        this.startProgress(dias.length, 'Exportando múltiples días…');
+        this.statusMsg.set('Solicitando exportación (se enviará por correo)…');
+        this.startProgress(1, 'Solicitando exportación…');
 
-        // 🆕 pasamos start_hour, end_hour, granularity al backend
-        return this.exporter.exportDailyBatch({
+        const userIdString = localStorage.getItem('userId');
+        const email = localStorage.getItem('userEmail');
+        if (!userIdString || !email) return of(null);
+        const user_id = parseInt(userIdString, 10);
+
+        return this.exporter.exportDailyBatchAsync({
+          user_id,
+          email,
           dates: dias,
           variables,
           format,
@@ -401,23 +439,36 @@ export class ExportarPage implements OnDestroy {
           granularity,
           metrics,
         }).pipe(
-          tap((blob: Blob) => {
-            const first = dias[0];
-            const last = dias[dias.length - 1];
-            this.downloadBlob(blob, `export_${first}_${last}.zip`);
-            this.tickProgress('ZIP descargado');
+          tap((res: ExportAsyncResponse) => {
+            this.tickProgress('Solicitud enviada');
+            this.statusMsg.set(res.message || 'La exportación quedó encolada. Te llegará por correo.');
           }),
           finalize(() => {
-            this.statusMsg.set('¡Exportación diaria (batch) completada!');
-            setTimeout(() => this.endProgress(), 700);
+            setTimeout(() => this.endProgress(), 900);
           }),
           catchError((err) => {
-            this.statusMsg.set('No se pudo exportar el batch de días seleccionados.');
-            alert('No se pudo exportar el batch de días seleccionados.');
+            const backendMsg = this.extractBackendMessage(err);
+
+            if (backendMsg) {
+              this.errorTitle.set('Exportación demasiado grande');
+              this.errorMsg.set(backendMsg);
+              this.errorHint.set(
+                'Has seleccionado muchos días. Prueba exportar menos días o aumenta la granularidad.'
+              );
+
+              this.statusMsg.set(backendMsg);
+              return throwError(() => err);
+            }
+
+            // fallback genérico
+            this.errorTitle.set('No se pudo iniciar la exportación');
+            this.errorMsg.set('No se pudo iniciar la exportación (batch).');
             return throwError(() => err);
           })
+
         );
       }
+
 
       this.statusMsg.set('Exportando día único…');
       const day = dias[0];
@@ -459,11 +510,18 @@ export class ExportarPage implements OnDestroy {
       const fin = this.form.value.rangoFin!;
       const include_images = !!this.form.value.incluirImagenes;
 
-      this.statusMsg.set(`Exportando rango ${inicio} → ${fin}…`);
-      this.startProgress(1, `Exportando rango ${inicio} → ${fin}…`);
+      this.statusMsg.set(`Solicitando exportación rango ${inicio} → ${fin} (por correo)…`);
+      this.startProgress(1, `Solicitando exportación…`);
+      const userIdString = localStorage.getItem('userId');
+      const email = localStorage.getItem('userEmail');
+      if (!userIdString || !email) return of(null);
+      const user_id = parseInt(userIdString, 10);
+
 
       // 🆕 también aquí: start_hour, end_hour, granularity
-      return this.exporter.exportRange({
+      return this.exporter.exportRangeAsync({
+        user_id,
+        email,
         date_init: inicio,
         date_finish: fin,
         variables,
@@ -474,19 +532,37 @@ export class ExportarPage implements OnDestroy {
         granularity,
         metrics,
       }).pipe(
-        tap((blob: Blob) => {
-          this.downloadBlob(blob, `export_${inicio}_${fin}.zip`);
-          this.tickProgress('ZIP descargado');
+        tap((res: ExportAsyncResponse) => {
+          this.tickProgress('Solicitud enviada');
+          this.statusMsg.set(res.message || 'La exportación quedó encolada. Te llegará por correo.');
         }),
         finalize(() => {
-          this.statusMsg.set('¡Exportación de rango completada!');
-          setTimeout(() => this.endProgress(), 700);
+          setTimeout(() => this.endProgress(), 900);
         }),
         catchError((err) => {
-          this.statusMsg.set(`No se pudo exportar el rango ${inicio} a ${fin}.`);
-          alert(`No se pudo exportar el rango ${inicio} a ${fin}.`);
+          const backendMsg = this.extractBackendMessage(err);
+
+          // Si el backend devolvió detail, lo mostramos tal cual (es el mejor mensaje)
+          if (backendMsg) {
+            this.errorTitle.set('Exportación demasiado grande');
+            this.errorMsg.set(backendMsg);
+
+            // Hint extra (opcional) para guiar al usuario
+            this.errorHint.set('Prueba con menos días, acota el rango horario o aumenta la granularidad.');
+
+            // También puedes setear statusMsg si quieres mantener coherencia con tu barra
+            this.statusMsg.set(backendMsg);
+
+            // No alert, porque ya lo muestras “lindo”
+            return throwError(() => err);
+          }
+
+          // fallback genérico si no vino detalle
+          this.errorTitle.set('No se pudo iniciar la exportación');
+          this.errorMsg.set(`No se pudo iniciar la exportación del rango ${inicio} a ${fin}.`);
           return throwError(() => err);
         })
+
       );
     }
   }

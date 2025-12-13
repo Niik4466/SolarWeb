@@ -245,19 +245,73 @@
           </div>
         </div>
 
+        <!-- =======================
+            Error desde backend (ej: >600MB)
+        ======================== -->
+        <div class="export-error" *ngIf="errorMsg() as msg">
+          <div class="error-card">
+            <div class="error-title">
+              {{ errorTitle() }}
+            </div>
+
+            <div class="error-text">
+              {{ msg }}
+            </div>
+
+            <div class="error-hint" *ngIf="errorHint() as hint">
+              {{ hint }}
+            </div>
+
+            <button
+              type="button"
+              class="btn small ghost"
+              (click)="clearErrorBanner()"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+
         <!-- Acciones -->
         <div class="actions">
           <button
             type="button"
             class="btn primary cta"
             (click)="exportar()"
-            [disabled]="!puedeExportar()"
+            [disabled]="!puedeExportar() || exporting()"
           >
-            EXPORTAR
+            {{ exporting() ? 'ENVIANDO…' : 'EXPORTAR' }}
           </button>
+
+        </div>
+        <div class="export-status" *ngIf="statusMsg() as msg">
+          <div class="status-card">
+            <div class="status-title">Estado</div>
+            <div class="status-text">{{ msg }}</div>
+
+            <div class="status-progress" *ngIf="progress().total > 0">
+              <div class="bar">
+                <div
+                  class="bar-fill"
+                  [style.width.%]="(progress().done / progress().total) * 100"
+                ></div>
+              </div>
+              <div class="status-meta">
+                {{ progress().done }} / {{ progress().total }}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              class="btn small"
+              *ngIf="exporting()"
+              (click)="cancelExport()"
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
 
-        <!-- Aquí puedes seguir con el estado de exportación si lo muestras en la UI -->
 
       </div>
     </aside>

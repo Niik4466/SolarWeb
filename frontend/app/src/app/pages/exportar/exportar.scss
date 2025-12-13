@@ -265,6 +265,44 @@ select:focus,
   vertical-align: -2px;
   animation: spin .8s linear infinite;
 }
+.export-status { margin-top: 1rem; }
+
+.status-card{
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fff;
+}
+
+.status-title{
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.status-text{
+  color: #334155;
+  font-size: 0.95rem;
+}
+
+.status-progress{ margin-top: 10px; }
+.bar{
+  height: 8px;
+  background: #eef2ff;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.bar-fill{
+  height: 100%;
+  background: #6366f1;
+  width: 0%;
+  transition: width .25s ease;
+}
+.status-meta{
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
 
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -292,6 +330,45 @@ select:focus,
     color: #374151;
   }
 }
+.export-error {
+  margin: 14px 0;
+}
+
+.error-card {
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+
+.error-title {
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: #b91c1c;
+}
+
+.error-text {
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.error-hint {
+  margin-top: 8px;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.btn.ghost {
+  margin-top: 10px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: #b91c1c;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 
 // ===============================
 // Calendario rango (ngx-daterangepicker)

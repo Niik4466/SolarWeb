@@ -26,6 +26,26 @@ type CommonExportBody = {
   metrics?: MetricKey[];
 };
 
+//Nuevos metodos de exportacion con async 
+
+export type ExportAsyncResponse = {
+  message: string;
+};
+
+ 
+export type ExportDailyBatchAsyncBody = CommonExportBody & {
+  dates: string[];
+  user_id: number;
+  email: string;
+};
+
+export type ExportRangeAsyncBody = CommonExportBody & {
+  date_init: string;
+  date_finish: string;
+  user_id: number;
+  email: string;
+};
+
 /** Día único */
 export type ExportDayBody = CommonExportBody & {
   date: string; // YYYY-MM-DD
@@ -62,5 +82,15 @@ export class ExportApi {
     return this.http.post(`${API_BASE}/export/range`, body, {
       responseType: 'blob' as const,
     });
+  }
+
+  //Exportacion asincrona
+  // --- Async (NUEVOS)
+  exportDailyBatchAsync(body: ExportDailyBatchAsyncBody) {
+    return this.http.post<ExportAsyncResponse>(`${API_BASE}/export/daily/batch/async`, body);
+  }
+
+  exportRangeAsync(body: ExportRangeAsyncBody) {
+    return this.http.post<ExportAsyncResponse>(`${API_BASE}/export/range/async`, body);
   }
 }
