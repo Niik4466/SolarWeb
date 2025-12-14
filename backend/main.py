@@ -29,12 +29,12 @@ app.add_middleware(
 )
 
 # Montar routers
-app.include_router(irradiance.router)
-app.include_router(images.router)
-app.include_router(export.router)
-app.include_router(users.router)
-app.include_router(mail.router)
-app.include_router(monitor.router)
+app.include_router(irradiance.router, prefix="/api")
+app.include_router(images.router, prefix="/api")
+app.include_router(export.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
+app.include_router(mail.router, prefix="/api")
+app.include_router(monitor.router, prefix="/api")
 
 @app.on_event("startup")
 async def startup_event():
@@ -43,7 +43,7 @@ async def startup_event():
     # Iniciar worker de exportación en background
     asyncio.create_task(export_worker())
 
-@app.get("/")
+@app.get("/api")
 def root():
     return {"message": "Solar API is running"}
 
