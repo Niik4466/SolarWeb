@@ -15,7 +15,7 @@ END$$;
 -- 2) Tabla USUARIO
 CREATE TABLE IF NOT EXISTS usuario (
   id               BIGSERIAL PRIMARY KEY,
-  correo           CITEXT        NOT NULL,         -- case-insensitive
+  correo           CITEXT        NOT NULL UNIQUE,         -- case-insensitive
   nombre           VARCHAR(100)  NOT NULL,
   apellido         VARCHAR(100),
   password_hash    TEXT          NOT NULL,

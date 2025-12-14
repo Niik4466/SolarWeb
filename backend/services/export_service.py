@@ -204,7 +204,7 @@ async def process_export_job(job: ExportJob):
         # 4. Enviar Correo
         # Ajustar según deploy
         # Construir URL descarga
-        base_url = "http://localhost:8000" 
+        base_url = "https://solarweb.lat/api" 
         download_url = f"{base_url}/export/exports/{filename_zip}"
         
         body = f"""

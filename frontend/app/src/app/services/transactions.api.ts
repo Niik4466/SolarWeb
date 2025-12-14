@@ -75,7 +75,7 @@ export class TransactionsApi {
    *  - Primero intenta leer (window as any).environment.apiBase
    *  - Si no existe, usa localhost por defecto
    */
-  private base = `${(window as any).environment?.apiBase ?? 'http://127.0.0.1:8000'}/users`;
+  private base = `${(window as any).environment?.apiBase ?? '/api'}/users`;
 
   // ----------------------------------------------------------
   // MÉTODOS DEL SERVICIO
