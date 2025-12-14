@@ -222,7 +222,7 @@ function buildBodyHtml(copy: CopyBase): string {
                   <tr>
                     <td align="left">
                       <a href="mailto:solarwebuach@gmail.com"
-                         style="display:inline-block; padding:10px 18px; border-radius:999px; background:linear-gradient(135deg,#1d4ed8,#38bdf8); color:#0b1120; text-decoration:none; font-size:13px; font-weight:600;">
+                         style="display:inline-block; padding:10px 18px; border-radius:999px; background:linear-gradient(135deg,#1d4ed8,#38bdf8); color:#60a5fa; text-decoration:none; font-size:13px; font-weight:600;">
                         Contactar al equipo SolarWeb
                       </a>
                     </td>

@@ -253,6 +253,23 @@ export class ExportarPage implements OnDestroy {
   errorTitle = signal<string>('No se pudo exportar');
   errorHint = signal<string | null>(null);
   private runningSub?: import('rxjs').Subscription;
+  // Modal info exportación async
+  showEmailModal = signal(false);
+  emailModalMessage = signal<string>('');
+
+  private openEmailModal(kind: 'batch' | 'range') {
+    this.emailModalMessage.set(
+      'Exportación confirmada. Los datos se enviarán por correo en un plazo estimado de 3 a 5 días.'
+    );
+    this.showEmailModal.set(true);
+  }
+
+
+  closeEmailModal() {
+    this.showEmailModal.set(false);
+    this.emailModalMessage.set('');
+  }
+
 
   private startProgress(total: number, msg?: string) {
     this.progress.set({ total, done: 0 });
@@ -442,6 +459,7 @@ export class ExportarPage implements OnDestroy {
           tap((res: ExportAsyncResponse) => {
             this.tickProgress('Solicitud enviada');
             this.statusMsg.set(res.message || 'La exportación quedó encolada. Te llegará por correo.');
+            this.openEmailModal('batch');
           }),
           finalize(() => {
             setTimeout(() => this.endProgress(), 900);
@@ -535,6 +553,7 @@ export class ExportarPage implements OnDestroy {
         tap((res: ExportAsyncResponse) => {
           this.tickProgress('Solicitud enviada');
           this.statusMsg.set(res.message || 'La exportación quedó encolada. Te llegará por correo.');
+          this.openEmailModal('range');
         }),
         finalize(() => {
           setTimeout(() => this.endProgress(), 900);

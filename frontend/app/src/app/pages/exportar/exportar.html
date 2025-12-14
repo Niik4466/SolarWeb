@@ -244,6 +244,7 @@
             Debe seleccionar una granularidad.
           </div>
         </div>
+        
 
         <!-- =======================
             Error desde backend (ej: >600MB)
@@ -317,3 +318,27 @@
     </aside>
   </section>
 </div>
+
+<!-- =======================
+     MODAL exportación async
+======================== -->
+<div class="modal-backdrop" *ngIf="showEmailModal()">
+  <div class="modal-card">
+    <div class="modal-title">
+      Solicitud enviada
+    </div>
+
+    <div class="modal-text">
+      {{ emailModalMessage() }}
+    </div>
+
+    <div class="modal-hint">
+      Por favor revisa tu bandeja de entrada y spam.
+    </div>
+
+    <button class="btn primary" (click)="closeEmailModal()">
+      Entendido
+    </button>
+  </div>
+</div>
+

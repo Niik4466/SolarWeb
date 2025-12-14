@@ -21,6 +21,7 @@ from db.postgres import get_sync_session
 from services.mail_service import send_mail_query
 from services.user_service import create_transaction_entry_query, update_transaction_status_query
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from services.mail_templates.export_ready_template import get_export_ready_email
 
 MEASUREMENT = "radiacion_solar"
 VALID_FIELDS = {"GHI", "DNI", "DHI"}
@@ -207,14 +208,15 @@ async def process_export_job(job: ExportJob):
         base_url = "http://localhost:8000" 
         download_url = f"{base_url}/export/exports/{filename_zip}"
         
-        body = f"""
-        <p>Hola,</p>
-        <p>Tu exportación solicitada está lista.</p>
-        <p><a href="{download_url}">Descargar Archivo ZIP</a></p>
-        <p>El enlace expirará en 24 horas.</p>
-        """
+        email_tpl = get_export_ready_email(
+            email=job.email,
+            download_url=download_url,
+            file_name=filename_zip,
+            expires_in="24 horas",
+        )
+
         
-        send_mail_query(job.email, "Tu exportación está lista", body)
+        send_mail_query(job.email, email_tpl.subject, email_tpl.bodyHtml)
         
         # 5. Programar borrado
         if export_scheduler.running:
