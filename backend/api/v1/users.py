@@ -125,10 +125,9 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
 
 
 @router.post("/create_user", response_model=UsuarioOut)
-def create_user(usuario: UsuarioCreate, db: Session = Depends(get_db), admin: Usuario = Depends(get_current_admin)):
+def create_user(usuario: UsuarioCreate, db: Session = Depends(get_db)):
     """
     Crea un usuario y una solicitud obligatoria.
-    (solo admin)
     """
     if not usuario.password:
         raise HTTPException(
