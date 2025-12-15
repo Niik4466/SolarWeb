@@ -170,6 +170,20 @@
     box-shadow: 0 0 10px rgba(255,255,255,.2);
   }
 }
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;   /* separación logo – texto */
+}
+
+.logo {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  object-fit: contain;
+}
+
+
 /* ======= Botón Iniciar sesión (Desktop) ======= */
 .btn-login {
   background: rgba(255, 255, 255, .12);
@@ -336,6 +350,25 @@
     font-weight: 600;
   }
 }
+
+/* Tablets */
+@media (max-width: 768px) {
+  .logo {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+  }
+}
+
+/* Celulares */
+@media (max-width: 480px) {
+  .logo {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+  }
+}
+
 
 /* Compact (si quieres reducir al hacer scroll) */
 .nav.nav--compact {
