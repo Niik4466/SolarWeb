@@ -17,7 +17,7 @@ export type SimpleState = {
 @Injectable({ providedIn: 'root' })
 export class MonitorApi {
   private http = inject(HttpClient);
-  private baseUrl = 'http://localhost:8000'; // o desde environment.apiUrl
+  private baseUrl = '/api'; // o desde environment.apiUrl
 
   getDiskStatus(): Observable<DiskStatus> {
     return this.http.get<DiskStatus>(`${this.baseUrl}/monitor/disk`);

@@ -4,7 +4,7 @@ import { HttpClient } from '@angular/common/http';
 
 // Endpoint base del backend para usuarios.
 // Si cambia la URL del backend, ajústala aquí.
-const API = 'http://localhost:8000/users';
+const API = '/api';
 
 /**
  * Interfaz que representa los datos ingresados por el usuario

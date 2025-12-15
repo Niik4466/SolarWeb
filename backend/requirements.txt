@@ -14,3 +14,4 @@ bcrypt==3.2.2
 PyJWT
 apscheduler
 paramiko
+python-multipart

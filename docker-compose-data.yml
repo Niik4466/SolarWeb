@@ -1,5 +1,7 @@
 services:
-  # Databases
+  # ==========================================
+  # Irradiance (INFLUXDB)
+  # ==========================================
   influxdb:
     image: influxdb:2.7
     container_name: influxdb-solarweb
@@ -16,7 +18,9 @@ services:
       - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUX_BUCKET}
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_TOKEN}
       - DOCKER_INFLUXDB_INIT_RETENTION=0
-
+  # ==========================================
+  # MinIO (S3)
+  # ==========================================
   minio:
     image: minio/minio:latest
     container_name: minio-solarweb
@@ -30,8 +34,9 @@ services:
     volumes:
       - /mnt/e/minio:/data
     command: server /data --console-address ":9001"
-
-  # Uploaders
+  # ==========================================
+  # MinIO UPLOADER
+  # ==========================================
   minio-uploader:
     build:
       context: ./databases/minio/upload
@@ -47,7 +52,9 @@ services:
       - ${MINIO_UPLOAD_IMAGES_DIR}:/app/images
     depends_on:
       - minio
-
+  # ==========================================
+  # InfluxDB UPLOADER
+  # ==========================================
   influxdb-uploader:
     build:
       context: ./databases/influxdb
@@ -64,7 +71,9 @@ services:
       - ${INFLUXDB_UPLOAD_CSV_DIR}:/datos
     depends_on:
       - influxdb
-
+  # ==========================================
+  # Zerotier (Connection to the network)
+  # ==========================================
   zerotier:
     image: zyclonite/zerotier:latest
     container_name: zerotier-solarweb

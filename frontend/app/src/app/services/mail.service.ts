@@ -2,8 +2,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 
-const API_BASE = 'http://127.0.0.1:8000';
-@Injectable({ providedIn: 'root' })
+const API_BASE = '/api';@Injectable({ providedIn: 'root' })
 export class MailApi {
     private http = inject(HttpClient);
     /**

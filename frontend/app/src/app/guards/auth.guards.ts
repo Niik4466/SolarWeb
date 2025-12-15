@@ -15,8 +15,7 @@ import { catchError, map, of } from 'rxjs';
  * URL base del backend utilizada para validar el token.
  * Se puede mover a environment si lo deseas.
  */
-const API_BASE = 'http://127.0.0.1:8000';
-
+const API_BASE = '/api';
 /**
  * Guard de autenticación: protege rutas que requieren sesión activa.
  *

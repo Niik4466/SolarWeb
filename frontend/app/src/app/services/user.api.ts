@@ -72,10 +72,9 @@ export class UsersApi {
 
   /**
    * Base del API obtenida desde environment o fallback local.
-   * Finalmente apunta a algo como:
-   * http://127.0.0.1:8000/users
+   * Finalmente apunta a algo como: /api/users
    */
-  private base = `${(window as any).environment?.apiBase ?? 'http://127.0.0.1:8000'}/users`;
+  private base = `${(window as any).environment?.apiBase ?? '/api'}/users`;
 
   // -----------------------------------------------------------
   // GET usuarios por estado

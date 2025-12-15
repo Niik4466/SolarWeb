@@ -2,9 +2,11 @@
 # El router define la URL y recibe parámetros.
 # SOLO delega al service; no toca la BD directamente.
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from schemas.irradiance import SeriesOut, FieldName
 from services.irradiance_service import get_series
+from core.security import get_current_user
+from models.user import Usuario
 
 router = APIRouter(prefix="/irradiance", tags=["irradiance"])
 
@@ -14,7 +16,8 @@ def read_irradiance(
     start: str = Query(..., description="RFC3339, ej: 2025-09-16T00:00:00Z"),
     stop:  str = Query(..., description="RFC3339"),
     field: FieldName = "GHI",
-    granularity: str = Query(..., description="Granularity, ej: 1h, 5m, 10s")
+    granularity: str = Query(..., description="Granularity, ej: 1h, 5m, 10s"),
+    current_user: Usuario = Depends(get_current_user),
 ):
     # Llama al servicio y devuelve el resultado
     return get_series(start, stop, field, granularity=granularity)

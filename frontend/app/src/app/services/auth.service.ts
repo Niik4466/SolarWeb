@@ -17,8 +17,7 @@ type JwtPayload = {
   [k: string]: any;
 };
 
-const API_BASE = 'http://127.0.0.1:8000';
-
+const API_BASE = '/api';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private http = inject(HttpClient);

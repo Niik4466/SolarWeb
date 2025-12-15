@@ -1,27 +1,33 @@
 services:
-  # Frontend and Backend
-  frontend:
+  # ==========================================
+  # FRONTEND (Angular)
+  # ==========================================
+  frontend-solarweb:
+    profiles: ["deploy"]
     build:
       context: ./frontend
-      dockerfile: Dockerfile-local
+      dockerfile: Dockerfile
     container_name: frontend-solarweb
     ports:
-      - "4200:4200"
+      - "3002:3002"
     restart: unless-stopped
     environment:
       - TZ=America/Santiago 
     env_file:
       - .env
     depends_on:
-      - backend
-
-  backend:
+      - backend-solarweb
+  # ==========================================
+  # BACKEND (FastAPI)
+  # ==========================================
+  backend-solarweb:
+    profiles: ["deploy"]
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: backend-solarweb
     ports:
-      - "8000:8000"
+      - "4002:4002"
     volumes: 
       - ./.env:/app/backend/.env
     env_file:
@@ -29,13 +35,13 @@ services:
     environment:
       - TZ=America/Santiago 
     depends_on:
-      - influxdb
-      - minio
       - postgres
       - zerotier
-
-  # Databases
-  influxdb:
+  # ==========================================
+  # INFLUXDB (Time series database)
+  # ==========================================
+  influxdb-solarweb:
+    profiles: ["data"]
     image: influxdb:2.7
     container_name: influxdb-solarweb
     ports:
@@ -50,8 +56,11 @@ services:
       - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUX_BUCKET}
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_TOKEN}
       - DOCKER_INFLUXDB_INIT_RETENTION=0
-
-  minio:
+  # ==========================================
+  # MINIO (Object storage)
+  # ==========================================
+  minio-solarweb:
+    profiles: ["data"]
     image: minio/minio:latest
     container_name: minio-solarweb
     restart: unless-stopped
@@ -64,8 +73,11 @@ services:
     volumes:
       - miniodb2:/data
     command: server /data --console-address ":9001"
-
-  postgres:
+  # ==========================================
+  # POSTGRES (Relational database)
+  # ==========================================
+  postgres-solarweb:
+    profiles: ["data", "deploy"]
     image: postgres:16
     container_name: postgres-solarweb
     restart: unless-stopped
@@ -79,28 +91,17 @@ services:
       - "5432:5432"
     volumes:
       - postgresdb:/var/lib/postgresql/data/pgdata
+      - ./databases/postgres/db.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 20
-
-  migrator:
-    image: postgres:16
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - ./databases/postgres/db.sql:/migrations/01_schema.sql:ro
-    environment:
-      PGPASSWORD: ${POSTGRES_PASSWORD}
-    entrypoint: ["/bin/sh","-c"]
-    command: >
-      "psql -h postgres -U ${POSTGRES_USER} -d ${POSTGRES_DB} -v ON_ERROR_STOP=1 -f /migrations/01_schema.sql && echo '✅ Migraciones aplicadas' || (echo '❌ Error en migraciones' && exit 1)"
-
-  # Uploaders
-
-  minio-uploader:
+  # ==========================================
+  # Minio Uploader (Images)
+  # ==========================================
+  minio-uploader-solarweb:
+    profiles: ["data"]
     build:
       context: ./databases/minio/upload
       dockerfile: Dockerfile
@@ -113,9 +114,12 @@ services:
     volumes:
       - ${MINIO_UPLOAD_IMAGES_DIR}:/app/images
     depends_on:
-      - minio
-
-  influxdb-uploader:
+      - minio-solarweb
+  # ==========================================
+  # Influxdb uploader (CSV)
+  # ==========================================
+  influxdb-uploader-solarweb:
+    profiles: ["data"]
     build:
       context: ./databases/influxdb
       dockerfile: Dockerfile
@@ -129,9 +133,12 @@ services:
     volumes:
       - ${INFLUXDB_UPLOAD_CSV_DIR}:/datos
     depends_on:
-      - influxdb
-
-  zerotier:
+      - influxdb-solarweb
+  # ==========================================
+  # Zerotier (Connection to the network)
+  # ==========================================
+  zerotier-solarweb:
+    profiles: ["data", "deploy"]
     image: zyclonite/zerotier:latest
     container_name: zerotier-solarweb
     restart: unless-stopped
@@ -154,7 +161,9 @@ services:
         echo 'Unido a la red ${ZT_NETWORK_ID}, esperando...' &&
         tail -f /dev/null
       "
-  
+  # ==========================================
+  # Seeder (Test data)
+  # ==========================================
   seeder:
     profiles: ["test"]
     image: postgres:16

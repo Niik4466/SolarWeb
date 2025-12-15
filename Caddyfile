@@ -1,0 +1,10 @@
+solarweb.lat {
+
+  handle {
+    reverse_proxy frontend-solarweb:3002
+  }
+}
+
+www.solarweb.lat {
+  redir https://solarweb.lat{uri}
+}

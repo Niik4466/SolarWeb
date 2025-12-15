@@ -2,8 +2,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
-const API_BASE = 'http://127.0.0.1:8000';
-export type MetricKey = 'mean' | 'min' | 'max' | 'sum';
+const API_BASE = '/api';export type MetricKey = 'mean' | 'min' | 'max' | 'sum';
 
 // Opcional: tipo para las granularidades que tienes en backend
 export type TimeGranularity =

@@ -11,13 +11,15 @@ from services.export_service import (
     enqueue_export_job, create_transaction_entry, _minio_client, ExportError
 )
 from pydantic import BaseModel, EmailStr
+from core.security import get_current_user
+from models.user import Usuario
 
 router = APIRouter(prefix="/export", tags=["export"])
 
 VALID_FIELDS = {"GHI", "DNI", "DHI"}
 
 @router.post("/day")
-def export_day(req: ExportDayReq):
+def export_day(req: ExportDayReq, current_user: Usuario = Depends(get_current_user)):
     if not req.variables:
         raise HTTPException(400, "Debe indicar al menos una variable (GHI/DNI/DHI).")
     if any(v not in VALID_FIELDS for v in req.variables):
@@ -54,7 +56,7 @@ def export_day(req: ExportDayReq):
     )
 
 @router.post("/daily/batch")
-def export_daily_batch(req: ExportBatchReq):
+def export_daily_batch(req: ExportBatchReq, current_user: Usuario = Depends(get_current_user)):
     if not req.variables:
         raise HTTPException(400, "Debe indicar al menos una variable (GHI/DNI/DHI).")
     if any(v not in VALID_FIELDS for v in req.variables):
@@ -83,7 +85,7 @@ def export_daily_batch(req: ExportBatchReq):
     )
 
 @router.post("/range")
-def export_by_range(req: ExportByRangeReq):
+def export_by_range(req: ExportByRangeReq, current_user: Usuario = Depends(get_current_user)):
     """
     Exporta datos en un rango de fechas (date_init -> date_finish).
     Devuelve un archivo ZIP que contiene los días solicitados.
@@ -120,7 +122,7 @@ def export_by_range(req: ExportByRangeReq):
 # ----------------------
 
 @router.post("/daily/batch/async")
-async def export_daily_batch_async(req: ExportBatchAsyncReq):
+async def export_daily_batch_async(req: ExportBatchAsyncReq, current_user: Usuario = Depends(get_current_user)):
     if not req.variables:
         raise HTTPException(400, "Debe indicar al menos una variable.")
     if any(v not in VALID_FIELDS for v in req.variables):
@@ -165,7 +167,7 @@ async def export_daily_batch_async(req: ExportBatchAsyncReq):
     return {"message": "La exportación se está procesando, recibirás un correo cuando esté lista"}
 
 @router.post("/range/async")
-async def export_by_range_async(req: ExportRangeAsyncReq):
+async def export_by_range_async(req: ExportRangeAsyncReq, current_user: Usuario = Depends(get_current_user)):
     if not req.variables:
         raise HTTPException(400, "Debe indicar al menos una variable.")
     
