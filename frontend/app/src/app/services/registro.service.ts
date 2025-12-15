@@ -47,8 +47,6 @@ export class RegistroService {
       apellido: f.apellido,         // apellido
       password: f.password,         // contraseña
       justificacion: f.motivo,      // motivo/razón del registro
-      es_admin: false,              // siempre falso al registrarse
-      estado: 'pendiente'           // estado inicial hasta evaluación del admin
     };
 
     // Se ejecuta el POST al endpoint backend
