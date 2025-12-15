@@ -52,6 +52,6 @@ export class RegistroService {
     };
 
     // Se ejecuta el POST al endpoint backend
-    return this.http.post(`${API}/create_user`, body);
+    return this.http.post(`${API}/users/create_user`, body);
   }
 }
