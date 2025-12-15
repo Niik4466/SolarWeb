@@ -1,0 +1,18 @@
+{
+  "/api": {
+    "target": "http://backend-solarweb:4002", 
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  },
+  "/openapi.json": {
+    "target": "http://backend-solarweb:4002", 
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/docs": {
+    "target": "http://backend-solarweb:4002", 
+    "secure": false,
+    "changeOrigin": true
+  }
+}

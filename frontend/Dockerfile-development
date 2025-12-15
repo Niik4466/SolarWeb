@@ -20,4 +20,4 @@ COPY app/ .
 EXPOSE 3002
 
 # Comando por defecto: levantar el servidor de desarrollo
-CMD ["ng", "serve", "--proxy-config", "proxy.conf.json", "--host", "0.0.0.0", "--port", "3002", "--poll", "2000"]
+CMD ["ng", "serve", "--host", "0.0.0.0", "--port", "3002", "--poll", "2000", "--proxy-config", "proxy.conf-docker.json"]
