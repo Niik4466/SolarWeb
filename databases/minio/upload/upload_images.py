@@ -98,15 +98,31 @@ for file_path in Path(image_dir).rglob("*.*"):
 
 # Watchdog para nuevas imágenes
 class ImageHandler(FileSystemEventHandler):
+    IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png')
+    
+    def __init__(self, observer):
+        self.observer = observer
+
     def on_created(self, event):
+        path = Path(event.src_path)
+
         if event.is_directory:
+            print(f"[WATCHDOG] Nuevo directorio creado: {path}. Añadiendo watcher.")
+            # Solución: Añadir el nuevo directorio al observador
+            self.observer.schedule(self, path=path, recursive=True)
             return
-        file_path = Path(event.src_path)
-        time.sleep(1)  # esperar a que termine de escribirse
-        upload_file(file_path)
+        
+        # Lógica para archivos (solo se ejecuta si NO es un directorio)
+        if path.suffix.lower() in self.IMAGE_EXTENSIONS:
+            print(f"[FILE DETECTED] Procesando {path.name}")
+            time.sleep(1) 
+            upload_file(path)
+        else:
+            print(f"[INFO] Ignorando archivo: {path.name}")
 
 observer = Observer()
-observer.schedule(ImageHandler(), path=image_dir, recursive=True)
+handler = ImageHandler(observer)
+observer.schedule(handler, path=image_dir, recursive=True)
 observer.start()
 
 print(f"[WATCHING] Directorio: {image_dir}")
