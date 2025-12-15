@@ -6,7 +6,7 @@ services:
     profiles: ["deploy"]
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile-development
     container_name: frontend-solarweb
     ports:
       - "3002:3002"
@@ -17,6 +17,9 @@ services:
       - .env
     depends_on:
       - backend-solarweb
+    volumes:
+      - ./frontend/app:/usr/src/app
+      - /usr/src/app/node_modules
   # ==========================================
   # BACKEND (FastAPI)
   # ==========================================
@@ -24,7 +27,7 @@ services:
     profiles: ["deploy"]
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile-development
     container_name: backend-solarweb
     ports:
       - "4002:4002"
