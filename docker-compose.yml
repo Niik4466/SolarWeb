@@ -35,8 +35,8 @@ services:
     environment:
       - TZ=America/Santiago 
     depends_on:
-      - postgres
-      - zerotier
+      - postgres-solarweb
+      - zerotier-solarweb
   # ==========================================
   # INFLUXDB (Time series database)
   # ==========================================
