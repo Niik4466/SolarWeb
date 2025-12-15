@@ -1,6 +1,7 @@
 .sky-viewer {
   display: grid;
   gap: .5rem;
+}
 
   /* -------------------------
       HEADER
@@ -183,4 +184,34 @@
     border: 1px dashed rgba(0,0,0,.2);
     border-radius: .5rem;
   }
-}
+
+.sky-viewer--state {
+  min-height: var(--maxH, 320px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  
+  padding-top: var(--panel-content-offset, 2.25rem);
+
+  text-align: center;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-bottom: 1rem;
+  box-sizing: border-box;
+  }
+
+  .empty-chart {
+    width: 100%;
+    height: 100%;                 /* ← ahora sí funciona */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;      /* centra vertical */
+    align-items: center;          /* centra horizontal */
+    gap: 0.25rem;
+
+    color: #6b7280;
+    text-align: center;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }

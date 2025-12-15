@@ -5,6 +5,7 @@
    - Áreas nombradas para ordenar el contenido
    =========================== */
 .panel {
+  --panel-content-offset: 2.25rem; 
   --gap: 1.25rem;                /* espaciado base reutilizable */
   max-width: 1200px;             /* límite de ancho para líneas legibles */
   margin: 1.25rem auto;          /* margen vertical + centrado horizontal */
@@ -90,7 +91,12 @@
    Columnas principales
    =========================== */
 .photos { grid-area: photos; }
-.chart  { grid-area: chart; }
+.chart  { 
+  grid-area: chart; 
+  min-height: 320px;            /* altura mínima para el gráfico */
+  display: flex;
+  padding-top: var(--panel-content-offset);
+}
 
 /* ===========================
    Tarjetas visualmente coherentes
@@ -171,11 +177,14 @@ app-imagenes-por-hora {
 }
 
 .empty-chart {
-  height: 100%;
+  width: 100%;
+  height: 100%;                 /* ← ahora sí funciona */
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
+  justify-content: center;      /* centra vertical */
+  align-items: center;          /* centra horizontal */
+  gap: 0.25rem;
+
   color: #6b7280;
   text-align: center;
   padding: 1rem;

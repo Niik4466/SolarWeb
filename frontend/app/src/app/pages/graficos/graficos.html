@@ -51,13 +51,7 @@
       <h3>Sin datos para la fecha seleccionada</h3>
       <p>No encontramos mediciones ni imágenes. Prueba cambiando la fecha.</p>
     </div>
-  }
-
-  <!-- ─────────────────────────────
-       Contenido principal (solo si hay datos)
-  ──────────────────────────────── -->
-  @if (!(noData$ | async)) {
-
+  } @else{
     <!-- Gráfico -->
     <div class="chart">
       @if (isLoading) {
@@ -89,18 +83,12 @@
           [showHeader]="true"
           [maxHeight]="320"
           [ratio]="'16 / 9'"
-          [isStreaming]="isFramesStreaming()" 
+          [isStreaming]="isFramesStreaming()"
           (frameChange)="onFrameChange($event)">
         </app-imagenes-por-hora>
-
-        @if (frames.length === 0) {
-          <div class="hint">No hay imágenes para mostrar.</div>
-        }
-      } @else {
-        <div class="hint">Cargando imágenes…</div>
       }
     </div>
   }
 
- 
+
 </section>
