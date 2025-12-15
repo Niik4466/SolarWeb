@@ -4,7 +4,7 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 import jwt  # PyJWT, asegura que esté en requirements.txt
-from fastapi import HTTPException, status, Depends
+from fastapi import HTTPException, status, Depends, Query
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -30,7 +30,7 @@ ALGORITHM = "HS256"                                     # algoritmo de firma JWT
 ACCESS_TOKEN_EXPIRE_MINUTES = 60                        # duración del token (1 hora)
 
 # Indica a FastAPI que se usará "Bearer <token>" en los headers
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/log-in")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/users/token", auto_error=False)
 
 # ---------------------------------------------------------
 # Funciones de hashing
@@ -89,7 +89,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 def get_current_user(
     db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme),
+    token: Optional[str] = Depends(oauth2_scheme),
+    token_query: Optional[str] = Query(None, alias="token"),
 ) -> Usuario:
     """
     Valida el token Bearer enviado en Authorization y devuelve el usuario autenticado.
@@ -121,8 +122,13 @@ def get_current_user(
     )
 
     try:
+        # Resolver cual token usar
+        final_token = token or token_query
+        if not final_token:
+             raise credentials_exception
+
         # Decodificar token
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(final_token, SECRET_KEY, algorithms=[ALGORITHM])
 
         # Extraer ID de usuario del campo "sub"
         user_id: int = payload.get("sub")

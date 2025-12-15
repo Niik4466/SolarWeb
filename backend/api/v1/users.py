@@ -1,5 +1,6 @@
 # backend/api/v1/users.py
 from fastapi import APIRouter, Depends, status, HTTPException, Query
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from db.postgres import get_db
 from services.user_service import *
@@ -20,6 +21,7 @@ def update_user_status(
     user_id: int,
     data: UsuarioEstadoActualizar,
     db: Session = Depends(get_db),
+    admin: Usuario = Depends(get_current_admin),
 ):
     """
     Actualizar estado del usuario. (solo admin)
@@ -37,6 +39,7 @@ def update_user_power(
     user_id: int,
     data: UsuarioPoderActualizar,
     db: Session = Depends(get_db),
+    admin: Usuario = Depends(get_current_admin),
 ):
     """
     Actualiza si un usuario es admin o no.
@@ -85,11 +88,47 @@ def user_login(data: LoginIn, db: Session = Depends(get_db)):
     return login_result
 
 
+@router.post("/token")
+def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    """
+    Endpoint específico para OAuth2 (Swagger UI uses this).
+    Recibe username/password como Form Data.
+    """
+    email_normalized = form_data.username.strip().lower()
+    login_result = user_login_query(db, email_normalized, form_data.password)
+
+    if not login_result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenciales incorrectas",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if login_result.get("estado") != "aprobado":
+         raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Usuario en estado: {login_result.get('estado')}",
+        )
+
+    access_token = create_access_token(
+        data={
+            "sub": str(login_result["user_id"]),
+            "es_admin": login_result["es_admin"],
+            "owner": login_result.get("owner", False),
+        }
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+    }
+
+
 @router.post("/create_user", response_model=UsuarioOut)
-def create_user(usuario: UsuarioCreate, db: Session = Depends(get_db)):
+def create_user(usuario: UsuarioCreate, db: Session = Depends(get_db), admin: Usuario = Depends(get_current_admin)):
     """
     Crea un usuario y una solicitud obligatoria.
-    (público)
+    (solo admin)
     """
     if not usuario.password:
         raise HTTPException(
@@ -141,7 +180,7 @@ def refresh_access_token(
 @router.get("/")
 def list_users(
     db: Session = Depends(get_db),
-    #_: Usuario = Depends(get_current_admin),
+    _: Usuario = Depends(get_current_admin),
 ):
     """
     Devuelve todos los usuarios registrados. (solo admin)
@@ -154,7 +193,7 @@ def list_users(
 def list_users_by_status(
     status: UsuarioEstado = UsuarioEstado.aprobado,
     db: Session = Depends(get_db),
-    #_: Usuario = Depends(get_current_admin),
+    _: Usuario = Depends(get_current_admin),
 ):
     """
     Obtiene usuarios filtrando por estado. (solo admin)
@@ -168,7 +207,7 @@ def approve_user(
     user_id: int,
     admin_flag: bool,
     db: Session = Depends(get_db),
-    #_: Usuario = Depends(get_current_admin),
+    _: Usuario = Depends(get_current_admin),
 ):
     """
     Aprueba un usuario y define si es admin o no. (solo admin)
@@ -184,7 +223,7 @@ def approve_user(
 @router.get("/pending_with_solicitudes")
 def pending_with_solicitudes(
     db: Session = Depends(get_db),
-    #_: Usuario = Depends(get_current_admin),
+    _: Usuario = Depends(get_current_admin),
 ):
     """
     Devuelve todos los usuarios en estado 'pendiente' con su última solicitud. (solo admin)
@@ -195,7 +234,7 @@ def pending_with_solicitudes(
 @router.get("/approved_users")
 def approved_users(
     db: Session = Depends(get_db),
-    #_: Usuario = Depends(get_current_admin),
+    _: Usuario = Depends(get_current_admin),
 ):
     """
     Devuelve todos los usuarios aprobados. (solo admin)
@@ -263,17 +302,16 @@ def delete_user_permanently(
 # TRANSACCIONES
 # -----------------------------------------------------------
 @router.get("/get_transactions/{user_id}")
-def get_transactions_by_user_id(user_id: int, db: Session = Depends(get_db)):
+def get_transactions_by_user_id(user_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(get_current_admin)):
     """
-    Obtiene todas las transacciones realizadas por un usuario.
-    (si quieres que sea solo admin o el propio usuario, aquí se puede endurecer)
+    Obtiene todas las transacciones realizadas por un usuario. (solo admin)
     """
     transactions = get_transactions_by_user_id_query(db, usuario_id=user_id)
     return {"total": len(transactions), "data": transactions}
 
 
 @router.post("/save_transaction", response_model=TransaccionOut)
-def create_transaction(payload: TransaccionCreate, db: Session = Depends(get_db)):
+def create_transaction(payload: TransaccionCreate, db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_user)):
     """
     Crea una nueva transacción (exportado_en queda en NULL).
     """

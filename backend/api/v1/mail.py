@@ -1,6 +1,8 @@
 # backend/api/v1/mail.py
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, Depends
 from services.mail_service import send_mail_query
+from core.security import get_current_user
+from models.user import Usuario
 
 router = APIRouter(prefix="/mail", tags=["mail"])
 
@@ -9,6 +11,7 @@ def send_mail(
     to: str = Query(..., description="ej: example@gmail.com"),
     subject: str = Query(..., description="Asunto del correo"),
     body: str = Query(..., description="Cuerpo del correo"),
+    current_user: Usuario = Depends(get_current_user),
 ):
     """
     Endpoint que envía un correo. Devuelve información del envío o error detallado.

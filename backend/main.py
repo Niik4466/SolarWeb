@@ -10,21 +10,18 @@ app = FastAPI(title="Solar API", version="1.0.0")
 # Configuración CORS
 ALLOWED_ORIGINS = [
     "http://localhost",
-    "http://localhost:8000",
-    "http://localhost:3002",
-    "http://127.0.0.1:3002",
-    "http://localhost:4200",     # solo si accedes directamente a 4200 sin redirección
-    "http://127.0.0.1:4200",
-    "http://frontend:4200",
-    "http://frontend-solarweb:4200"
+    "https://solarweb.lat",
+    "https://www.solarweb.lat",
+    "https://solarweb.inf.uach.cl",
+    "https://www.solarweb.inf.uach.cl"
 ]
 
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],      # o ["*"] si quieres permitir todos los orígenes
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],        # puedes limitar a ["GET"]
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 

@@ -1,6 +1,6 @@
-:80 {
+:3002 {
   # API
-  handle_path /api/* {
+  handle /api/* {
     reverse_proxy backend-solarweb:4002
   }
 
@@ -8,8 +8,8 @@
   handle /openapi.json {
     reverse_proxy backend-solarweb:4002
   }
-  handle /docs* {
-    reverse_proxy backend-solarweb:4002
+  handle /docs/* {
+    reverse_proxy backend-solarweb:4002/docs
   }
 
   # SPA

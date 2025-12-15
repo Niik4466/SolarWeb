@@ -19,7 +19,6 @@ FROM caddy:2-alpine
 # Copiar el resultado correcto (Angular 17+: dist/app/browser/)
 COPY --from=build /usr/src/app/dist/app/browser/ /usr/share/caddy/
 
-# 👇 Copiar TU Caddyfile al lugar que Caddy usa por defecto
 COPY Caddyfile /etc/caddy/Caddyfile
 
-EXPOSE 80
+EXPOSE 3002

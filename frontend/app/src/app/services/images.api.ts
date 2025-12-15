@@ -1,5 +1,6 @@
 // src/app/services/images.service.ts
 import { Injectable, inject } from '@angular/core';
+import { AuthService } from './auth.service';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of, Subject } from 'rxjs';
 import { map, catchError, shareReplay, bufferTime, filter } from 'rxjs/operators';
@@ -29,7 +30,7 @@ export type MinioListResponse = {
 const API_BASE = '/api';
 function pad2(n: number): string { return n < 10 ? '0' + n : String(n); }
 
-function minioObjectToSkyFrame(o: MinioObject, bucket: string): SkyFrame | null {
+function minioObjectToSkyFrame(o: MinioObject, bucket: string, token: string | null): SkyFrame | null {
   const name = (o?.name ?? '').trim();
   if (!name) return null;
 
@@ -49,7 +50,10 @@ function minioObjectToSkyFrame(o: MinioObject, bucket: string): SkyFrame | null 
   if (!hh || !mm) return null;
 
   const time = `${hh}:${mm}`;
-  const src  = `${API_BASE}/images/view?bucket=${encodeURIComponent(bucket)}&object_name=${encodeURIComponent(name)}`;
+  let src  = `${API_BASE}/images/view?bucket=${encodeURIComponent(bucket)}&object_name=${encodeURIComponent(name)}`;
+  if (token) {
+    src += `&token=${encodeURIComponent(token)}`;
+  }
   const alt  = `Cielo ${time}`;
   return { time, src, alt };
 }
@@ -70,6 +74,7 @@ function sortFramesByTime(frames: SkyFrame[]): SkyFrame[] {
 @Injectable({ providedIn: 'root' })
 export class ImagesService {
   private http = inject(HttpClient);
+  private auth = inject(AuthService);
   private readonly BUCKET = 'imagenes-cielo';
 
   // ===== Abortador del stream actual =====
@@ -89,7 +94,10 @@ export class ImagesService {
 
     return this.http.get<MinioListResponse>(url, { params }).pipe(
       map(resp => Array.isArray(resp?.objects) ? resp.objects : []),
-      map(objects => objects.map(o => minioObjectToSkyFrame(o, this.BUCKET))),
+      map(objects => {
+        const token = this.auth.token;
+        return objects.map(o => minioObjectToSkyFrame(o, this.BUCKET, token));
+      }),
       map(list => list.filter((f): f is SkyFrame => f !== null)),
       map(frames => sortFramesByTime(frames)),
       catchError(err => {
@@ -132,8 +140,14 @@ export class ImagesService {
     const controller = new AbortController();
     this.currentStreamAbort = controller;
 
+    const headers: HeadersInit = {};
+    const token = this.auth.token;
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     return new Observable<SkyFrame>(observer => {
-      fetch(url, { signal: controller.signal })
+      fetch(url, { signal: controller.signal, headers })
         .then(res => {
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           if (!res.body) throw new Error('Response has no readable body');
@@ -158,7 +172,9 @@ export class ImagesService {
                     console.warn('[ImagesService] stream error line:', (obj as any).error);
                     continue;
                   }
-                  const frame = minioObjectToSkyFrame(obj as MinioObject, this.BUCKET);
+                  // Retrieve token again or reuse, typically valid for session duration.
+                  // 'token' variable from outer scope (lines above) is valid closure.
+                  const frame = minioObjectToSkyFrame(obj as MinioObject, this.BUCKET, token);
                   if (frame) observer.next(frame);
                 } catch (e) {
                   console.warn('[ImagesService] NDJSON parse error', e);

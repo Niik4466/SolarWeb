@@ -3,7 +3,7 @@ from typing import Optional
 import json
 import time
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import StreamingResponse
 
 from services.image_service import (
@@ -12,6 +12,8 @@ from services.image_service import (
     stream_images_query
 )
 from schemas.image import MinioListResponse
+from core.security import get_current_user
+from models.user import Usuario
 
 router = APIRouter(prefix="/images", tags=["images"])
 
@@ -20,7 +22,7 @@ router = APIRouter(prefix="/images", tags=["images"])
 # =========================
 
 @router.get("", response_model=MinioListResponse)
-def get_images(bucket: str, prefix: str = "", granularity: str = "1s") -> MinioListResponse:
+def get_images(bucket: str, prefix: str = "", granularity: str = "1s", current_user: Usuario = Depends(get_current_user)) -> MinioListResponse:
     """
     Listado clásico (respuesta JSON única).
     """
@@ -36,7 +38,7 @@ def get_images(bucket: str, prefix: str = "", granularity: str = "1s") -> MinioL
         404: {"description": "No encontrado"},
     },
 )
-def download_image(bucket: str, object_name: str):
+def download_image(bucket: str, object_name: str, current_user: Usuario = Depends(get_current_user)):
     """
     Descarga forzada (Content-Disposition: attachment)
     y streaming con cierre del objeto MinIO.
@@ -71,7 +73,7 @@ def download_image(bucket: str, object_name: str):
         404: {"description": "No encontrado"},
     },
 )
-def view_image(bucket: str, object_name: str):
+def view_image(bucket: str, object_name: str, current_user: Usuario = Depends(get_current_user)):
     """
     Visualización inline (para navegador). Detecta tipo por extensión simple.
     """
@@ -115,6 +117,7 @@ def stream_images(
     granularity: str          = Query("1s", description="Granularidad temporal (1s, 1m, 30m, 1h, etc)"),
     limit:        int         = Query(10_000, ge=1, le=200_000, description="Máx. objetos a emitir"),
     start_after:  Optional[str] = Query(default=None, description="Cursor para continuar"),
+    current_user: Usuario = Depends(get_current_user),
 ):
     """
     Stream NDJSON: envía una línea JSON por objeto: {"name":"<obj>"}\n

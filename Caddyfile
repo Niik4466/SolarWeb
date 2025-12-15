@@ -1,11 +1,7 @@
 solarweb.lat {
 
-  handle_path /api/* {
-    reverse_proxy backend-solarweb:4002
-  }
-
   handle {
-    reverse_proxy frontend-solarweb:80
+    reverse_proxy frontend-solarweb:3002
   }
 }
 

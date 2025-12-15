@@ -22,9 +22,7 @@ import { LoadingService } from '../../services/loading.service';
 function todayLocalISO(): string {
   const d = new Date();
   const off = d.getTimezoneOffset();
-  // retornamos el 1 de mayo
-  return "2025-05-01";
-  //return new Date(d.getTime() - off * 60_000).toISOString().slice(0, 10); // yyyy-MM-dd
+  return new Date(d.getTime() - off * 60_000).toISOString().slice(0, 10); // yyyy-MM-dd
 }
 
 /** Convierte "HH:MM" a minutos absolutos del día (ej: "02:30" → 150). */

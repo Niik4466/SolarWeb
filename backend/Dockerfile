@@ -14,10 +14,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . ./backend
 WORKDIR /app/backend
 
-EXPOSE 8000
+EXPOSE 4002
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--log-level", "debug"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "4002", "--reload", "--log-level", "debug"]
 
