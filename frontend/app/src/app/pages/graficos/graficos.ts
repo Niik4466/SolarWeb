@@ -1,6 +1,6 @@
 // src/app/pages/graficos/graficos.ts
 
-import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
@@ -99,7 +99,8 @@ export class GraficosComponent implements OnInit {
   // banderas para saber cuándo termina la carga de frames y series
   private framesDone = false;
   private seriesDone = false;
-  private framesStreamingFinished = true;
+  private framesStreamingFinished = signal(true);
+
   // =====================
   // Gestion de granularidad
   // =====================
@@ -138,7 +139,7 @@ export class GraficosComponent implements OnInit {
       //this.isLoading = true;
 
       this.framesDone = false;
-      this.framesStreamingFinished = false;
+      this.framesStreamingFinished.set(false);
 
 
       return this.images.streamDayFramesBatched(day, {
@@ -176,7 +177,7 @@ export class GraficosComponent implements OnInit {
             this.framesDone = true;
             this.stopLoadingIfReady();
           }
-          this.framesStreamingFinished = true;
+          this.framesStreamingFinished.set(true);
         }),
 
         startWith([] as SkyFrame[])
@@ -314,10 +315,7 @@ resetToToday(): void {
    * Handler para cuando cambia un frame en la UI (placeholder).
    */
   onFrameChange(_f: SkyFrame) {}
-  get isFramesStreaming(): boolean {
-    // Hay stream de imágenes activo mientras el observable no ha terminado
-    return !this.framesStreamingFinished;
-  }
+  readonly isFramesStreaming = computed(() => !this.framesStreamingFinished());
 
   
 }

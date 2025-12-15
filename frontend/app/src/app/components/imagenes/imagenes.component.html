@@ -15,8 +15,9 @@
     <img [src]="c.src" [alt]="c.alt || ('Cielo ' + labelFor(c.time))" />
   </div>
 
+  
 
-  <div class="slider-wrap" role="group" aria-label="Seleccionar hora">
+  <div class="slider-wrap" role="group" aria-label="Seleccionar hora" *ngIf="frames.length > 1">
     <input
       type="range"
       [min]="0"
@@ -31,17 +32,26 @@
         class="tick"
         [style.left.%]="(i / (frames.length - 1)) * 100"
         [attr.aria-hidden]="true"
-        >{{ i % step() === 0 ? labelFor(f.time) : '' }}</span
       >
+        {{ i % step() === 0 ? labelFor(f.time) : '' }}
+      </span>
     </div>
   </div>
-  <!-- 👇 nuevo mensaje explicativo -->
+
   <div class="slider-hint" *ngIf="isStreaming && frames.length > 0">
     Cargando más imágenes… ({{ frames.length }} disponibles hasta ahora)
   </div>
 
+  <div class="stream-done-wrap" *ngIf="!isStreaming && frames.length > 0">
+    <div class="stream-done">
+      Han sido cargadas todas las imágenes del día ({{ frames.length }} en total).
+    </div>
+  </div>
 
-</div>
+
+
+
+  </div>
 
 <ng-template #empty>
   <div class="empty">No hay imágenes para mostrar.</div>

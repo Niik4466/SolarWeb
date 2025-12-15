@@ -89,7 +89,7 @@
           [showHeader]="true"
           [maxHeight]="320"
           [ratio]="'16 / 9'"
-          [isStreaming]="isFramesStreaming" 
+          [isStreaming]="isFramesStreaming()" 
           (frameChange)="onFrameChange($event)">
         </app-imagenes-por-hora>
 

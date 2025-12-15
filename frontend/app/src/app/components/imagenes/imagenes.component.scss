@@ -89,6 +89,8 @@
       margin-top: -5px; /* centra el thumb */
       box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3);
     }
+    
+
 
     /* MOZ */
     input[type="range"]::-moz-range-track {
@@ -119,6 +121,28 @@
         white-space: nowrap;
       }
     }
+  }
+  .stream-done {
+    margin-top: 0.75rem !important;
+    padding: 0.6rem 0.9rem !important;
+
+    display: inline-block !important;
+    text-align: center !important;
+    font-size: 0.9rem !important;
+    font-weight: 700 !important;
+
+    color: #065f46 !important;
+    background: #ecfdf5 !important;
+    border: 1px solid #a7f3d0 !important;
+    border-radius: 12px !important;
+
+    box-shadow: 0 6px 16px rgba(0,0,0,.08) !important;
+    max-width: 92% !important;
+    line-height: 1.25 !important;
+  }
+  .stream-done-wrap{
+    display: flex;
+    justify-content: center;
   }
 
   /* -------------------------
