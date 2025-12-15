@@ -116,7 +116,7 @@ services:
       - MINIO_ROOT_PASSWORD=${MINIO_PASSWORD}
       - PYTHONUNBUFFERED=1
     volumes:
-      - ${MINIO_UPLOAD_LOG_DIR}:/app/logs/UPLOAD_LOG.csv
+      - ${MINIO_UPLOAD_LOG_FILE}:/app/logs/UPLOAD_LOG.csv
       - ${MINIO_UPLOAD_IMAGES_DIR}:/app/images
     depends_on:
       - minio-solarweb
