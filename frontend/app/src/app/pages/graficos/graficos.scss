@@ -178,11 +178,11 @@ app-imagenes-por-hora {
 
 .empty-chart {
   width: 100%;
-  height: 100%;                 /* ← ahora sí funciona */
+  height: 100%;                 
   display: flex;
   flex-direction: column;
-  justify-content: center;      /* centra vertical */
-  align-items: center;          /* centra horizontal */
+  justify-content: center;      
+  align-items: center;          
   gap: 0.25rem;
 
   color: #6b7280;
