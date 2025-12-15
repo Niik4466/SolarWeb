@@ -1,11 +1,16 @@
 <header class="nav" role="navigation" aria-label="Principal">
   <div class="brand">
-    <span class="logo">☀</span>
+    <img
+      src="/favicon.ico"
+      alt="SolarWeb"
+      class="logo"
+    />
+
     <span class="title">SolarWeb</span>
 
     <!-- Botón hamburguesa: solo si está logueada -->
     <button
-      *ngIf="auth.isLoggedIn()"
+      
       class="hamburger"
       type="button"
       (click)="toggleMenu()"
@@ -66,7 +71,7 @@
 <!-- ===== Menú móvil ===== -->
 <div
   class="mobile-backdrop"
-  *ngIf="auth.isLoggedIn() && mobileOpen()"
+  *ngIf="mobileOpen()"
 >
   <div class="mobile-panel" id="mobileMenu">
     <button
@@ -79,21 +84,36 @@
     </button>
 
     <nav class="mobile-links">
+      <!-- Inicio siempre -->
       <a routerLink="/inicio" routerLinkActive="active" (click)="closeMenu()">Inicio</a>
-      <a routerLink="/graficos" routerLinkActive="active" (click)="closeMenu()">Gráficos</a>
-      <a routerLink="/exportar" routerLinkActive="active" (click)="closeMenu()">Exportar</a>
-      <a *ngIf="auth.isAdmin()" routerLink="/solicitudes" routerLinkActive="active" (click)="closeMenu()">
-        Solicitudes
-      </a>
-      <a *ngIf="auth.isAdmin()" routerLink="/usuarios" routerLinkActive="active" (click)="closeMenu()">
-        Usuarios
-      </a>
-      <a *ngIf="auth.isAdmin()" routerLink="/monitor-pc" routerLinkActive="active" class="tab">
-        Estado del sistema
-      </a>
-      <button class="logout-mobile-red" (click)="logout()">
-        Cerrar sesión
-      </button>
+
+      <!-- Si está logueado: mostrar el resto -->
+      <ng-container *ngIf="auth.isLoggedIn(); else mobileGuestTpl">
+        <a routerLink="/graficos" routerLinkActive="active" (click)="closeMenu()">Gráficos</a>
+        <a routerLink="/exportar" routerLinkActive="active" (click)="closeMenu()">Exportar</a>
+
+        <a *ngIf="auth.isAdmin()" routerLink="/solicitudes" routerLinkActive="active" (click)="closeMenu()">
+          Solicitudes
+        </a>
+        <a *ngIf="auth.isAdmin()" routerLink="/usuarios" routerLinkActive="active" (click)="closeMenu()">
+          Usuarios
+        </a>
+        <a *ngIf="auth.isAdmin()" routerLink="/monitor-pc" routerLinkActive="active" (click)="closeMenu()">
+          Estado del sistema
+        </a>
+
+        <button class="logout-mobile-red" (click)="logout(); closeMenu()">
+          Cerrar sesión
+        </button>
+      </ng-container>
+
+      <!-- Si NO está logueado: solo botón de login -->
+      <ng-template #mobileGuestTpl>
+        <button class="btn-login-mobile" (click)="irALogin(); closeMenu()">
+          Iniciar sesión / Registrarse
+        </button>
+      </ng-template>
     </nav>
+
   </div>
 </div>
