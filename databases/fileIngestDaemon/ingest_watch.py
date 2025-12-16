@@ -1,8 +1,4 @@
-"""
-ingest_watch_polling.py
-CORRECCIÓN: Usa PollingObserver para compatibilidad con WSL/Windows Mounts
-y arregla el Memory Leak de la caché de procesamiento.
-"""
+# ingest_watch.py
 
 import os
 import time
