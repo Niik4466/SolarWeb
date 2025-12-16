@@ -6,6 +6,8 @@ import csv
 import json
 import zipfile
 import io
+import os # import os
+import tempfile # import tempfile
 import time # Asegúrate de importar time arriba
 import asyncio
 import statistics
@@ -129,7 +131,7 @@ def update_transaction_status(t_id: int, status: str, files: List[str] = None):
     finally:
         db.close()
 
-def upload_file_to_minio(bucket: str, filename: str, data: bytes):
+def upload_file_to_minio(bucket: str, filename: str, source: Any):
     # Instanciamos el cliente
     client = _minio_client()
     
@@ -141,12 +143,25 @@ def upload_file_to_minio(bucket: str, filename: str, data: bytes):
     retries = 3
     for attempt in range(retries):
         try:
-            # Usamos un stream bytesIO nuevo en cada intento por seguridad
-            stream = io.BytesIO(data)
-            client.put_object(
-                bucket, filename, stream, len(data),
-                content_type="application/zip"
-            )
+            if isinstance(source, str):
+                # Es un path de archivo
+                client.fput_object(bucket, filename, source, content_type="application/zip")
+            else:
+                # Es bytes o BytesIO
+                if isinstance(source, bytes):
+                    stream = io.BytesIO(source)
+                    length = len(source)
+                else:
+                    stream = source
+                    stream.seek(0, 2)
+                    length = stream.tell()
+                    stream.seek(0)
+                
+                client.put_object(
+                    bucket, filename, stream, length,
+                    content_type="application/zip"
+                )
+
             print(f"Subida exitosa: {filename}")
             return # Éxito
         except Exception as e:
@@ -192,30 +207,36 @@ async def process_export_job(job: ExportJob):
 
     try:
         if job.job_type == "daily_batch":
-            # wrapper para llamar export_daily_batch_query que devuelve BytesIO
+            # wrapper para llamar export_daily_batch_query
             def run_daily():
-                buf = export_daily_batch_query(**job.params)
-                return buf.getvalue()
+                # Pedimos use_temp_file=True
+                return export_daily_batch_query(use_temp_file=True, **job.params)
             
-            zip_bytes = await loop.run_in_executor(_executor, run_daily)
+            # Devuelve ruta de archivo temporal
+            zip_source = await loop.run_in_executor(_executor, run_daily)
             
         elif job.job_type == "range":
             def run_range():
-                # export_by_range_query returns (bytes, type, name)
-                b, _, _ = export_by_range_query(**job.params)
-                # Ojo: export_by_range_query retorna (BytesIO, str, str) en la versión actual?
-                # Revisando codigo original: return buf, "application/zip", zip_name
-                if hasattr(b, "getvalue"): return b.getvalue()
-                return b
+                # export_by_range_query returns (source, type, name)
+                s, _, _ = export_by_range_query(use_temp_file=True, **job.params)
+                if hasattr(s, "getvalue"): return s.getvalue()
+                return s # Should be path str
             
-            zip_bytes = await loop.run_in_executor(_executor, run_range)
+            zip_source = await loop.run_in_executor(_executor, run_range)
         
         else:
             raise ValueError("Unknown job type")
 
-        # 2. Subir a MinIO
-        # Ejecutar bloqueo IO en thread también es buena práctica, aunque minio-py es síncrono
-        await loop.run_in_executor(_executor, upload_file_to_minio, bucket_export, filename_zip, zip_bytes)
+        # 2. Subir a MinIO (File based)
+        await loop.run_in_executor(_executor, upload_file_to_minio, bucket_export, filename_zip, zip_source)
+        
+        # Eliminar archivo temporal si es path
+        if isinstance(zip_source, str) and os.path.exists(zip_source):
+            try:
+                os.remove(zip_source)
+                print(f"Temp file removed: {zip_source}")
+            except Exception as e:
+                print(f"Error removing temp file {zip_source}: {e}")
         
         # 3. Actualizar DB
         update_transaction_status(job.transaction_id, "listo", [filename_zip])
@@ -771,13 +792,22 @@ def export_daily_batch_query(
         end_hour: str = "23:59",
         granularity: str | None = None,
         metrics: Optional[List[str]] = None,
+        use_temp_file: bool = False
 ):
+
     bucket_imgs = images_bucket or "imagenes-cielo"
     
+    if use_temp_file:
+        fd, temp_path = tempfile.mkstemp(suffix=".zip")
+        os.close(fd)
+        # Usamos mode 'w' sobre el archivo
+        zf = zipfile.ZipFile(temp_path, mode="w", compression=zipfile.ZIP_DEFLATED)
+    else:
+        buf = io.BytesIO()
+        zf = zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED)
 
-    buf = io.BytesIO()
     metrics_rows: List[Dict[str, Any]] = []  
-    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+    try:
         for day in dates:
             _write_day_to_zip(
                 zf=zf,
@@ -802,8 +832,13 @@ def export_daily_batch_query(
                 metrics_name = "metrics.json"
 
             zf.writestr(metrics_name, data_bytes)
+    finally:
+        zf.close()
+    
+    if use_temp_file:
+        return temp_path
+    
     buf.seek(0)
-
     return buf
     
 
@@ -817,79 +852,50 @@ def export_by_range_query(
         start_hour: str = "00:00",
         end_hour: str = "23:59",
         granularity: str | None = None,
-        metrics: Optional[List[str]] = None,         
-) -> tuple[bytes, str, str]:
+        metrics: Optional[List[str]] = None,
+        use_temp_file: bool = False
+) -> tuple[Any, str, str]:
     """
     Genera un ZIP con archivos `data/YYYY-MM-DD.(csv|json)` para cada día en el rango
     [day_init, day_finish] (ambos inclusive). Si include_images=True, incluye las imágenes
     en images/YYYY-MM-DD/...
-    Devuelve (bytes_zip, "application/zip", filename).
+    Devuelve (source, "application/zip", filename). source puede ser bytes, BytesIO o path str.
     """
     # Validaciones básicas
     if not variables:
-        raise ExportError("Debe indicar al menos una variable (GHI/DNI/DHI).")
-    if any(v not in VALID_FIELDS for v in variables):
-        raise ExportError("Variable no válida.")
-    if not day_init or not day_finish:
-        raise ExportError("Debe indicar day_init y day_finish en formato YYYY-MM-DD.")
+        raise ValueError("Variables required")
 
-    # Parsear fechas
-    try:
-        d0 = datetime.strptime(day_init, "%Y-%m-%d").date()
-        d1 = datetime.strptime(day_finish, "%Y-%m-%d").date()
-    except ValueError:
-        raise ExportError("Formato de fecha inválido. Use YYYY-MM-DD.")
-
-    if d1 < d0:
-        raise ExportError("day_finish no puede ser anterior a day_init.")
-
-    # Generar lista de días (strings YYYY-MM-DD)
-    days: List[str] = []
-    cur = d0
-    while cur <= d1:
-        days.append(cur.isoformat())
-        cur = cur + timedelta(days=1)
-
-    bucket_imgs = images_bucket or "imagenes-cielo"
-
-    buf = io.BytesIO()
-    metrics_rows: List[Dict[str, Any]] = []          # <--- NUEVO
-
-    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
-        for day in days:
-            # Reutiliza la función que ya sabe cómo escribir datos + imágenes por día
-            _write_day_to_zip(
-                zf=zf,
-                day=day,
-                variables=variables,
-                fmt=fmt,
-                include_images=include_images,
-                bucket_name=bucket_imgs,
-                start_hour=start_hour,
-                end_hour=end_hour,
-                granularity=granularity,
-                metrics=metrics,             # <--- NUEVO
-                metrics_rows=metrics_rows,   # <--- NUEVO
-            )
-
-        # ---- NUEVO: archivo de métricas
-        if metrics and metrics_rows:
-            if fmt == "csv":
-                data_bytes = _make_metrics_csv(metrics_rows)
-                metrics_name = "metrics.csv"
-            else:
-                data_bytes = json.dumps(metrics_rows).encode("utf-8")
-                metrics_name = "metrics.json"
-
-            zf.writestr(metrics_name, data_bytes)
+    start_func = datetime.strptime(day_init, "%Y-%m-%d")
+    end_func = datetime.strptime(day_finish, "%Y-%m-%d")
     
-    buf.seek(0)
-    zip_bytes = buf.getvalue()
+    if start_func > end_func:
+        raise ValueError("Start date > End date")
     
-    # Filename
+    days = []
+    curr = start_func
+    while curr <= end_func:
+        days.append(curr.strftime("%Y-%m-%d"))
+        curr += timedelta(days=1)
+        
+    # Reutilizamos logic de daily batch que ya maneja iteración y temp file
+    # Solo cambiamos la firma de lo que recibe daily batch
+    result_source = export_daily_batch_query(
+        variables=variables,
+        dates=tuple(days),
+        format=fmt,
+        include_images=include_images,
+        images_bucket=images_bucket,
+        start_hour=start_hour,
+        end_hour=end_hour,
+        granularity=granularity,
+        metrics=metrics,
+        use_temp_file=use_temp_file
+    )
+    
     filename = f"export_range_{day_init}_{day_finish}.zip"
-    
-    return zip_bytes, "application/zip", filename
+    return result_source, "application/zip", filename
+
+
 
 # -------------------
 # Storage Limits & Estimation
