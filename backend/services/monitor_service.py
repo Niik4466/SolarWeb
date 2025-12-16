@@ -59,10 +59,7 @@ def get_remote_disk_usage() -> dict:
             hostname=settings.DESTINY_MONITOR_PC,
             username=settings.SSH_USER,
             password=settings.SSH_PASSWORD,
-            timeout=10,
-            look_for_keys=False,
-            allow_agent=False,
-            banner_timeout=30
+            timeout=10
         )
         
         # Ejecutar: df -B1 /mnt/e | tail -n 1 | awk '{print $2" "$3}'
@@ -116,10 +113,7 @@ def get_remote_dir_size() -> int:
             hostname=settings.DESTINY_MONITOR_PC,
             username=settings.SSH_USER,
             password=settings.SSH_PASSWORD,
-            timeout=10,
-            look_for_keys=False,
-            allow_agent=False,
-            banner_timeout=30
+            timeout=10
         )
         
         # Ejecutar: du -sb LOGO_DIR_PATH | awk '{print $1}'
