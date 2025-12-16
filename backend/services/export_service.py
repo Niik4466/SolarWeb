@@ -6,6 +6,7 @@ import csv
 import json
 import zipfile
 import io
+import time # Asegúrate de importar time arriba
 import asyncio
 import statistics
 from concurrent.futures import ThreadPoolExecutor
@@ -129,14 +130,31 @@ def update_transaction_status(t_id: int, status: str, files: List[str] = None):
         db.close()
 
 def upload_file_to_minio(bucket: str, filename: str, data: bytes):
+    # Instanciamos el cliente
     client = _minio_client()
+    
+    # Asegurar bucket
     if not client.bucket_exists(bucket):
         client.make_bucket(bucket)
     
-    client.put_object(
-        bucket, filename, io.BytesIO(data), len(data),
-        content_type="application/zip"
-    )
+    # Lógica de reintento robusta
+    retries = 3
+    for attempt in range(retries):
+        try:
+            # Usamos un stream bytesIO nuevo en cada intento por seguridad
+            stream = io.BytesIO(data)
+            client.put_object(
+                bucket, filename, stream, len(data),
+                content_type="application/zip"
+            )
+            print(f"Subida exitosa: {filename}")
+            return # Éxito
+        except Exception as e:
+            print(f"Intento {attempt+1}/{retries} fallido al subir a MinIO: {e}")
+            if attempt < retries - 1:
+                time.sleep(2 * (attempt + 1)) # Backoff: espera 2s, luego 4s...
+            else:
+                raise e # Si falla el último, lanzamos el error
 
 def delete_file_from_minio(bucket: str, filename: str, transaction_id: int):
     """
@@ -423,16 +441,27 @@ def _make_csv(rows: List[Dict], variables: List[str]) -> bytes:
         writer.writerow({k: r.get(k, "") for k in headers})
     return buf.getvalue().encode("utf-8")
 
+_global_minio_client = None
+
 def _minio_client() -> Minio:
+    global _global_minio_client
+    if _global_minio_client:
+        return _global_minio_client
+
     # settings.MINIO_ENDPOINT incluye http://… ; Minio pide host sin esquema y secure=True/False
     endpoint = settings.MINIO_ENDPOINT.replace("http://", "").replace("https://", "")
     secure = settings.MINIO_ENDPOINT.startswith("https://")
-    return Minio(
+    
+    # Pool manager is handled internally by Minio client (urllib3) based on this instance.
+    # We should keep one instance per process ideally.
+    _global_minio_client = Minio(
         endpoint=endpoint,
         access_key=settings.MINIO_USER,
         secret_key=settings.MINIO_PASSWORD,
-        secure=secure
+        secure=secure,
+        # Optional: fine tune http_client if needed, but default is usually fine for one instance
     )
+    return _global_minio_client
 
 def _zip_with_images(
     data_bytes: bytes, 
