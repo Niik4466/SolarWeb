@@ -24,7 +24,10 @@ class UsuarioBase(BaseModel):
     estado: UsuarioEstado = UsuarioEstado.pendiente
 
 
-class UsuarioCreate(UsuarioBase):
+class UsuarioCreate(BaseModel):
+    correo: EmailStr
+    nombre: str
+    apellido: Optional[str] = None
     password: str
     justificacion: str
 

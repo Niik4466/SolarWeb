@@ -151,8 +151,8 @@ def create_user_query(db: Session, usuario_data: dict, justificacion: str):
             nombre=usuario_data["nombre"],
             apellido=usuario_data.get("apellido"),
             password_hash=hashed,
-            es_admin=usuario_data.get("es_admin", False),
-            estado=usuario_data.get("estado", "pendiente")
+            es_admin=False,
+            estado="pendiente"
         )
         db.add(nuevo_usuario)
         db.flush()
