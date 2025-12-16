@@ -120,8 +120,8 @@ export class GraficosComponent implements OnInit {
   // =====================
   private readonly FRAME_SAMPLE_EVERY = 10;  // submuestreo (se aplica en el backend)
   private readonly FRAME_MAX = 20000;        // límite máximo de frames cargados
-  private readonly START_HHMM = '08:00';     // ajusta si quieres
-  private readonly END_HHMM   = '18:00';     // ajusta si quieres
+  private readonly START_HHMM = '06:00';     // ajusta si quieres
+  private readonly END_HHMM   = '22:00';     // ajusta si quieres
   private readonly BATCH_MS   = 100;         // agrupa eventos cada 100 ms
 
   /**
