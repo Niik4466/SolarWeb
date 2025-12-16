@@ -33,4 +33,5 @@ VOLUME ["/var/lib/zerotier-one"]
 CMD zerotier-one -d && \
     sleep 5 && \
     zerotier-cli join ${ZT_NETWORK_ID} && \
-    gunicorn main:app --bind 0.0.0.0:4002 -w 2 --worker-class uvicorn.workers.UvicornWorker --log-level info
+    sleep 5 && \
+    gunicorn main:app --bind 0.0.0.0:4002 -w 1 --worker-class uvicorn.workers.UvicornWorker --log-level info

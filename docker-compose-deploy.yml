@@ -65,7 +65,7 @@ services:
       resources:
         limits:
           cpus: "0.5"
-          memory: "700M"
+          memory: "800M"
     logging:
       driver: "json-file"
       options:
@@ -139,3 +139,6 @@ volumes:
 networks:
   red_taller_software:
     external: false
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: "1280"
