@@ -82,7 +82,7 @@ services:
   frontend-solarweb:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile-production
     container_name: grupo2_solarweb_frontend
     restart: unless-stopped
     environment:
