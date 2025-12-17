@@ -252,6 +252,17 @@ button.ghost {
   .contenedor > h1 {
     width: 92%;
   }
+  .tabla.compacta {
+    display: block;              
+    overflow-x: auto;          
+    max-width: 100%;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tabla.compacta {
+    min-width: 720px;
+  }
 
   .toolbar {
     width: 92%;
