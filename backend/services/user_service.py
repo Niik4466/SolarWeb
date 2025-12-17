@@ -147,7 +147,7 @@ def create_user_query(db: Session, usuario_data: dict, justificacion: str):
     if user and user.estado in ("aprobado", "pendiente"):
         raise HTTPException(
             status_code=409,
-            detail=f"Ya existe una cuenta con este correo (estado: {user.estado})."
+            detail=f"Ya existe una cuenta con este correo."
         )
 
     # ✅ existe pero está eliminado: reactivar
