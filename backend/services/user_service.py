@@ -11,6 +11,7 @@ from services.mail_service import send_mail_query
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy import func
 
+
 scheduler = BackgroundScheduler()
 scheduler.start()
 
@@ -134,45 +135,68 @@ def get_users_by_status_query(db: Session, status: str = "aprobado"):
     users = db.query(Usuario).filter(Usuario.estado == status).all()
     return users
 
+from sqlalchemy.exc import IntegrityError
+from fastapi import HTTPException
+
 def create_user_query(db: Session, usuario_data: dict, justificacion: str):
-    """
-    Crea un nuevo usuario junto con su solicitud
-    """
-    user = get_user_by_email_query(db, usuario_data["correo"])
-    if user and (user.estado == "aprobado" or user.estado == "pendiente"):
-        raise HTTPException(status_code=400, detail=f"Ya existe un usuario con el correo {usuario_data['correo']} en estado {user.estado}")   
+    email = usuario_data["correo"].strip().lower()
 
+    user = get_user_by_email_query(db, email)
+
+    # ✅ ya existe y NO está eliminado
+    if user and user.estado in ("aprobado", "pendiente"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Ya existe una cuenta con este correo (estado: {user.estado})."
+        )
+
+    # ✅ existe pero está eliminado: reactivar
+    if user and user.estado == "eliminado":
+        try:
+            user.estado = "pendiente"
+            user.actualizado_en = datetime.utcnow()
+            user.aprobado_en = None
+            user.password_hash = hash_password(usuario_data["password"])
+            user.nombre = usuario_data["nombre"]
+            user.apellido = usuario_data.get("apellido")
+
+            db.add(user)
+            db.flush()
+
+            solicitud = Solicitud(usuario_id=user.id, justificacion=justificacion)
+            db.add(solicitud)
+
+            db.commit()
+            db.refresh(user)
+            return user
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(500, detail=f"Error al reactivar usuario: {str(e)}")
+
+    # ✅ no existe: crear normal
     try:
-        # Creamos el usuario
-        hashed = hash_password(usuario_data["password"])
-
         nuevo_usuario = Usuario(
-            correo=usuario_data["correo"].strip().lower(),
+            correo=email,
             nombre=usuario_data["nombre"],
             apellido=usuario_data.get("apellido"),
-            password_hash=hashed,
+            password_hash=hash_password(usuario_data["password"]),
             es_admin=False,
-            estado="pendiente"
+            estado="pendiente",
         )
         db.add(nuevo_usuario)
         db.flush()
 
-        # Crear solicitud
-        solicitud = Solicitud(
-            usuario_id=nuevo_usuario.id,
-            justificacion=justificacion
-        )
+        solicitud = Solicitud(usuario_id=nuevo_usuario.id, justificacion=justificacion)
         db.add(solicitud)
 
-        # Hacemos commit a la bd
         db.commit()
         db.refresh(nuevo_usuario)
-
         return nuevo_usuario
-    except IntegrityError as e:
-        # Deshacemos los cambios
+
+    except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error al crear usuario: {str(e)}")
+        raise HTTPException(409, detail="Ya existe una solicitud o cuenta registrada con este correo.")
+
 
 def get_pending_users_with_last_solicitud_query(db: Session):
     """
