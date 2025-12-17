@@ -113,7 +113,7 @@ def get_remote_dir_size() -> int:
             hostname=settings.DESTINY_MONITOR_PC,
             username=settings.SSH_USER,
             password=settings.SSH_PASSWORD,
-            timeout=10
+            timeout=10,
         )
         
         # Ejecutar: du -sb LOGO_DIR_PATH | awk '{print $1}'

@@ -5,7 +5,7 @@ import { UsersApi, UsuarioOut, TransaccionOut } from '../../services/user.api';
 import { AuthService } from '../../services/auth.service';
 import { MailApi } from '../../services/mail.service';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { startWith, debounceTime, distinctUntilChanged, finalize } from 'rxjs/operators';
+import { startWith, debounceTime, distinctUntilChanged, finalize, map } from 'rxjs/operators';
 import { LoadingService } from '../../services/loading.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { getEstadoCuentaEmail } from '../../services/mail-template/estado_cuenta';
@@ -57,7 +57,7 @@ export class UsuariosComponent implements OnInit {
   private api = inject(UsersApi);
   private auth = inject(AuthService);
   private loadingSrv = inject(LoadingService);
-  private mail = inject(MailApi);  
+  private mail = inject(MailApi);
 
 
   /**
@@ -96,7 +96,7 @@ export class UsuariosComponent implements OnInit {
   buscar = new FormControl('', { nonNullable: true });
 
   // Criterio de orden actual de la tabla
-  orden  = signal<Orden>('recientes'); // default: más recientes primero
+  orden = signal<Orden>('recientes'); // default: más recientes primero
 
   /**
    * Valor del buscador como signal, con debounce, para reaccionar
@@ -138,7 +138,7 @@ export class UsuariosComponent implements OnInit {
   ngOnInit() {
     this.cargarAprobados();
   }
-  
+
   // ---------------------------------------------------------
   // Manejo de cambios de orden desde el <select>
   // ---------------------------------------------------------
@@ -248,7 +248,7 @@ export class UsuariosComponent implements OnInit {
    * Computed que representa la lista de usuarios activos
    * (ya excluyendo al usuario actual).
    */
-  activos  = computed(() => this.excluirActual(this.listaAprobados()));
+  activos = computed(() => this.excluirActual(this.listaAprobados()));
 
   // ---------------------------------------------------------
   // Helpers buscador/orden
@@ -343,7 +343,7 @@ export class UsuariosComponent implements OnInit {
    * - Para 'rango', muestra "fecha_ini – fecha_fin".
    */
   private buildFechas(t: TransaccionOut): string {
-    if (t.tipo_exportar === 'dias') return t.archivos.join(', ');
+    if (t.tipo_exportar === 'dias') return (t.archivos || []).join(', ');
     if (t.fecha_ini && t.fecha_fin) return `${t.fecha_ini} – ${t.fecha_fin}`;
     return t.archivos?.[0] ?? '—';
   }
@@ -361,8 +361,8 @@ export class UsuariosComponent implements OnInit {
 
     this.cargandoHist.set(true);
 
-    this.api.getUserTransactions(u.id).subscribe({
-      next: (res) => {
+    this.api.getUserTransactions(u.id).pipe(
+      map((res) => {
         const filas: FilaHistorial[] = (res.data || [])
           .map(t => ({
             fecha: t.creado_en,
@@ -372,22 +372,27 @@ export class UsuariosComponent implements OnInit {
           }))
           // Ordenamos de más reciente a más antiguo
           .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-
-        this.privados_histCache.set(u.id, filas);
+        return filas;
+      }),
+      finalize(() => {
         this.cargandoHist.set(false);
+      })
+    ).subscribe({
+      next: (filas: FilaHistorial[]) => {
+        this.privados_histCache.set(u.id, filas);
       },
-      error: (err: HttpErrorResponse) => {
+      error: (err: HttpErrorResponse | Error) => {
         // Si el backend responde 404, lo interpretamos como “no tiene historial todavía”
-        if (err.status === 404) {
+        // Verificamos "status" solo si es HttpErrorResponse
+        if ('status' in err && err.status === 404) {
           this.privados_histCache.set(u.id, []);   // caché vacío
           this.errorHist.set(null);                // sin error
-          this.cargandoHist.set(false);
           return;
         } else {
-          // otros errores sí son reales (500, 0, etc.)
+          // otros errores sí son reales (500, 0, etc.) o error de parseo
+          console.error(err);
           this.errorHist.set('No se pudo cargar el historial de transacciones.');
         }
-        this.cargandoHist.set(false);
       }
     });
   }
@@ -507,7 +512,7 @@ export class UsuariosComponent implements OnInit {
       error: () => {
         this.error.set('No se pudo eliminar definitivamente el usuario.');
       }
-    }); 
+    });
   }
 
   /**
@@ -519,7 +524,7 @@ export class UsuariosComponent implements OnInit {
   confirmarEliminacion() {
     const u = this.pendiente();
     if (!u) return;
-    
+
     if (!this.puedeEliminar(u)) {
       this.error.set('No tienes permisos para eliminar a este usuario.');
       this.pendiente.set(null);

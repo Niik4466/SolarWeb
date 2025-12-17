@@ -132,7 +132,7 @@ export class UsersApi {
    */
   deleteUser(userId: number) {
     return this.http.delete<{ success: boolean; message: string }>(
-      `${this.base}/delete_scheduled/?usuario_id=${userId}`
+      `${this.base}/delete_scheduled?usuario_id=${userId}`
     );
   }
 
