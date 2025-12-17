@@ -171,42 +171,53 @@ export class SolicitarRegistroComponent {
           this.enviado.set(true);
           this.form.reset();
         },
-        error: (err: any) => {
+        error: (err: HttpErrorResponse) => {
           console.error('Error en solicitar registro:', err);
 
-          // 🚨 BACKEND CAÍDO
-          if (err?.backendDown) {
-            this.mostrandoError.set(err.message);
+          // 🔴 Backend caído / sin respuesta
+          if (err.status === 0) {
+            this.mostrandoError.set(
+              'No se pudo conectar con el servidor. Intenta nuevamente más tarde.'
+            );
+            return;
+          }
+
+          // 🔴 Error interno del backend
+          if (err.status >= 500) {
+            this.mostrandoError.set(
+              'Ocurrió un error interno del servidor. Intenta nuevamente más tarde.'
+            );
             return;
           }
 
           const emailCtrl = this.form.get('email');
 
+          // 🟡 Correo duplicado controlado
           if (
             err.status === 400 &&
             typeof err.error?.detail === 'string' &&
             err.error.detail.startsWith('Ya existe un usuario con el correo')
           ) {
-            const msg =
-              'Ya existe una cuenta aprobada o una solicitud pendiente asociada a este correo.';
-
             emailCtrl?.setErrors({
               ...(emailCtrl.errors || {}),
               alreadyUsed: true,
             });
 
-            this.mostrandoError.set(msg);
+            this.mostrandoError.set(
+              'Ya existe una cuenta aprobada o una solicitud pendiente asociada a este correo.'
+            );
             return;
           }
 
+          // 🔵 Fallback genérico
           const msg =
-            (err.error && (err.error.detail || err.error.msg)) ||
+            err.error?.detail ||
+            err.error?.msg ||
             err.message ||
             'No se pudo enviar la solicitud.';
+
           this.mostrandoError.set(msg);
-        },
+        }
       });
-
-
   }
 }

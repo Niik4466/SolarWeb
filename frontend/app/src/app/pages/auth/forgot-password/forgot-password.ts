@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
+import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   selector: 'app-forgot-password',
@@ -77,7 +78,7 @@ export class ForgotPasswordComponent {
         }
 
         this.serverError.set(
-          'Ocurrió un error al enviar el código. Intenta nuevamente.'
+          'El servidor está presentando problemas. Intenta nuevamente más tarde.'
         );
       }
     });
@@ -108,18 +109,16 @@ export class ForgotPasswordComponent {
         });
       },
       error: (err) => {
-        this.loading.set(false);
-
-        // 🚨 BACKEND CAÍDO
         if (err?.backendDown) {
           this.serverError.set(err.message);
           return;
         }
 
         this.serverError.set(
-          'Código inválido o expirado. Revisa tus datos e inténtalo de nuevo.'
+          'El servidor está presentando problemas. Intenta nuevamente más tarde.'
         );
       }
+
     });
   }
 }
