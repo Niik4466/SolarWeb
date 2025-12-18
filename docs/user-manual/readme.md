@@ -5,7 +5,7 @@
 
 ---
 
-# 📌 1. Introducción
+#  1. Introducción
 La plataforma **SolarWeb** de la Universidad Austral de Chile (UACh) permite:
 
 - **Visualizar** datos de radiación solar mediante gráficos interactivos e imágenes del cielo despejado en distintas fechas.  
@@ -15,59 +15,65 @@ Este manual está dirigido a **usuarios generales, estudiantes, docentes e inves
 
 ---
 
-# 💻 2. Requisitos técnicos
+#  2. Requisitos técnicos
 - Navegador web actualizado (Chrome, Firefox o Edge).  
 - Conexión a internet estable.   
 - (Opcional) Software para abrir archivos **CSV** o **JSON** (Excel, Editor de texto, Python, R, etc.).  
 
 ---
 
-# 🔑 3. Acceso a la plataforma
+#  3. Acceso a la plataforma
 1. Ingresar a la URL oficial:  
-   👉 [https://solarweb.inf.uach.cl](https://solarweb.inf.uach.cl)  
+    [https://solarweb.inf.uach.cl](https://solarweb.inf.uach.cl)  
 2. El sistema lo llevará a la pantalla de Inicio de Sesión.  
 
 ---
-# 🔐 4. Iniciar sesión
+# 4. Inicio
 
 ## 4.1 Descripción
+La pantalla de **Inicio** informa a los usuarios sobre SolarWeb, sus objetivos, las funcionalidades y cómo acceder a ella.
+
+---
+#  5. Iniciar sesión
+
+## 5.1 Descripción
 La pantalla de **Iniciar sesión** permite a usuarios aprobados acceder a la plataforma usando su correo electrónico institucional o personal registrado y su contraseña de SolarWeb.
 
 ---
 
-## 4.2 Interfaz
+## 5.2 Interfaz
 
 La pantalla presenta los siguientes elementos:
 
-### 📧 Campo de correo electrónico
+###  Campo de correo electrónico
 - Debe ingresar un correo válido (ej: `usuario@ejemplo.cl`).
 - Mensajes de error posibles:
   - **“El correo es obligatorio.”**
   - **“Formato de correo inválido.”**
   - **“No existe una cuenta con ese correo.”**
 
-### 🔑 Campo de contraseña
+###  Campo de contraseña
 - Requiere la contraseña asignada durante el registro.
 - Mensajes de error posibles:
   - **“La contraseña es obligatoria.”**
   - **“Contraseña incorrecta.”**
 
-### 👁️ Opción “Mostrar contraseña”
+###  Opción “Mostrar contraseña”
 - Permite visualizar temporalmente lo escrito para evitar errores.
 
-### ▶️ Botón “Ingresar”
+###  Botón “Ingresar”
 - Envía las credenciales para validación.
 - Mientras el sistema procesa, se mostrará: **“Ingresando…”**.
 
-### ❓ Enlace “¿Olvidaste tu contraseña?”
+###  Enlace “¿Olvidaste tu contraseña?”
 - Envía al usuario al proceso de recuperación.
 
-### 📝 Enlace “Solicitar registro”
+###  Enlace “Solicitar registro”
 - Disponible para usuarios sin cuenta aprobada.
 
 ---
 
-## 4.3 Procedimiento para iniciar sesión
+## 5.3 Procedimiento para iniciar sesión
 
 1. Escriba su **correo electrónico** registrado.  
 2. Ingrese su **contraseña**.  
@@ -78,7 +84,7 @@ La pantalla presenta los siguientes elementos:
 
 ---
 
-## 4.4 Recuperación de contraseña
+## 5.4 Recuperación de contraseña
 
 Si olvidaste tu contraseña, la plataforma no permite restablecerla automáticamente. En su lugar, debes solicitar asistencia al administrador del sistema. Para hacerlo:
 
@@ -94,7 +100,7 @@ También puedes regresar al inicio de sesión usando el enlace **Volver al inici
 
 ---
 
-## 4.5 Solicitar una cuenta nueva
+## 5.5 Solicitar una cuenta nueva
 
 Si no posee acceso a la plataforma, puede enviar una solicitud de registro siguiendo estos pasos:
 
@@ -109,18 +115,18 @@ Si no posee acceso a la plataforma, puede enviar una solicitud de registro sigui
    - (Opcional) **Mostrar contraseña:** permite visualizar las claves mientras escribe.
 3. Revise que todos los campos coincidan y cumplan las validaciones solicitadas.
 4. Presione **Enviar solicitud** para enviar su registro al equipo administrador.
-5. Su solicitud será revisada manualmente. Si es aprobada, podrá iniciar sesión normalmente utilizando el correo y contraseña que registró.
+5. Su solicitud será revisada manualmente. Se le enviará un correo indicandole si su solicitud es aprobada o no, en el primer caso podrá iniciar sesión normalmente utilizando el correo y contraseña que registró.
 
 ---
 
-# 📊 5. Sección **Gráficos**
+#  6. Sección **Gráficos**
 
-### 5.1 Descripción
+### 6.1 Descripción
 Permite seleccionar un día y visualizar:  
 - **Gráfico de irradiancia vs. tiempo** (Global, Directa, Difusa).  
 - **Imágenes del cielo** captadas en distintos horarios del día.  
 
-### 5.2 Interfaz
+### 6.2 Interfaz
 - **Selector de fecha**: calendario y botón *Buscar*.  
 - **Gráfico de irradiancia** (izquierda):  
   - Eje X: tiempo del día.  
@@ -131,7 +137,7 @@ Permite seleccionar un día y visualizar:
   - Controles de reproducción (adelante/atrás).  
   - Imagen ampliada del cielo en el horario seleccionado.  
 
-### 5.3 Procedimiento
+### 6.3 Procedimiento
 1. Seleccione una fecha en el calendario.  
 2. Haga clic en **Buscar**.  
 3. El sistema mostrará los datos disponibles de irradiancia y las imágenes asociadas.  
@@ -139,51 +145,109 @@ Permite seleccionar un día y visualizar:
 5. Desplacése en la barra de tiempo para ver imágenes en distintos momentos del día.  
 
 ---
-# 📥 6. Sección **Exportar**
 
-### 6.1 Descripción general
-Permite **descargar datos en bruto** de irradiación y otras variables en formato **CSV o JSON**, de manera **diaria** o por **rangos de fechas**.  
+# 7. Sección Exportar
 
-### 6.2 Interfaz principal
-- **Granularidad**:  
-  - **Diario** → datos de uno o varios días.  
-  - **Rango** → datos entre dos fechas.  
-- **Variables**: GHI, DNI, DHI. 
-- **Formato**: CSV o JSON.  
-- **Incluir imágenes**: opción para adjuntar imágenes de la cámara solar.  
-- **Botón Exportar**: genera la descarga.  
+## 7.1 Descripción general
 
-### 6.3 Procedimiento
+La sección **Exportar** permite a los usuarios descargar o solicitar la exportación de datos de irradiancia solar y variables asociadas, en formato **CSV o JSON**, ya sea para **días individuales** o para **rangos de fechas**.
 
-#### A) Exportación diaria
-1. Seleccionar **Diario**.  
-2. Escoger las fechas deseadas usando el calendario, para cada día seleccionado apretar el botón "Agregar".  
-3. Seleccionar variables de interés.  
-4. Elegir formato (CSV/JSON).  
-5. (Opcional) Marcar **Incluir imágenes**.  
-6. Presionar **Exportar** → se descargarán los archivos deseados.  
-
-#### B) Exportación por rango
-1. Seleccionar **Rango**.  
-2. Definir fecha **inicio** y **término**.  
-3. Seleccionar variables de interés.  
-4. Elegir formato (CSV/JSON).  
-5. (Opcional) Incluir imágenes.  
-6. Presionar **Exportar** → se descargará un archivo ZIP con datos e imágenes.  
-
-### 6.4 Casos de uso
-- Descargar un solo día para análisis puntual.  
-- Exportar un mes completo para análisis estadístico.  
-- Obtener datos junto a imágenes para validación visual.  
+Dependiendo de la cantidad de datos solicitados, el sistema puede:
+- **Descargar automáticamente** los archivos cuando la exportación corresponde a **un solo día**.
+- **Enviar el resultado por correo electrónico** cuando la exportación incluye **dos o más días** o se realiza mediante un **rango de fechas**.
 
 ---
-# 7. Sección **Solicitudes** (solo administradores)
+
+## 7.2 Interfaz principal
+
+La pantalla de exportación está compuesta por los siguientes elementos:
+
+### Configuración de exportación
+- **Modo de exportación**:
+  - **Diario** → permite seleccionar uno o varios días específicos.
+  - **Rango** → permite definir una fecha de inicio y una fecha de término.
+
+### Selección de días
+- Calendario para elegir fechas.
+- Botón **Agregar** para incorporar cada día seleccionado a la lista de exportación (modo Diario).
+
+### Variables
+- **GHI** (Irradiancia Global Horizontal)
+- **DNI** (Irradiancia Directa Normal)
+- **DHI** (Irradiancia Difusa Horizontal)
+
+### Métricas por día
+Permite generar métricas estadísticas diarias, las cuales se incluyen en un archivo adicional llamado **metrics** dentro del ZIP exportado:
+- **Promedio diario** (mean, W/m²)
+- **Mínimo diario** (min, W/m²)
+- **Máximo diario** (max, W/m²)
+- **Energía diaria** (suma, kWh/m²)
+
+### Rango de horas
+- Permite definir un intervalo horario específico:
+  - **Desde** (hora inicial)
+  - **Hasta** (hora final)
+- Solo se exportarán los datos comprendidos dentro del rango seleccionado.
+
+### Granularidad de datos
+- Permite seleccionar el nivel de resolución temporal de los datos exportados (por ejemplo, minutos u otras agregaciones disponibles).
+- Afecta la cantidad de registros incluidos en el archivo final.
+
+### Formato
+- **CSV**
+- **JSON**
+
+### Incluir imágenes
+- Opción **Sí / No** para adjuntar imágenes de la cámara solar asociadas a las fechas exportadas.
+
+### Botón Exportar
+- Inicia el proceso de exportación según la configuración seleccionada.
+
+---
+
+## 7.3 Procedimiento
+
+### A) Exportación diaria
+
+1. Seleccione el modo **Diario**.
+2. Elija una fecha en el calendario y presione **Agregar**.
+3. Repita el paso anterior si desea incluir más días.
+4. Seleccione las **variables** de interés.
+5. (Opcional) Seleccione **métricas por día**.
+6. Defina el **rango de horas**.
+7. Seleccione la **granularidad** de los datos.
+8. Elija el **formato** (CSV o JSON).
+9. (Opcional) Active **Incluir imágenes**.
+10. Presione **Exportar**.
+
+**Comportamiento del sistema:**
+- Si se exporta **un solo día**, la descarga se realiza automáticamente.
+- Si se exportan **dos o más días**, el archivo será generado de forma asíncrona y enviado al **correo electrónico del usuario**.
+
+---
+
+### B) Exportación por rango
+
+1. Seleccione el modo **Rango**.
+2. Defina la fecha de **inicio** y **término**.
+3. Seleccione las **variables** de interés.
+4. (Opcional) Seleccione **métricas por día**.
+5. Defina el **rango de horas**.
+6. Seleccione la **granularidad** de los datos.
+7. Elija el **formato** (CSV o JSON).
+8. (Opcional) Active **Incluir imágenes**.
+9. Presione **Exportar**.
+
+El sistema generará un archivo ZIP con los datos solicitados y enviará un **correo electrónico** al usuario con el enlace de descarga una vez finalizado el proceso.
+
+---
+# 8. Sección **Solicitudes** (solo administradores)
 
 Esta pantalla permite a los usuarios con rol **administrador** revisar, aprobar o rechazar las solicitudes de registro enviadas por nuevos usuarios.
 
 ---
 
-### 7.1 Interfaz general
+### 8.1 Interfaz general
 
 La vista muestra:
 
@@ -213,7 +277,7 @@ Mensajes especiales:
 
 ---
 
-### 7.2 Ver la justificación de una solicitud
+### 8.2 Ver la justificación de una solicitud
 
 1. En la tabla, ubique la fila de la persona que desea revisar.  
 2. Haga clic en el botón **Ver** en la columna *Justificación*.  
@@ -225,7 +289,7 @@ Mensajes especiales:
 
 ---
 
-### 7.3 Aprobar o rechazar una solicitud
+### 8.3 Aprobar o rechazar una solicitud
 
 1. En la fila correspondiente, vaya a la columna **Acciones**.  
 2. Para **aprobar**:
@@ -243,13 +307,13 @@ Mensajes especiales:
 Solo los usuarios con rol **administrador** pueden acceder y operar esta sección.
 
 ---
-# 8. Sección **Usuarios** (solo administradores)
+# 9. Sección **Usuarios** (solo administradores)
 
 Esta pantalla permite a los usuarios con rol **administrador** gestionar las cuentas aprobadas de la plataforma: revisar su historial de uso, eliminarlas y restaurarlas.
 
 ---
 
-### 8.1 Interfaz principal
+### 9.1 Interfaz principal
 
 La vista se divide en:
 
@@ -284,7 +348,7 @@ Si no hay resultados tras filtrar, se muestra **“Sin resultados”**.
 
 ---
 
-### 8.2 Ver el historial de un usuario
+### 9.2 Ver el historial de un usuario
 
 1. Localice al usuario en la tabla.  
 2. Haga clic en el botón **⟳** de la columna **Historial**.  
@@ -303,7 +367,7 @@ Si no hay resultados tras filtrar, se muestra **“Sin resultados”**.
 
 ---
 
-### 8.3 Eliminar (desactivar) un usuario activo
+### 9.3 Eliminar (desactivar) un usuario activo
 
 > Nota: los usuarios con rol **Administrador** no se pueden eliminar desde esta pantalla.
 
@@ -315,7 +379,7 @@ Si no hay resultados tras filtrar, se muestra **“Sin resultados”**.
 
 ---
 
-### 8.4 Gestionar usuarios eliminados
+### 9.4 Gestionar usuarios eliminados
 
 1. Haga clic en el botón **🗑 Usuarios eliminados**.  
 2. Se abrirá un modal con una tabla que incluye:
@@ -345,7 +409,54 @@ Al pie del modal se muestra el mensaje:
 
 ---
 
-# 🛠️ 9. Solución de problemas
+# 10. Sección Estado del sistema (solo administradores)
+
+La sección **Estado del sistema** permite a los usuarios con rol **moderador** o **superowner** monitorear el estado general de la infraestructura de SolarWeb, especialmente el computador del edificio **3000**, encargado de la adquisición y transmisión de datos.
+
+Esta pestaña está orientada a la detección temprana de fallas que puedan afectar la continuidad del servicio, y en el caso de presentarse alguna anomalía, se le informara a los administradores vía correo.
+
+---
+
+## 10.1 Descripción general
+
+En esta vista se presenta información actualizada sobre:
+
+- El uso de almacenamiento del disco del computador del edificio 3000.
+- El estado de los servicios críticos de comunicación con SolarWeb.
+- Alertas visuales cuando alguno de los servicios no se encuentran operativos.
+
+Cuando se detecta algún problema, el sistema muestra un mensaje de advertencia indicando que existen servicios que no están respondiendo correctamente.
+
+---
+
+## 10.2 Interfaz
+
+### Uso del disco del computador edificio 3000
+
+- Muestra el porcentaje de uso del almacenamiento mediante una barra de progreso.
+- Incluye un indicador porcentual que permite evaluar rápidamente el estado del disco.
+- Permite anticipar problemas asociados a la falta de espacio disponible.
+
+### Servicios PC3000
+
+Se listan los servicios remotos esenciales para el funcionamiento de la plataforma:
+
+- **Servicio de datos**  
+  Responsable de la comunicación de los datos de irradiancia con SolarWeb.
+
+- **Servicio LOGO**  
+  Encargado de la comunicación con el controlador LOGO.
+
+Cada servicio presenta un estado visible, como *operativo* o **Sin respuesta**, lo que permite identificar rápidamente posibles fallas.
+
+### Botón "Actualizar estado"
+
+- Permite consultar nuevamente el estado del disco y de los servicios.
+- Actualiza la información mostrada sin necesidad de recargar la página.
+
+---                                                                               
+
+#  9. Solución de problemas
 
 | Problema | Causa probable | Solución |
 |----------|----------------|----------|
@@ -356,7 +467,7 @@ Al pie del modal se muestra el mensaje:
 
 ---
 
-# 📚 10. Anexos
+#  10. Anexos
 
 **Glosario**  
 - **GHI**: Irradiancia Global Horizontal.  
