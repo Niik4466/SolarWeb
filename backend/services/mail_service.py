@@ -6,8 +6,22 @@ from fastapi import HTTPException, status
 
 def send_mail_query(send_to: str, subject: str, body: str):
     """
-    Envía un correo electrónico mediante Gmail (SMTP).
-    Lanza una HTTPException si ocurre algún error en el proceso.
+    Envía un correo electrónico a través del servidor SMTP de Gmail configurado.
+
+    Construye un mensaje MIME multipart (HTML) y lo envía utilizando las credenciales
+    del entorno.
+
+    Args:
+        send_to (str): Dirección de correo del destinatario.
+        subject (str): Asunto del correo.
+        body (str): Contenido HTML del mensaje.
+
+    Returns:
+        dict: Mensaje de éxito `{"message": ...}`.
+
+    Raises:
+        HTTPException(502): Si ocurre un error específico del protocolo SMTP.
+        HTTPException(500): Si ocurre cualquier otro error inesperado.
     """
     try:
         # Crear el mensaje

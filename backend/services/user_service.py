@@ -24,27 +24,60 @@ class UsersError(Exception):
 # --------------------
 
 def list_users_query(db: Session):
-    """Devuelve todos los usuarios registrados."""
+    """
+    Obtiene la lista completa de usuarios registrados en el sistema.
+
+    Args:
+        db (Session): Sesión de base de datos.
+    
+    Returns:
+        List[Usuario]: Lista de objetos Usuario.
+    """
     return db.query(Usuario).all()
 
 def get_admin_emails_query(db: Session) -> List[str]:
     """
-    Devuelve una lista de correos electrónicos de todos los usuarios
-    que tienen rol de administrador en el sistema.
+    Recupera los correos electrónicos de todos los administradores activos.
+
+    Útil para envío de notificaciones del sistema.
+
+    Args:
+        db (Session): Sesión de base de datos.
+
+    Returns:
+        List[str]: Lista de direcciones de correo electrónico.
     """
     admins = db.query(Usuario.correo).filter(Usuario.es_admin == True).all()
     # admins es una lista de tuplas [('email1',), ('email2',)]
     return [email[0] for email in admins]
 
 def obtain_user_by_id_query(db: Session, usuario_id: int):
-    """Obtiene un usuario por su ID."""
+    """
+    Busca un usuario por su ID único.
+
+    Args:
+        db (Session): Sesión de base de datos.
+        usuario_id (int): ID del usuario.
+
+    Returns:
+        Usuario | None: El objeto Usuario si existe, None en caso contrario.
+    """
     return db.query(Usuario).filter(Usuario.id == usuario_id).first()
 
 
 
 def get_user_by_email_query(db: Session, email: str) -> Usuario | None:
     """
-    Obtiene un usuario por su correo sin importar mayúsculas/minúsculas.
+    Busca un usuario por su correo electrónico (case-insensitive).
+
+    Normaliza el correo a minúsculas antes de la búsqueda.
+
+    Args:
+        db (Session): Sesión de base de datos.
+        email (str): Correo a buscar.
+
+    Returns:
+        Usuario | None: Objeto Usuario si existe.
     """
     email_normalized = email.strip().lower()
 
@@ -57,7 +90,18 @@ def get_user_by_email_query(db: Session, email: str) -> Usuario | None:
 
 def update_user_status_query(db: Session, status: str, user: Usuario):
     """
-    Actualizar estado del usuario.
+    Actualiza el estado de un usuario (ej. aprobado, rechazado).
+
+    Args:
+        db (Session): Sesión de base de datos.
+        status (str): Nuevo estado ("pendiente", "aprobado", "eliminado").
+        user (Usuario): Objeto usuario a modificar.
+
+    Returns:
+        Usuario: Usuario actualizado.
+
+    Raises:
+        HTTPException(400): Si el estado no es válido.
     """
     allowed_status = ["pendiente", "aprobado", "eliminado"]
     if status not in allowed_status:
@@ -72,7 +116,15 @@ def update_user_status_query(db: Session, status: str, user: Usuario):
 
 def update_user_power_query(db: Session, admin: bool, user: Usuario):
     """
-    Actualiza el rol del usuario, si es admin o no.
+    Modifica los privilegios de administrador de un usuario.
+
+    Args:
+        db (Session): Sesión de base de datos.
+        admin (bool): True para conceder permisos de administrador, False para revocar.
+        user (Usuario): Usuario a modificar.
+
+    Returns:
+        Usuario: Usuario actualizado.
     """
     user.es_admin = bool(admin)
     db.add(user)
@@ -82,7 +134,17 @@ def update_user_power_query(db: Session, admin: bool, user: Usuario):
 
 def approve_user_query(db: Session, user: Usuario, admin: bool):
     """
-    Aprueba un usuario, se especifica el rol (es o no es admin)
+    Proceso de aprobación de un usuario pendiente.
+
+    Cambia el estado a 'aprobado', asigna el rol inicial y registra la fecha de aprobación.
+
+    Args:
+        db (Session): Sesión de base de datos.
+        user (Usuario): Usuario a aprobar.
+        admin (bool): Rol inicial (True=Admin, False=Usuario regular).
+
+    Returns:
+        Usuario: Usuario aprobado.
     """
     # Actualizamos el estado
     user.estado = "aprobado"
@@ -101,10 +163,16 @@ def approve_user_query(db: Session, user: Usuario, admin: bool):
 
 def user_login_query(db: Session, email: str, password: str) -> dict:
     """
-    Lógica de negocio del login:
-    - Busca usuario
-    - Verifica contraseña
-    - Verifica estado 
+    Valida las credenciales y el estado de un usuario para permitir el ingreso.
+
+    Args:
+        db (Session): Sesión de base de datos.
+        email (str): Correo electrónico.
+        password (str): Contraseña en texto plano.
+
+    Returns:
+        dict: Resultado del login (success: bool, message: str, user_data...).
+              Incluye estado de aprobación y roles si es exitoso.
     """
     usuario = get_user_by_email_query(db, email)
     if not usuario:
@@ -126,7 +194,14 @@ def user_login_query(db: Session, email: str, password: str) -> dict:
 
 def get_users_by_status_query(db: Session, status: str = "aprobado"):
     """
-    Devuelve todos los usuarios que tengan el estado especificado
+    Filtra usuarios por su estado actual.
+
+    Args:
+        db (Session): Sesión de base de datos.
+        status (str): Estado a filtrar ("pendiente", "aprobado", "eliminado").
+
+    Returns:
+        List[Usuario]: Lista de usuarios que coinciden.
     """
     allowed_status = ["pendiente", "aprobado", "eliminado"]
     if status not in allowed_status:
@@ -139,6 +214,30 @@ from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException
 
 def create_user_query(db: Session, usuario_data: dict, justificacion: str):
+    """
+    Crea un nuevo usuario o reactiva uno eliminado.
+
+    Si el correo ya existe:
+    - Si está aprobado/pendiente -> Error 409.
+    - Si está eliminado -> Reactiva la cuenta pasándola a 'pendiente' y actualizando datos.
+    
+    Si no existe:
+    - Crea un nuevo registro en estado 'pendiente'.
+
+    En ambos casos crea una 'Solicitud' de ingreso.
+
+    Args:
+        db (Session): Sesión de base de datos.
+        usuario_data (dict): Datos del usuario (nombre, apellido, correo, password).
+        justificacion (str): Motivo de la solicitud de cuenta.
+
+    Returns:
+        Usuario: El usuario creado o reactivado.
+
+    Raises:
+        HTTPException(409): Si el usuario ya existe y está activo.
+        HTTPException(500): Error interno.
+    """
     email = usuario_data["correo"].strip().lower()
 
     user = get_user_by_email_query(db, email)
@@ -200,8 +299,16 @@ def create_user_query(db: Session, usuario_data: dict, justificacion: str):
 
 def get_pending_users_with_last_solicitud_query(db: Session):
     """
-    Devuelve todos los usuarios en estado 'pendiente' junto con su última solicitud (si existe).
-    Retorna una lista de diccionarios listos para serializar.
+    Obtiene usuarios pendientes incluyendo el detalle de su solicitud de ingreso.
+
+    Recupera los usuarios en estado 'pendiente' y hace un join manual con la tabla 
+    de Solicitudes para obtener la justificación más reciente.
+
+    Args:
+        db (Session): Sesión de base de datos.
+
+    Returns:
+        dict: Estructura `{"total": int, "data": list}` con info combinada de usuario y solicitud.
     """
     usuarios = db.query(Usuario).filter(Usuario.estado == UsuarioEstado.pendiente).all()
     if not usuarios:
@@ -242,8 +349,15 @@ def get_pending_users_with_last_solicitud_query(db: Session):
 
 def get_approved_users_query(db: Session):
     """
-    Devuelve todos los usuarios con estado 'aprobado' junto con la fecha de aprobacion
-    Estructura: { total, data: [ { id, nombre, apellido, correo, estado, aprobado_en } ] }
+    Obtiene lisado de usuarios aprobados formateado para el frontend.
+
+    Incluye fechas de aprobación.
+
+    Args:
+        db (Session): Sesión de base de datos.
+
+    Returns:
+        dict: Estructura `{"total": int, "data": list}`.
     """
     # Filtrar solo usuarios aprobados
     usuarios = (
@@ -277,8 +391,17 @@ def get_approved_users_query(db: Session):
 
 def get_deleted_users_query(db: Session, admin: Usuario):
     """
-    Devuelve todos los usuarios con estado 'eliminado', junto con la fecha de eliminación registrada.
-    Estructura: { total, data: [ { id, nombre, apellido, correo, estado, eliminado_en } ] }
+    Obtiene listado de usuarios eliminados y cuándo fueron eliminados.
+
+    Si el solicitante no es Owner, se ocultan los usuarios eliminados que eran admins.
+    Busca en el log de eliminación (`UsuarioEliminacionLog`) la fecha del evento.
+
+    Args:
+        db (Session): Sesión de BD.
+        admin (Usuario): Admin que realiza la consulta (para aplicar filtros de visibilidad).
+
+    Returns:
+        dict: Estructura `{"total": int, "data": list}` ordenada por fecha de eliminación descendente.
     """
     # Consultar todos los usuarios eliminados
     usuarios_eliminados = db.query(Usuario).filter(Usuario.estado == UsuarioEstado.eliminado).all()
@@ -326,11 +449,22 @@ def get_deleted_users_query(db: Session, admin: Usuario):
 
 def delete_user_query(db: Session, usuario_id: int, eliminado_por_id: int | None = None):
     """
-    Elimina (lógicamente) un usuario:
-      1. Busca el usuario por ID
-      2. Cambia su estado a 'eliminado'
-      3. Crea un registro en UsuarioEliminacionLog
-      4. Commit transaccional
+    Ejecuta un borrado lógico (Soft Delete) de un usuario.
+
+    Cambia el estado a 'eliminado' y registra el evento en el log. No borra físicamente.
+
+    Args:
+        db (Session): Sesión de BD.
+        usuario_id (int): ID del usuario a "borrar".
+        eliminado_por_id (int, optional): ID del admin que ejecuta la acción.
+
+    Returns:
+        dict: Resultado de la operación con el usuario actualizado.
+
+    Raises:
+        HTTPException(403): Si se intenta eliminar un admin sin permisos suficientes.
+        HTTPException(400): Si ya estaba eliminado.
+        HTTPException(500): Error interno.
     """
     # 1. Obtener usuario
     usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
@@ -381,8 +515,17 @@ def delete_user_query(db: Session, usuario_id: int, eliminado_por_id: int | None
 # --------------------
 def get_transactions_by_user_id_query(db: Session, usuario_id: int):
     """
-    Devuelve todas las transacciones asociadas a un usuario,
-    agregando campos lógicos: tipo_exportar, fecha_ini y fecha_fin.
+    Obtiene el historial de transacciones (exportaciones) de un usuario.
+
+    Procesa los datos crudos para inferir metadata como el tipo de rango (días vs rango)
+    analizando el nombre de los archivos generados.
+
+    Args:
+        db (Session): Sesión de BD.
+        usuario_id (int): ID del usuario.
+
+    Returns:
+        list[dict]: Lista de transacciones procesada con campos adicionales (fecha_ini, fecha_fin).
     """
     transacciones = db.query(Transaccion).filter(Transaccion.usuario_id == usuario_id).all()
     if not transacciones:
@@ -440,9 +583,17 @@ def save_transaction_query(
     var_global: bool
 ):
     """
-    Guarda una nueva transacción de exportar realizada por un usuario.
-    Se dejan los campos estado como completado y exportado_en en la fecha actual
-    dado que se utiliza en los endpoints de exportación sincrona
+    Registra una transacción completada exitosamente (exportación síncrona).
+
+    Args:
+        db (Session): Sesión de BD.
+        user_id (int): ID del usuario.
+        files (list[str]): Lista de nombres de archivos generados.
+        images (bool): Si incluyó imágenes.
+        var_... (bool): Variables incluidas.
+
+    Returns:
+        Transaccion: Objeto creado.
     """
     try:
         # Validaciones mínimas
@@ -477,7 +628,12 @@ def save_transaction_query(
         raise HTTPException(status_code=500, detail=f"Error al guardar la transacción: {str(e)}")
 
 def create_transaction_entry_query(db: Session, user_id: int, var_ghi: bool, var_dni: bool, var_global: bool, imagenes: bool) -> int:
-    """Crea la transacción en estado 'pendiente' y retorna el ID."""
+    """
+    Crea un registro inicial de transacción en estado 'pendiente' (para Async).
+
+    Returns:
+        int: ID de la transacción creada.
+    """
     try:
         nueva_transaccion = Transaccion(
             usuario_id=user_id,
@@ -498,6 +654,15 @@ def create_transaction_entry_query(db: Session, user_id: int, var_ghi: bool, var
         raise e
 
 def update_transaction_status_query(db: Session, t_id: int, status: str, files: List[str] = None):
+    """
+    Actualiza el estado de una transacción existente (ej. de pendiente a completado).
+
+    Args:
+        db (Session): Sesión de BD.
+        t_id (int): ID de la transacción.
+        status (str): Nuevo estado.
+        files (List[str], optional): Archivos generados para adjuntar al registro.
+    """
     try:
         # Recuperar transacción
         t = db.query(Transaccion).filter(Transaccion.id == t_id).first()
@@ -521,9 +686,14 @@ def update_transaction_status_query(db: Session, t_id: int, status: str, files: 
 
 def create_transaccion_query(db: Session, data: dict):
     """
-    Crea una nueva transacción.
-    `data` debe contener los campos definidos en TransaccionCreate.
-    Considera que 'archivos' es una lista y que 'exportado_en' puede ser múltiple.
+    Crea una transacción genérica desde un diccionario de datos.
+
+    Args:
+        db (Session): Sesión de BD.
+        data (dict): Diccionario con campos de TransaccionCreate (usuario_id, archivos, etc).
+
+    Returns:
+        Transaccion: La transacción creada.
     """
     try:
         # Validación mínima de campos obligatorios
@@ -563,7 +733,16 @@ def create_transaccion_query(db: Session, data: dict):
 # --------------------
 def delete_user_permanently_query(usuario_id: int, db: Session = None):
     """
-    Elimina completamente al usuario y sus registros asociados de la base de datos.
+    Ejecuta un Hard Delete: elimina físicamente al usuario y todos sus datos relacionados.
+
+    Borra transacciones, logs, solicitudes y finalmente el usuario.
+
+    Args:
+        usuario_id (int): ID del usuario.
+        db (Session): Sesión de BD.
+
+    Returns:
+        dict: Mensaje de confirmación.
     """
     try:
         # Buscar usuario con estado 'eliminado'
@@ -601,8 +780,13 @@ def delete_user_permanently_query(usuario_id: int, db: Session = None):
 
 def delete_user_permanently_scheduled(usuario_id: int):
     """
-    Elimina completamente al usuario y sus registros asociados de la base de datos.
-    (Es llamada automáticamente por el scheduler)
+    Función callback para el Scheduler: ejecuta la eliminación física de un usuario.
+
+    Se ejecuta automáticamente en segundo plano cuando se cumple el plazo de retención.
+    Crea su propia sesión de BD.
+
+    Args:
+        usuario_id (int): ID del usuario a eliminar.
     """
     db: Session = get_sync_session()
     try:
@@ -645,7 +829,10 @@ def delete_user_permanently_scheduled(usuario_id: int):
 
 def schedule_user_deletion_query(usuario_id: int):
     """
-    Programa la eliminación definitiva del usuario en 30 días.
+    Programa un Job en el scheduler para eliminar un usuario en 30 días.
+
+    Args:
+        usuario_id (int): ID del usuario.
     """
     scheduler.add_job(
         func=delete_user_permanently_scheduled,
@@ -658,7 +845,19 @@ def schedule_user_deletion_query(usuario_id: int):
 
 def mark_and_schedule_deletion_query(db: Session, usuario_id: int, eliminado_por_id: int):
     """
-    Marca un usuario como eliminado y programa su eliminación definitiva.
+    Orquesta el flujo de eliminación programada.
+
+    1. Marca al usuario como eliminado (soft delete).
+    2. Crea log de eliminación.
+    3. Programa la eliminación definitiva (hard delete) usando `schedule_user_deletion_query`.
+
+    Args:
+        db (Session): Sesión de BD.
+        usuario_id (int): Usuario afectado.
+        eliminado_por_id (int): Admin que ejecuta.
+
+    Returns:
+        dict: Metadata de la operación.
     """
     try:
         # Obtenemos el usuario a eliminar
@@ -716,7 +915,16 @@ def mark_and_schedule_deletion_query(db: Session, usuario_id: int, eliminado_por
 
 def generate_recovery_code_query(db: Session, email: str):
     """
-    Genera un código de recuperación, lo guarda en la BD y lo envía por correo.
+    Inicia el flujo de recuperación de contraseña.
+
+    - Busca usuario.
+    - Genera código numérico aleatorio.
+    - Guarda hash del código con expiración.
+    - Envía correo con el código.
+
+    Args:
+        db (Session): Sesión de DB.
+        email (str): Email del usuario.
     """
     # 1. Buscar usuario
     user = get_user_by_email_query(db, email)
@@ -828,7 +1036,18 @@ def generate_recovery_code_query(db: Session, email: str):
 
 def verify_recovery_code_query(db: Session, email: str, code: str, new_password: str):
     """
-    Verifica si el código de recuperación es válido y actualiza la contraseña.
+    Verifica un código de recuperación y cambia la contraseña.
+
+    Valida que el código exista para el usuario, no haya expirado y no haya sido usado.
+
+    Args:
+        db (Session): Sesión de BD.
+        email (str): Email del usuario.
+        code (str): Código numérico ingresado.
+        new_password (str): Nueva contraseña.
+
+    Returns:
+        bool: True si tuvo éxito, False si falló la validación.
     """
     # 1. Buscar usuario
     user = get_user_by_email_query(db, email)

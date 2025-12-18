@@ -20,6 +20,23 @@ VALID_FIELDS = {"GHI", "DNI", "DHI"}
 
 @router.post("/day")
 def export_day(req: ExportDayReq, current_user: Usuario = Depends(get_current_user)):
+    """
+    Exporta datos (CSV/ZIP) de un día específico.
+
+    Genera un archivo con datos de series temporales (CSV) y opcionalmente imágenes (ZIP).
+    Validará los parámetros y retornará el contenido en streaming para su descarga.
+
+    Args:
+        req (ExportDayReq): Parámetros de la solicitud (fecha variables, formato, filtros).
+        current_user (Usuario): Usuario autenticado.
+
+    Returns:
+        StreamingResponse | JSONResponse: Archivo generado (CSV/ZIP) o JSON si se pide explícitamente y no hay imágenes.
+
+    Raises:
+        HTTPException(400): Si faltan variables o las variables no son válidas.
+        HTTPException(500): Si ocurre un error durante la generación del exporte.
+    """
     if not req.variables:
         raise HTTPException(400, "Debe indicar al menos una variable (GHI/DNI/DHI).")
     if any(v not in VALID_FIELDS for v in req.variables):
@@ -57,6 +74,22 @@ def export_day(req: ExportDayReq, current_user: Usuario = Depends(get_current_us
 
 @router.post("/daily/batch")
 def export_daily_batch(req: ExportBatchReq, current_user: Usuario = Depends(get_current_user)):
+    """
+    Exporta datos de múltiples días en lote (Batch Sync).
+
+    Genera un archivo ZIP que contiene sub-archivos para cada día solicitado.
+    Este proceso es síncrono y puede tardar si se solicitan muchos días.
+
+    Args:
+        req (ExportBatchReq): Parámetros (lista de fechas, variables, etc.).
+        current_user (Usuario): Usuario autenticado.
+
+    Returns:
+        StreamingResponse: Archivo ZIP con los datos exportados.
+
+    Raises:
+        HTTPException(400): Si hay error en validación de variables.
+    """
     if not req.variables:
         raise HTTPException(400, "Debe indicar al menos una variable (GHI/DNI/DHI).")
     if any(v not in VALID_FIELDS for v in req.variables):
@@ -87,8 +120,20 @@ def export_daily_batch(req: ExportBatchReq, current_user: Usuario = Depends(get_
 @router.post("/range")
 def export_by_range(req: ExportByRangeReq, current_user: Usuario = Depends(get_current_user)):
     """
-    Exporta datos en un rango de fechas (date_init -> date_finish).
-    Devuelve un archivo ZIP que contiene los días solicitados.
+    Exporta datos en un rango de fechas de forma síncrona.
+
+    Interpreta el inicio y fin del rango y genera un archivo ZIP consolidado.
+
+    Args:
+        req (ExportByRangeReq): Parámetros con fecha inicio y fin.
+        current_user (Usuario): Usuario autenticado.
+
+    Returns:
+        StreamingResponse: Archivo ZIP con el contenido.
+
+    Raises:
+        HTTPException(400): Si hay errores de lógica de negocio (ExportError).
+        HTTPException(500): Errores internos.
     """
     try:
         # Llamamos la capa de servicio (lógica pura)
@@ -123,6 +168,23 @@ def export_by_range(req: ExportByRangeReq, current_user: Usuario = Depends(get_c
 
 @router.post("/daily/batch/async")
 async def export_daily_batch_async(req: ExportBatchAsyncReq, current_user: Usuario = Depends(get_current_user)):
+    """
+    Inicia una tarea asíncrona (background) para exportar múltiples días.
+
+    Valida la factibilidad de la exportación, crea un registro de transacción 
+    y encola el trabajo para ser procesado por un worker. 
+
+    Args:
+        req (ExportBatchAsyncReq): Parámetros incluyendo email para notificar.
+        current_user (Usuario): Usuario autenticado.
+
+    Returns:
+        dict: Mensaje de confirmación de que la tarea ha sido encolada.
+
+    Raises:
+        HTTPException(400): Si la validación de factibilidad falla o parámetros inválidos.
+        HTTPException(500): Si no se puede crear la transacción en BD.
+    """
     if not req.variables:
         raise HTTPException(400, "Debe indicar al menos una variable.")
     if any(v not in VALID_FIELDS for v in req.variables):
@@ -168,6 +230,19 @@ async def export_daily_batch_async(req: ExportBatchAsyncReq, current_user: Usuar
 
 @router.post("/range/async")
 async def export_by_range_async(req: ExportRangeAsyncReq, current_user: Usuario = Depends(get_current_user)):
+    """
+    Inicia una tarea asíncrona para exportar un rango de fechas.
+
+    Args:
+        req (ExportRangeAsyncReq): Parámetros de rango y configuración.
+        current_user (Usuario): Usuario autenticado.
+
+    Returns:
+        dict: Mensaje de confirmación.
+
+    Raises:
+        HTTPException(400): Errores de validación de fechas o factibilidad.
+    """
     if not req.variables:
         raise HTTPException(400, "Debe indicar al menos una variable.")
     
@@ -229,7 +304,19 @@ async def export_by_range_async(req: ExportRangeAsyncReq, current_user: Usuario 
 @router.get("/exports/{filename}")
 def download_export_file(filename: str):
     """
-    Descarga archivo desde MinIO (bucket exportaciones).
+    Descarga un archivo previamente generado que se encuentra en el bucket de 'exportaciones'.
+
+    Endpoint utilizado para descargar los resultados de exportaciones asíncronas.
+
+    Args:
+        filename (str): Nombre del archivo a descargar.
+
+    Returns:
+        StreamingResponse: Archivo solicitado.
+
+    Raises:
+        HTTPException(404): Si el archivo no existe o ha expirado.
+        HTTPException(500): Error en MinIO.
     """
     # En un caso real, validar usuario vs archivo aquí.
     bucket = "exportaciones"

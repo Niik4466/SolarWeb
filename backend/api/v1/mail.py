@@ -14,7 +14,22 @@ def send_mail(
     current_user: Usuario = Depends(get_current_user),
 ):
     """
-    Endpoint que envía un correo. Devuelve información del envío o error detallado.
+    Envía un correo electrónico utilizando el servicio de mensajería configurado.
+
+    Permite enviar notificaciones simples especificando destinatario, asunto y cuerpo.
+    Utiliza el servicio de correo subyacente (ej. Gmail, SMTP).
+
+    Args:
+        to (str): Dirección de correo electrónico del destinatario.
+        subject (str): Asunto del correo.
+        body (str): Contenido del cuerpo del mensaje (texto plano).
+        current_user (Usuario): Usuario autenticado que solicita el envío.
+
+    Returns:
+        dict: Un diccionario con el estado del envío y un mensaje de confirmación.
+
+    Raises:
+        HTTPException: Si ocurre un error controlado o inesperado durante el envío.
     """
     try:
         result = send_mail_query(to, subject, body)

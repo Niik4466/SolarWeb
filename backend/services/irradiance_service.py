@@ -11,6 +11,21 @@ from schemas.irradiance import SeriesOut, IrrPoint, FieldName
 MEASUREMENT = "radiacion_solar"  # el measurement que hay en influx
 
 def get_series(start: str, stop: str, field: FieldName = "GHI", granularity: str | None = None) -> SeriesOut:
+    """
+    Ejecuta una consulta Flux para obtener una serie temporal de irradiancia.
+
+    Filtra los datos por rango de tiempo y campo, eliminando valores cero (salvo que `get_series_export` diga lo contrario, pero aquí se filtra).
+    Aplica una agregación por ventana (media) si se especifica una granularidad.
+
+    Args:
+        start (str): Fecha de inicio RFC3339.
+        stop (str): Fecha de fin RFC3339.
+        field (FieldName, optional): Campo a consultar (GHI, DNI, etc).
+        granularity (str, optional): Ventana de agregación (ej: "1h").
+
+    Returns:
+        SeriesOut: Objeto con la lista de puntos normalizados.
+    """
     # OJO: start/stop deben venir en formato RFC3339/ISO (ej: 2025-09-16T00:00:00Z)
     flux = f'''
     from(bucket: "{settings.INFLUX_BUCKET}")
@@ -47,9 +62,21 @@ def get_series(start: str, stop: str, field: FieldName = "GHI", granularity: str
 
 def get_series_export(start: str, stop: str, field: FieldName = "GHI", granularity: str | None = None) -> list[tuple[str, float]]:
     """
-    Versión simplificada para exportación:
-    - No filtra ceros (o sí, según se quiera, pero el usuario pidió quitar el filtro != 0).
-    - Devuelve lista de tuplas (iso_time, value) en lugar de SeriesOut.
+    Obtiene datos brutos para exportación sin filtrar valores cero.
+
+    Similar a `get_series` pero optimizado para exportación masiva:
+    - Retorna una lista de tuplas (timestamp, valor) en lugar de pydantic models.
+    - No filtra valores iguales a cero.
+    - Ordena explícitamente por tiempo.
+
+    Args:
+        start (str): Fecha de inicio RFC3339.
+        stop (str): Fecha de fin RFC3339.
+        field (FieldName, optional): Campo a consultar.
+        granularity (str, optional): Ventana de agregación.
+
+    Returns:
+        list[tuple[str, float]]: Lista de pares (timestamp ISO, valor).
     """
     flux = f'''
     from(bucket: "{settings.INFLUX_BUCKET}")

@@ -50,6 +50,19 @@ _executor = ThreadPoolExecutor(max_workers=1) # Para ejecutar la lógica síncro
 export_scheduler = AsyncIOScheduler()
 
 async def enqueue_export_job(user_id: int | str, email: str, job_type: str, params: dict, transaction_id: int):
+    """
+    Agrega una tarea de exportación a la cola de procesamiento asíncrono.
+
+    Calcula el tamaño estimado de la exportación para el control de cuotas y 
+    encola un objeto `ExportJob`.
+
+    Args:
+        user_id (int | str): ID del usuario o identificador.
+        email (str): Correo para notificar al finalizar.
+        job_type (str): Tipo de trabajo ("daily_batch" o "range").
+        params (dict): Parámetros para la función de exportación subyacente.
+        transaction_id (int): ID de la transacción en la BD.
+    """
     # Calcular estimado para actualizar tracking
     est_size = 0
     try:
@@ -91,6 +104,13 @@ async def enqueue_export_job(user_id: int | str, email: str, job_type: str, para
     await export_queue.put(job)
 
 async def export_worker():
+    """
+    Worker asíncrono que procesa la cola de exportaciones.
+
+    Se ejecuta en un bucle infinito consumiendo `ExportJob` de la cola.
+    Maneja el ciclo de vida del job: procesamiento, actualización de estado (error/éxito)
+    y liberación de recursos de cuota estimados.
+    """
     print("Export Worker Started")
     if not export_scheduler.running:
         export_scheduler.start()
@@ -132,6 +152,17 @@ def update_transaction_status(t_id: int, status: str, files: List[str] = None):
         db.close()
 
 def upload_file_to_minio(bucket: str, filename: str, source: Any):
+    """
+    Sube un archivo (ruta o bytes) a MinIO con lógica de reintento.
+
+    Args:
+        bucket (str): Nombre del bucket destino.
+        filename (str): Nombre del objeto en MinIO.
+        source (Any): Puede ser ruta de archivo (str), bytes o BytesIO.
+    
+    Raises:
+        Exception: Si falla tras varios intentos.
+    """
     # Instanciamos el cliente
     client = _minio_client()
     
@@ -188,6 +219,18 @@ def delete_file_from_minio(bucket: str, filename: str, transaction_id: int):
         print(f"Error checking/deleting file {filename}: {e}")
 
 async def process_export_job(job: ExportJob):
+    """
+    Ejecuta la lógica principal de exportación (generación ZIP + subida + notificación).
+
+    1. Rutea la lógica de generación según `job_type`.
+    2. Ejecuta la generación (CPU-bound) en un ThreadPoolExecutor.
+    3. Sube el resultado a MinIO.
+    4. Notifica al usuario via correo electrónico con un link de descarga.
+    5. Agenda la limpieza (borrado) del archivo en 24 horas.
+
+    Args:
+        job (ExportJob): Datos del trabajo.
+    """
     print(f"Processing job {job.transaction_id} for {job.email}")
     
     # 1. Generar ZIP (Cpu bound, run in iterator)
@@ -327,6 +370,9 @@ def _parse_img_time(object_name: str) -> int | None:
         return None
 
 def _query_field_series(field: str, start: str, stop: str):
+    """
+    Ejecuta una consulta básica de Flux para obtener (timestamp, value) de un campo.
+    """
     flux = f'''
     from(bucket: "{settings.INFLUX_BUCKET}")
       |> range(start: {start}, stop: {stop})
@@ -362,10 +408,21 @@ def _compute_daily_metrics(
     metrics: List[str]
 ) -> Dict[str, Any]:
     """
-    Calcula métricas por día y variable.
-    - mean: promedio aritmético de irradiancia (W/m2)
-    - min, max: mínimo y máximo de irradiancia (W/m2)
-    - sum: energía diaria aproximada en kWh/m2 (integración temporal)
+    Calcula métricas estadísticas por día y variable.
+
+    Métricas soportadas:
+    - mean: promedio aritmético de irradiancia (W/m2).
+    - min, max: mínimo y máximo de irradiancia (W/m2).
+    - sum: energía diaria aproximada en kWh/m2 (integración temporal W/m2 -> kWh/m2).
+
+    Args:
+        day (str): Fecha (YYYY-MM-DD).
+        rows (List[Dict]): Filas de datos del día.
+        variables (List[str]): Variables a procesar (GHI, DNI, etc).
+        metrics (List[str]): Lista de métricas solicitadas.
+
+    Returns:
+        Dict: Diccionario con las métricas calculadas (keys ej. "GHI_mean").
     """
     result: Dict[str, Any] = {"day": day}
     if not rows:
@@ -399,6 +456,13 @@ def _compute_energy_kwh_from_rows(
     """
     Integra la irradiancia (W/m2) de 'var' a lo largo del día para obtener kWh/m2.
     Usa regla del trapecio entre puntos consecutivos.
+
+    Args:
+        rows (List[Dict]): Datos ordenados temporalmente.
+        var (str): Nombre de la variable.
+
+    Returns:
+        float: Energía acumulada en kWh/m2.
     """
     points: List[tuple[datetime, float]] = []
 
@@ -493,6 +557,21 @@ def _zip_with_images(
     end_hour: str = "23:59",
     granularity: str | None = None,
 ) -> bytes:
+    """
+    Genera un ZIP en memoria combinando datos (CSV/JSON) e imágenes descargadas de MinIO.
+
+    Filtra imágenes por rango horario y aplica granularidad.
+    Obsoleto/Alternativo: Esta lógica está integrada mayormente en `_write_day_to_zip` para soportar multi-día.
+
+    Args:
+        data_bytes (bytes): Contenido del archivo de datos principal.
+        data_name (str): Nombre del archivo de datos dentro del ZIP.
+        day (str): Fecha de las imágenes.
+        bucket_name (str): Bucket de origen.
+    
+    Returns:
+        bytes: Contenido del archivo ZIP final.
+    """
     client = _minio_client()
     prefix = day.replace("-", "/") + "/"        # "YYYY/MM/DD/"
     buf = io.BytesIO()
@@ -716,16 +795,30 @@ def export_day_query(
         start_hour: str = "00:00",
         end_hour: str = "23:59",
         granularity: str | None = None,
-        metrics: Optional[List[str]] = None,   # <--- NUEVO
+        metrics: Optional[List[str]] = None,
 ):
     """
-    Lógica pura: genera los datos y devuelve (bytes, media_type, filename)
+    Genera la exportación para un solo día (lógica pura).
 
-    - Si NO hay imágenes ni métricas => CSV/JSON plano (como antes).
-    - Si hay imágenes o métricas      => ZIP con:
-        data/YYYY-MM-DD.(csv|json)
-        + opcionalmente metrics.(csv|json)
-        + opcionalmente images/...
+    - Si `include_images` es False y `metrics` es None: Retorna bytes de un archivo único CSV/JSON.
+    - Si se requieren imágenes o métricas: Retorna bytes de un archivo ZIP conteniendo:
+        - `data/{date}.{ext}` (Series de tiempo).
+        - `metrics.{ext}` (si se pidieron métricas).
+        - `images/{date}/...` (si se pidieron imágenes).
+
+    Args:
+        variables (list[str]): GHI, DNI, etc.
+        date (str): Fecha YYYY-MM-DD.
+        format (str): "csv" o "json".
+        include_images (bool): Incluir imágenes en ZIP.
+        images_bucket (str): Nombre del bucket MinIO.
+        start_hour (str): Hora inicio filtro.
+        end_hour (str): Hora fin filtro.
+        granularity (str | None): Granularidad muestreo.
+        metrics (list[str] | None): Métricas opcionales.
+
+    Returns:
+        tuple[bytes, str, str]: (contenido_bytes, media_type, filename)
     """
     # Caso simple: sin imágenes ni métricas
     if not include_images and not metrics:
@@ -794,7 +887,20 @@ def export_daily_batch_query(
         metrics: Optional[List[str]] = None,
         use_temp_file: bool = False
 ):
+    """
+    Genera una exportación de múltiples días en batch (ZIP consolidado).
 
+    Itera sobre la lista de fechas y agrega los datos/imágenes de cada día al ZIP.
+    Puede operar completamente en memoria (BytesIO) o usar un archivo temporal en disco
+    (recomendado para grandes volúmenes).
+
+    Args:
+        dates (tuple[str]): Tupla de fechas (YYYY-MM-DD).
+        use_temp_file (bool): Si True, escribe en '/tmp' en lugar de RAM. Retorna la ruta str.
+    
+    Returns:
+        bytes | str: Bytes del ZIP (si use_temp_file=False) o ruta absoluta del archivo (si use_temp_file=True).
+    """
     bucket_imgs = images_bucket or "imagenes-cielo"
     
     if use_temp_file:
@@ -856,10 +962,17 @@ def export_by_range_query(
         use_temp_file: bool = False
 ) -> tuple[Any, str, str]:
     """
-    Genera un ZIP con archivos `data/YYYY-MM-DD.(csv|json)` para cada día en el rango
-    [day_init, day_finish] (ambos inclusive). Si include_images=True, incluye las imágenes
-    en images/YYYY-MM-DD/...
-    Devuelve (source, "application/zip", filename). source puede ser bytes, BytesIO o path str.
+    Genera un ZIP con la exportación de un rango de fechas continuo.
+
+    Expande el rango (inicio, fin) a una lista de días y delega en `export_daily_batch_query`.
+
+    Args:
+        day_init (str): Fecha inicio YYYY-MM-DD.
+        day_finish (str): Fecha fin YYYY-MM-DD.
+        use_temp_file (bool): Ver `export_daily_batch_query`.
+
+    Returns:
+        tuple: (source, content_type, filename). Source puede ser bytes o path.
     """
     # Validaciones básicas
     if not variables:
@@ -967,7 +1080,21 @@ def estimate_export_size(
     include_images: bool = False
 ) -> int:
     """
-    Estima el tamaño en bytes de la exportación.
+    Estima el tamaño total en bytes que ocupará una exportación.
+
+    Suma el peso estimado de:
+    1. Registros CSV (basado en duración del día y granularidad).
+    2. Imágenes (basado en intersección horaria válida y peso promedio).
+
+    Args:
+        days_count (int): Cantidad de días.
+        start_hour (str): Hora inicio.
+        end_hour (str): Hora fin.
+        granularity (str): Settings de granularidad.
+        include_images (bool): Si incluye imágenes o no.
+
+    Returns:
+        int: Bytes estimados.
     """
     gran_secs = _parse_granularity_seconds(granularity)
     
@@ -1023,7 +1150,17 @@ def validate_export_feasibility(
     include_images: bool = False
 ):
     """
-    Verifica si hay espacio suficiente. Lanza ExportError si no.
+    Valida si es factible realizar la exportación según cuotas y límites de almacenamiento.
+
+    Verifica:
+    1. Tamaño individual de la exportación (< 600MB).
+    2. Espacio total ocupado+pendiente en bucket exportaciones (< 100GB).
+
+    Args:
+        days_count (int): Días.
+    
+    Raises:
+        ExportError: Si se superan los límites.
     """
     estimated = estimate_export_size(
         days_count, start_hour, end_hour, granularity, include_images

@@ -13,6 +13,14 @@ from datetime import datetime, timedelta
 
 # Status general para el pc del 3000 y el directorio objetivo
 class Status(str, Enum):
+    """
+    Enum que define los posibles estados operativos de un recurso (nodo o directorio).
+
+    Attributes:
+        OK: El recurso está funcionando correctamente.
+        DEGRADED: El recurso ha presentado un fallo reciente/temporal.
+        DOWN: El recurso ha fallado consistentemente y se considera inoperativo.
+    """
     OK = "OK"
     DEGRADED = "DEGRADED"   # 1 fallo seguido
     DOWN = "DOWN"           # >=2 fallos seguidos
@@ -43,13 +51,20 @@ class NodeMetricsError(Exception):
 # --- SSH Logic ---
 def get_remote_disk_usage() -> dict:
     """
-    Se conecta por SSH al PC configurado y devuelve:
-    {
-        "total_bytes": int,
-        "used_bytes": int,
-        "used_pct": float
-    }
-    para la partición /mnt/e.
+    Se conecta vía SSH al PC remoto para obtener métricas de uso del disco en /mnt/e.
+
+    Ejecuta comandos de sistema remoto (`df`) para calcular el espacio total y usado.
+
+    Returns:
+        dict: Diccionario con las métricas del disco:
+            - total_bytes (int): Espacio total en bytes.
+            - used_bytes (int): Espacio usado en bytes.
+            - used_pct (float): Porcentaje de uso (0-100).
+
+    Raises:
+        NodeConnectionError: Si falla la conexión SSH o socket.
+        NodeMetricsError: Si falla la autenticación o el formato de salida no es válido.
+        Exception: Para otros errores imprevistos durante la ejecución.
     """
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -103,7 +118,17 @@ def get_remote_disk_usage() -> dict:
 
 def get_remote_dir_size() -> int:
     """
-    Se conecta por SSH al PC configurado y devuelve el tamaño del directorio configurado en LOGO_DIR_PATH 
+    Obtiene el tamaño total en bytes del directorio monitoreado en el PC remoto.
+
+    Se conecta vía SSH y utiliza el comando `du` para calcular el tamaño.
+
+    Returns:
+        int: Tamaño del directorio en bytes.
+
+    Raises:
+        NodeConnectionError: Si hay problemas de conectividad con el host remoto.
+        NodeMetricsError: Si hay errores de autenticación.
+        Exception: Si el comando en el remoto falla o devuelve una salida vacía.
     """
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -148,16 +173,34 @@ def get_remote_dir_size() -> int:
 # Querys para ver estados
 
 def get_pc3000_state_query() -> Status:
+    """
+    Retorna el último estado conocido de conectividad del PC 3000.
+
+    Returns:
+        Status: Estado actual (OK, DEGRADED, DOWN).
+    """
     return pc3000_state
 
 def get_logo_dir_state_query() -> Status:
+    """
+    Retorna el último estado conocido de la ingesta de datos (actividad del directorio).
+
+    Returns:
+        Status: Estado actual (OK, DEGRADED, DOWN).
+    """
     return logo_dir_state
 
 
 # --- Alerting Logic ---
 def _send_alert(subject: str, body_html: str):
     """
-    Envía email a los admins.
+    Envía una notificación por correo electrónico a todos los administradores registrados.
+
+    Recupera la lista de correos de administradores desde la base de datos y envía el mensaje.
+
+    Args:
+        subject (str): Asunto del correo electrónico.
+        body_html (str): Contenido del correo en formato HTML.
     """
     db = get_sync_session()
     try:
@@ -175,7 +218,14 @@ def _send_alert(subject: str, body_html: str):
         db.close()
 
 def _handle_node_status_change(new_status: Status):
-    """Logica de alerta cuando cambia el estado del nodo (OK/DOWN)."""
+    """
+    Procesa el cambio de estado de conectividad del nodo y envía alertas si corresponde.
+
+    Args:
+        new_status (Status): El nuevo estado detectado del nodo.
+                             Solo genera alerta para transiciones a OK (recuperación) 
+                             o DOWN (caída confirmada).
+    """
     subject = f"Cambio de estado en {PC_NAME}: {new_status.value}"
     
     if new_status == Status.OK:
@@ -188,7 +238,14 @@ def _handle_node_status_change(new_status: Status):
     _send_alert(subject, body)
 
 def _handle_invariant_directory_alert(status: Status):
-    """Maneja alertas de invarianza de directorio y cuando el estado del directorio cambia OK/DOWN."""
+    """
+    Maneja las alertas relacionadas con el estancamiento de la ingesta de datos.
+
+    Args:
+        status (Status): El estado de la actividad del directorio.
+                         DOWN implica que el directorio no ha cambiado de tamaño (alerta).
+                         OK implica que el directorio ha vuelto a crecer (recuperación).
+    """
     if status == Status.DOWN:
         subject = f"ALERTA: Ingesta de datos posiblemente estancada en {PC_NAME}"
         body = (
@@ -209,7 +266,14 @@ def _handle_invariant_directory_alert(status: Status):
     _send_alert(subject, body)
 
 def _handle_disk_limit_alert(used_pct: float, total_bytes: int, used_bytes: int):
-    """Alerta de espacio en disco crítico."""
+    """
+    Genera y envía una alerta crítica de espacio en disco.
+
+    Args:
+        used_pct (float): Porcentaje de uso actual.
+        total_bytes (int): Capacidad total del disco en bytes.
+        used_bytes (int): Espacio usado en bytes.
+    """
     subject = f"ALERTA: Espacio en disco crítico en {PC_NAME}"
     total_gb = total_bytes / (1024**3)
     used_gb = used_bytes / (1024**3)
@@ -229,10 +293,15 @@ def _handle_disk_limit_alert(used_pct: float, total_bytes: int, used_bytes: int)
 
 def check_pc3000():
     """
-    Job periódico:
-    1. Verifica conexion y metricas.
-    2. Maneja estado UP/DOWN.
-    3. Verifica 'stalled data' (invarianza de directorio).
+    Tarea programada (Job) para monitorear la salud del PC 3000.
+
+    Realiza las siguientes verificaciones:
+    1. Conectividad y tamaño del directorio objetivo mediante SSH.
+    2. Actualiza el estado de conectividad (UP/DOWN) y alerta cambios.
+    3. Verifica si el tamaño del directorio ha cambiado respecto a la última ejecución 
+       para detectar estancamiento en la ingesta de datos.
+
+    Maneja estados transitorios (DEGRADED) antes de confirmar una caída (DOWN).
     """
     global pc3000_state, last_logo_dir_size, logo_dir_state
     
@@ -283,8 +352,12 @@ def check_pc3000():
 
 def check_disk_usage_alert():
     """
-    Job periódico exclusivo para disco.
-    Alerta si uso > 90% con backoff exponencial.
+    Tarea programada (Job) para monitorear el espacio en disco del PC 3000.
+
+    Verifica si el uso de disco supera el umbral definido (DISK_THRESHOLD_PCT).
+    Implementa una estrategia de "backoff exponencial" para las alertas repetitivas:
+    envía la primera alerta inmediatamente y luego incrementa el tiempo de espera 
+    entre alertas subsecuentes (1h, 2h, 4h, etc.) mientras persista la condición.
     """
     global disk_alert_count, last_disk_alert_time
     
@@ -330,7 +403,13 @@ scheduler: Optional[AsyncIOScheduler] = None
 
 def init_monitoring():
     """
-    Configura y arranca el scheduler.
+    Inicializa y arranca el planificador de tareas (AsyncIOScheduler) para el monitoreo.
+
+    Configura los jobs de:
+    - Verificación de estado y directorio (cada 1 minuto).
+    - Verificación de espacio en disco (cada 30 minutos).
+
+    Si el scheduler ya está inicializado, no hace nada.
     """
     global scheduler
     if scheduler is None:

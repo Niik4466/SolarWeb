@@ -6,8 +6,17 @@ from typing import Optional, Generator
 
 def floor_datetime(dt: datetime, step: timedelta) -> datetime:
     """
-    Redondea hacia abajo un datetime según el tamaño del paso (step).
-    Funciona para granularidades en segundos, minutos u horas.
+    Redondea hacia abajo (floor) un objeto datetime según un intervalo de tiempo (paso).
+
+    Útil para agrupar marcas de tiempo en "buckets" (ej. cada 10 minutos, cada hora).
+    Normaliza segundos, minutos u horas dependiendo del tamaño del paso.
+
+    Args:
+        dt (datetime): Fecha y hora a redondear.
+        step (timedelta): Tamaño del intervalo de agrupación (granularidad).
+
+    Returns:
+        datetime: Nuevo objeto datetime redondeado al inicio del intervalo.
     """
     total_seconds = int(step.total_seconds())
 
@@ -23,7 +32,18 @@ def floor_datetime(dt: datetime, step: timedelta) -> datetime:
     return floored
 
 def _parse_object_date(object_name: str) -> Optional[datetime]:
-    """Parses date from object name formatted as year/month/day/hh_mm_ss.ext"""
+    """
+    Extrae la fecha y hora desde el nombre de un objeto (archivo).
+
+    Formato esperado: `.../year/month/day/hh_mm_ss.ext`.
+    Intenta parsear la estructura de directorios y el nombre de archivo.
+
+    Args:
+        object_name (str): Ruta completa del objeto en MinIO.
+
+    Returns:
+        Optional[datetime]: Objeto datetime si el parseo es exitoso, None en caso contrario.
+    """
     try:
         parts = object_name.split("/")
         if len(parts) < 4:
@@ -53,9 +73,18 @@ def _get_step(granularity: str) -> timedelta:
 
 def get_images_query(bucket: str, prefix: str = "", granularity: str = "1s") -> MinioListResponse:
     """
-    Devuelve los objetos de MinIO agrupados por granularidad de tiempo.
-    Formato esperado de los objetos: año/mes/día/hh_mm_ss[.ext]
-    Granularidades soportadas: 1s, 10s, 1m, 5m, 30m, 1h
+    Recupera y agrupa imágenes desde MinIO aplicando una granularidad temporal.
+
+    Lista todos los objetos bajo un prefijo, extrae sus fechas, y selecciona una imagen 
+    representativa por cada intervalo de tiempo definido por la granularidad.
+
+    Args:
+        bucket (str): Nombre del bucket.
+        prefix (str, optional): Prefijo de búsqueda.
+        granularity (str, optional): Intervalo de agrupación (ej. "1m"). Default "1s".
+
+    Returns:
+        MinioListResponse: Objeto con la lista de imágenes filtradas/agrupadas.
     """
     client = get_minio_client()
     objects = client.list_objects(bucket, prefix=prefix, recursive=True)
@@ -92,7 +121,14 @@ def get_images_query(bucket: str, prefix: str = "", granularity: str = "1s") -> 
 
 def get_image(bucket: str, object_name: str):
     """
-    Devuelve un objeto de MinIO como stream.
+    Obtiene el stream de datos de un objeto específico en MinIO.
+
+    Args:
+        bucket (str): Nombre del bucket.
+        object_name (str): Nombre del objeto.
+
+    Returns:
+        urllib3.response.HTTPResponse: Stream del objeto (debe cerrarse tras su uso).
     """
     client = get_minio_client()
     return client.get_object(bucket, object_name)
@@ -127,7 +163,23 @@ def stream_images_query(
     start_after: Optional[str] = None
 ) -> Generator[str, None, None]:
     """
-    Generates object names from MinIO with granularity filtering and time range support.
+    Generador que emite nombres de imágenes filtradas por rango horario y granularidad.
+
+    Optimizado para streaming (NDJSON). Itera sobre los objetos devueltos por MinIO,
+    aplica filtros de hora (HH:MM) y lógica de muestreo (granularidad) al vuelo,
+    cediendo (yielding) nombres de archivo válidos.
+
+    Args:
+        bucket (str): Nombre del bucket.
+        prefix (str, optional): Prefijo de búsqueda.
+        start_hhmm (str, optional): Hora de inicio (filtro diario HH:MM).
+        end_hhmm (str, optional): Hora de fin (filtro diario HH:MM).
+        granularity (str, optional): Intervalo de muestreo.
+        limit (int, optional): Máximo de elementos a devolver.
+        start_after (str, optional): Cursor para paginación.
+
+    Yields:
+        str: Nombre del objeto (imagen) que cumple los criterios.
     """
     client = get_minio_client()
     
