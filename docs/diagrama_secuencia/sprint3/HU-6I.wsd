@@ -16,6 +16,13 @@ database TS as "INFLUXDB"
 participant SQL as "DATA PERSISTENCE - SqlAlchemy"
 database DB as "POSTGRES"
 
+participant MINIO_CLI as "MinioClient"
+database MINIO as "MINIO"
+
+participant MAIL as "API SERVICES - mail_service"
+participant SMTP as "DATA PERSISTENCE - smtplib"
+participant GMAIL as "Google SMTP"
+
 == Configurar exportación con filtros ==
 Investigador -> UI : Abre página "exportar"
 UI -> Investigador : Muestra filtros\n- Tipo irradiación (GHI/DNI/DHI)\n- Métricas (promedio, máx, mín, etc.)\n- Rango/diario + granularidad\n- Formato (CSV/JSON)
@@ -23,58 +30,84 @@ UI -> Investigador : Muestra filtros\n- Tipo irradiación (GHI/DNI/DHI)\n- Métr
 Investigador -> UI : Selecciona variables (GHI/DNI/DHI)\n+ métricas + fechas + granularidad\n+ formato
 UI -> FE_ExportApi : export(params)
 
-FE_ExportApi -> ENDPOINT : POST /export\n(params: variables, metrics, fechas, granularity, format)
+== Decisión de flujo según volumen ==
 
-== Construcción de consulta según filtros ==
-ENDPOINT -> SERVICES : generate_export_query(params)
+alt Exportación Pequeña / 1 Día (Síncrona)
+    FE_ExportApi -> ENDPOINT : POST /export/day\n(params: variables, metrics, date)
+    
+    ENDPOINT -> SERVICES : export_day_query(metrics, ...)
+    SERVICES -> SERVICES : Validar filtros
+    
+    SERVICES -> INFLUX : query_time_series_filtered(params)
+    INFLUX -> TS : SELECT <metricas>...\nFROM irradiance\nWHERE time ...
+    TS --> INFLUX : Resultados
+    INFLUX --> SERVICES : Dataset
+    
+    note right of SERVICES: **Cálculo de Métricas**\nSe itera sobre las series de tiempo\npara calcular: mean, min, max, sum (kWh/m2)
+    SERVICES -> SERVICES : _compute_daily_metrics()
+    
+    SERVICES -> SERVICES : Generar archivo (CSV/ZIP)
+    SERVICES --> ENDPOINT : File bytes
+    ENDPOINT --> FE_ExportApi : 200 OK + Blob
+    FE_ExportApi --> UI : Descargar archivo
+    UI --> Investigador : Descarga completa
 
-SERVICES -> SERVICES : Validar filtros\n(variables permitidas, métricas soportadas)
-
-SERVICES -> INFLUX : query_time_series_filtered(params)
-INFLUX -> TS : SELECT <metricas>(<campos>)\nFROM irradiance\nWHERE time between ...\nAND field IN (GHI,DNI,DHI)\nGROUP BY time(<granularity>)
-TS --> INFLUX : Resultados agregados
-INFLUX --> SERVICES : Dataset filtrado/agrupado
-
-SERVICES -> SERVICES : Serializar resultado\nsegún format (CSV/JSON)
-
-== Entrega del resultado ==
-alt Exportación pequeña / 1 día (descarga directa)
-  SERVICES --> ENDPOINT : File bytes (CSV/JSON)
-  ENDPOINT --> FE_ExportApi : 200 OK + Blob
-  FE_ExportApi --> UI : Descargar archivo
-  UI --> Investigador : Descarga completa
-
-  opt Registrar transacción
-    UI -> FE_Transactions : createTransaccion(metadata)
-    FE_Transactions -> SQL : INSERT transacción
-    SQL -> DB : INSERT INTO transacciones (...)
-    DB --> SQL : OK
-    SQL --> FE_Transactions : OK
-    FE_Transactions --> UI : Confirmación
-  end
-
-else Exportación grande / rango (asíncrona por correo)
-  SERVICES --> ENDPOINT : 202 Accepted\n(export_id, envío por correo)
-  ENDPOINT --> FE_ExportApi : 202 + export_id
-  FE_ExportApi --> UI : Mostrar mensaje:\n"Te enviaremos el archivo por correo"
-  UI --> Investigador : Confirmación visual
-
-  opt Registrar transacción (pendiente)
-    UI -> FE_Transactions : createTransaccion(export_id, "pendiente")
-    FE_Transactions -> SQL : INSERT transacción
-    SQL -> DB : INSERT INTO transacciones (...)
-    DB --> SQL : OK
-    SQL --> FE_Transactions : OK
-    FE_Transactions --> UI : Confirmación
-  end
+else Exportación Grande / Rango (Asíncrona)
+    note right of FE_ExportApi: Aplica para Rango o Batch de días
+    FE_ExportApi -> ENDPOINT : POST /export/range/async\n(o /daily/batch/async)
+    
+    ENDPOINT -> SERVICES : validate_export_feasibility(params)
+    SERVICES -> SERVICES : estimate_export_size(params)
+    SERVICES -> SERVICES : Verificar Queue Size + 600MB Limit
+    
+    alt Límite Excedido (>600MB o Queue llena)
+        SERVICES --> ENDPOINT : Error (ExportError)
+        ENDPOINT --> FE_ExportApi : 400 Bad Request\n"Límite excedido"
+        FE_ExportApi --> UI : Mostrar Error: "Exportación muy grande"
+    else Validación Exitosa
+        SERVICES -> SERVICES : enqueue_export_job(params)
+        SERVICES --> ENDPOINT : OK (Job Encolado)
+        ENDPOINT --> FE_ExportApi : 200 OK
+        FE_ExportApi --> UI : Mostrar mensaje:\n"Te enviaremos el archivo por correo"
+    end
 end
 
-== Manejo de error por filtros inválidos ==
-alt Filtros/métricas no soportadas
-  SERVICES --> ENDPOINT : 400 Bad Request\n("Métrica/variable no válida")
-  ENDPOINT --> FE_ExportApi : 400 + mensaje
-  FE_ExportApi --> UI : Mostrar tarjeta de error\n(con detalle)
-  UI --> Investigador : Ajusta filtros
+opt Registrar transacción (Inicio)
+    UI -> FE_Transactions : createTransaccion(metadata, status='pendiente')
+    FE_Transactions -> SQL : INSERT transacción
+    SQL -> DB : INSERT INTO transacciones (...)
+    DB --> SQL : OK
+    SQL --> FE_Transactions : OK
+    FE_Transactions --> UI : Confirmación
+end
+
+== Procesamiento en Segundo Plano (Worker) ==
+group Asynchronous Job Processing
+    SERVICES -> SERVICES : export_worker() consume Job
+    
+    SERVICES -> INFLUX : Consultar datos masivos
+    INFLUX --> SERVICES : Dataset Completo
+    
+    note right of SERVICES: Cálculo de métricas y \ngeneración de ZIP
+    SERVICES -> SERVICES : _compute_daily_metrics() \ny Generar CSV/JSON
+    
+    SERVICES -> MINIO_CLI : upload_file_to_minio(zip)
+    MINIO_CLI -> MINIO : PUT object (bucket exportaciones)
+    MINIO --> MINIO_CLI : OK
+    
+    SERVICES -> SERVICES : Generar Link de Descarga\n(/api/export/exports/{filename})
+    
+    SERVICES -> MAIL : send_mail(email, link)
+    MAIL -> SMTP : sendmail(to=email, body=link)
+    SMTP -> GMAIL : SMTP send
+    GMAIL --> SMTP : 250 OK
+    SMTP --> MAIL : OK
+    MAIL --> SERVICES : OK
+    
+    GMAIL -> Investigador : Enviar Correo con Link de descarga
+    
+    SERVICES -> SQL : update_transaction_status(id, 'listo')
+    SQL -> DB : UPDATE transacciones
 end
 
 @enduml

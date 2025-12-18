@@ -1,7 +1,7 @@
 @startuml
 title Diagrama de Secuencia: Exportar datos por rango de horas del día (HU-9U)
 
-actor Usuario
+actor Investigador
 
 participant UI as "PAGES - exportar"
 participant FE_ExportApi as "SERVICES - exportApi"
@@ -16,65 +16,102 @@ database TS as "INFLUXDB"
 participant SQL as "DATA PERSISTENCE - SqlAlchemy"
 database DB as "POSTGRES"
 
-== Configurar exportación por rango horario ==
-Usuario -> UI : Abre página "exportar"
-UI -> Usuario : Muestra controles\n(fecha(s), hora inicio, hora fin,\nvariables, granularidad, formato)
+participant MINIO_CLI as "MinioClient"
+database MINIO as "MINIO"
 
-Usuario -> UI : Selecciona fecha(s)\n+ rango horario (HH:MM – HH:MM)\n+ variables + granularidad + formato
+participant MAIL as "API SERVICES - mail_service"
+participant SMTP as "DATA PERSISTENCE - smtplib"
+participant GMAIL as "Google SMTP"
+
+== Configurar exportación por rango horario ==
+Investigador -> UI : Abre página "exportar"
+UI -> Investigador : Muestra controles\n(fecha(s), rango horario HH:MM-HH:MM,\nvariables, granularidad)
+
+Investigador -> UI : Selecciona fecha(s)\n+ rango horario (start_hour, end_hour)\n+ variables
 UI -> FE_ExportApi : export(params)
 
-FE_ExportApi -> ENDPOINT : POST /export\n(params incluyen hour_from, hour_to)
+== Decisión de flujo según volumen ==
 
-== Construcción de consulta con filtro horario ==
-ENDPOINT -> SERVICES : generate_export_query(params)
+alt Exportación Pequeña / 1 Día (Síncrona)
+    FE_ExportApi -> ENDPOINT : POST /export/day\n(params: start_hour, end_hour...)
+    
+    ENDPOINT -> SERVICES : export_day_query(...)
+    SERVICES -> SERVICES : Validar rango horario\n(start < end)
+    
+    note right of SERVICES
+      **Filtro Horario**
+      Se define el rango de tiempo (start/stop)
+      combinando la fecha con las horas seleccionadas.
+    end note
+    SERVICES -> INFLUX : query_time_series(...)\nfiltrando por hora
+    INFLUX -> TS : SELECT ... WHERE time >= start_dt AND time <= end_dt
+    TS --> INFLUX : Resultados filtrados
+    INFLUX --> SERVICES : Dataset
+    
+    SERVICES -> SERVICES : Generar CSV/ZIP
+    SERVICES --> ENDPOINT : File bytes
+    ENDPOINT --> FE_ExportApi : 200 OK + Blob
+    FE_ExportApi --> UI : Descargar archivo
+    UI --> Investigador : Descarga completa
 
-SERVICES -> SERVICES : Validar rango horario\n(hora inicio < hora fin)
-
-SERVICES -> INFLUX : query_time_series_with_hours(params)
-INFLUX -> TS : SELECT ...\nFROM irradiance\nWHERE time between fechas\nAND hour(time) >= hour_from\nAND hour(time) <= hour_to\nGROUP BY time(<granularity>)
-TS --> INFLUX : Resultados filtrados por hora
-INFLUX --> SERVICES : Dataset filtrado
-
-SERVICES -> SERVICES : Serializar datos\nsegún formato (CSV/JSON)
-
-== Entrega del resultado ==
-alt Exportación pequeña / 1 día (descarga directa)
-  SERVICES --> ENDPOINT : File bytes (CSV/JSON)
-  ENDPOINT --> FE_ExportApi : 200 OK + Blob
-  FE_ExportApi --> UI : Descargar archivo
-  UI --> Usuario : Descarga completa
-
-  opt Registrar transacción
-    UI -> FE_Transactions : createTransaccion(metadata)
-    FE_Transactions -> SQL : INSERT transacción
-    SQL -> DB : INSERT INTO transacciones (...)
-    DB --> SQL : OK
-    SQL --> FE_Transactions : OK
-    FE_Transactions --> UI : Confirmación
-  end
-
-else Exportación grande / rango (asíncrona)
-  SERVICES --> ENDPOINT : 202 Accepted\n(export_id, envío por correo)
-  ENDPOINT --> FE_ExportApi : 202 + export_id
-  FE_ExportApi --> UI : Mostrar mensaje:\n"El archivo será enviado por correo"
-  UI --> Usuario : Confirmación visual
-
-  opt Registrar transacción (pendiente)
-    UI -> FE_Transactions : createTransaccion(export_id, "pendiente")
-    FE_Transactions -> SQL : INSERT transacción
-    SQL -> DB : INSERT INTO transacciones (...)
-    DB --> SQL : OK
-    SQL --> FE_Transactions : OK
-    FE_Transactions --> UI : Confirmación
-  end
+else Exportación Grande / Rango (Asíncrona)
+    FE_ExportApi -> ENDPOINT : POST /export/range/async\n(o /daily/batch/async)
+    
+    ENDPOINT -> SERVICES : validate_export_feasibility(start_hour, end_hour, ...)
+    SERVICES -> SERVICES : estimate_export_size()\n(considerando intersección horaria)
+    SERVICES -> SERVICES : Verificar Queue Size + 600MB Limit
+    
+    alt Estimación > 600MB o Cola Llena
+        SERVICES --> ENDPOINT : ExportError (Límite excedido)
+        ENDPOINT --> FE_ExportApi : 400 Bad Request
+        FE_ExportApi --> UI : Mostrar mensaje de error:\n"Reduce el rango o granularidad"
+    else Validación Correcta
+        SERVICES -> SERVICES : enqueue_export_job(...)
+        SERVICES --> ENDPOINT : OK
+        ENDPOINT --> FE_ExportApi : 200 OK
+        FE_ExportApi --> UI : Mostrar mensaje:\n"El archivo será enviado por correo"
+    end
 end
 
-== Manejo de error ==
-alt Rango horario inválido
-  SERVICES --> ENDPOINT : 400 Bad Request\n("Rango horario inválido")
-  ENDPOINT --> FE_ExportApi : 400 + mensaje
-  FE_ExportApi --> UI : Mostrar tarjeta de error
-  UI --> Usuario : Ajusta horas seleccionadas
+opt Registrar transacción
+    UI -> FE_Transactions : createTransaccion(...)
+    FE_Transactions -> SQL : INSERT transacción
+    SQL -> DB : INSERT ...
+    DB --> SQL : OK
+    SQL --> FE_Transactions : OK
+end
+
+== Procesamiento en Segundo Plano (Worker) ==
+group Asynchronous Job Processing
+    SERVICES -> SERVICES : export_worker() consume Job
+    
+    note right of SERVICES
+        **Iteración y Filtro**
+        Se recorre cada día del rango y se consulta
+        solo la ventana horaria (start_hour -> end_hour).
+    end note
+    SERVICES -> INFLUX : Consultar datos (aplicando rango horario)
+    INFLUX --> SERVICES : Dataset Completo
+    
+    SERVICES -> SERVICES : Generar ZIP (CSV e Imágenes filtradas por hora)
+    
+    SERVICES -> MINIO_CLI : upload_file_to_minio(zip)
+    MINIO_CLI -> MINIO : PUT object
+    MINIO --> MINIO_CLI : OK
+    
+    SERVICES -> SERVICES : Generar Link de Descarga
+    
+    SERVICES -> MAIL : send_mail(email, link)
+    MAIL -> SMTP : sendmail(to=email, body=link)
+    SMTP -> GMAIL : SMTP send
+    GMAIL --> SMTP : 250 OK
+    SMTP --> MAIL : OK
+    MAIL --> SERVICES : OK
+    
+    GMAIL -> Investigador : Enviar Correo con Link
+    
+    SERVICES -> SQL : update_transaction_status(id, 'listo')
+    SQL -> DB : UPDATE transacciones
 end
 
 @enduml

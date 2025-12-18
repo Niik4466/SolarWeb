@@ -86,6 +86,7 @@ else Exportación de 2+ días o por rango (asíncrona por correo)
 
     SERVICES -> Mail : send_mail(email, link)\n(archivo en URL)
     Mail --> SERVICES : OK
+    GMAIL -> Investigador : Enviar Correo con Link
 
     SERVICES -> SQL : Actualizar transacción\n(estado="completada", url)
     SQL -> PG : UPDATE transactions SET ...

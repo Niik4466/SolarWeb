@@ -21,7 +21,7 @@ SERVICES -> SSH : Conectar por SSH y ejecutar comandos
 SSH -> PC : ssh connect(host, user, key)
 PC --> SSH : Conexión OK
 
-SSH -> PC : df -h (o equivalente)\n+ lectura de partición objetivo
+SSH -> PC : df -B1 \n+ partición objetivo
 PC --> SSH : Output (uso/total/libre/%)
 
 SSH --> SERVICES : Parsear métricas\n(total, usado, disponible, porcentaje)

@@ -1,7 +1,7 @@
 @startuml
 title Diagrama de Secuencia: Exportar datos con selección de granularidad (HU-10U)
 
-actor Usuario
+actor Investgador
 
 participant UI as "PAGES - exportar"
 participant FE_ExportApi as "SERVICES - exportApi"
@@ -16,58 +16,105 @@ database TS as "INFLUXDB"
 participant SQL as "DATA PERSISTENCE - SqlAlchemy"
 database DB as "POSTGRES"
 
-== Configurar exportación con granularidad ==
-Usuario -> UI : Abre página "exportar"
-UI -> Usuario : Muestra controles\n(fecha(s), variables,\n granularidad, formato)
+participant MINIO_CLI as "MinioClient"
+database MINIO as "MINIO"
 
-Usuario -> UI : Selecciona granularidad\n(ej: 1 min / 5 min / 15 min / hora)\n+ fechas + variables + formato
+participant MAIL as "API SERVICES - mail_service"
+participant SMTP as "DATA PERSISTENCE - smtplib"
+participant GMAIL as "Google SMTP"
+
+== Configurar exportación con granularidad ==
+Investgador -> UI : Abre página "exportar"
+UI -> Investgador : Muestra controles (granularity select)
+
+Investgador -> UI : Selecciona granularidad (10s, 1m, 1h...)
 UI -> FE_ExportApi : export(params)
 
-FE_ExportApi -> ENDPOINT : POST /export\n(params incluyen granularity)
+== Decisión de flujo según volumen ==
 
-== Construcción de consulta con granularidad ==
-ENDPOINT -> SERVICES : generate_export_query(params)
+alt Exportación Pequeña / 1 Día (Síncrona)
+    FE_ExportApi -> ENDPOINT : POST /export/day\n(params: granularity, ...)
+    
+    ENDPOINT -> SERVICES : export_day_query(granularity, ...)
+    SERVICES -> SERVICES : Validar granularidad
+    
+    note right of SERVICES
+       **Granularidad en Datos**
+       InfluxDB agrupa y reduce los datos usando
+       aggregateWindow o GROUP BY time(1m, 1h...)
+    end note
+    SERVICES -> INFLUX : query_time_series(...)\nagrupado por tiempo
+    INFLUX -> TS : SELECT ... GROUP BY time(granularity)
+    TS --> INFLUX : Datos Agregados
+    INFLUX --> SERVICES : Dataset
+    
+    note right of SERVICES
+        **Granularidad en Imágenes**
+        Se filtran imágenes para seleccionar solo una
+        por cada intervalo (ej. 1 foto cada 10 mins)
+    end note
+    SERVICES -> SERVICES : Generar CSV/ZIP (filtrando imgs)
+    SERVICES --> ENDPOINT : File bytes
+    ENDPOINT --> FE_ExportApi : 200 OK + Blob
+    FE_ExportApi --> UI : Descargar archivo
+    UI --> Investgador : Descarga completa
 
-SERVICES -> SERVICES : Validar granularidad\n(valores permitidos)
-
-SERVICES -> INFLUX : query_time_series_grouped(params)
-INFLUX -> TS : SELECT ...\nFROM irradiance\nWHERE time between fechas\nGROUP BY time(<granularity>)
-TS --> INFLUX : Resultados agregados
-INFLUX --> SERVICES : Dataset agregado
-
-SERVICES -> SERVICES : Serializar datos\nsegún formato (CSV/JSON)
-
-== Entrega del resultado ==
-alt Exportación pequeña / 1 día (descarga directa)
-  SERVICES --> ENDPOINT : File bytes (CSV/JSON)
-  ENDPOINT --> FE_ExportApi : 200 OK + Blob
-  FE_ExportApi --> UI : Descargar archivo
-  UI --> Usuario : Descarga completa
-
-  opt Registrar transacción
-    UI -> FE_Transactions : createTransaccion(metadata)
-    FE_Transactions -> SQL : INSERT transacción
-    SQL -> DB : INSERT INTO transacciones (...)
-    DB --> SQL : OK
-    SQL --> FE_Transactions : OK
-    FE_Transactions --> UI : Confirmación
-  end
-
-else Exportación grande / rango (asíncrona)
-  SERVICES --> ENDPOINT : 202 Accepted\n(export_id, envío por correo)
-  ENDPOINT --> FE_ExportApi : 202 + export_id
-  FE_ExportApi --> UI : Mostrar mensaje:\n"El archivo será enviado por correo"
-  UI --> Usuario : Confirmación visual
-
-  opt Registrar transacción (pendiente)
-    UI -> FE_Transactions : createTransaccion(export_id, "pendiente")
-    FE_Transactions -> SQL : INSERT transacción
-    SQL -> DB : INSERT INTO transacciones (...)
-    DB --> SQL : OK
-    SQL --> FE_Transactions : OK
-    FE_Transactions --> UI : Confirmación
-  end
+else Exportación Grande / Rango (Asíncrona)
+    FE_ExportApi -> ENDPOINT : POST /export/range/async\n(o /daily/batch/async)
+    
+    ENDPOINT -> SERVICES : validate_export_feasibility(granularity, ...)
+    note right: Granularidad fina (ej 1s)\naumenta drásticamente el peso
+    SERVICES -> SERVICES : estimate_export_size(..., granularity)
+    SERVICES -> SERVICES : Verificar Queue Size + 600MB Limit
+    
+    alt Estimación > 600MB o Cola Llena
+        SERVICES --> ENDPOINT : ExportError (Límite excedido)
+        ENDPOINT --> FE_ExportApi : 400 Bad Request
+        FE_ExportApi --> UI : Mostrar error:\n"Selecciona granularidad mayor\no reduce días"
+    else Validación Correcta
+        SERVICES -> SERVICES : enqueue_export_job(...)
+        SERVICES --> ENDPOINT : OK
+        ENDPOINT --> FE_ExportApi : 200 OK
+        FE_ExportApi --> UI : Mostrar mensaje:\n"Se enviará por correo"
+    end
 end
 
+opt Registrar transacción
+    UI -> FE_Transactions : createTransaccion(...)
+    FE_Transactions -> SQL : INSERT transacción
+    SQL -> DB : INSERT ...
+    DB --> SQL : OK
+    SQL --> FE_Transactions : OK
+end
+
+== Procesamiento en Segundo Plano (Worker) ==
+group Asynchronous Job Processing
+    SERVICES -> SERVICES : export_worker() consume Job
+    
+    SERVICES -> INFLUX : Consultar datos (query_daily_batch)
+    note right: Aplica granularidad (GROUP BY time)
+    INFLUX --> SERVICES : Dataset
+    
+    note right of SERVICES: **Filtrado de Imágenes**\nSelecciona 1 imagen por intervalo\nsegún granularidad configurada
+    SERVICES -> SERVICES : Generar ZIP (aplicando granularidad a datos/imgs)
+    
+    SERVICES -> MINIO_CLI : upload_file_to_minio(zip)
+    MINIO_CLI -> MINIO : PUT object
+    MINIO --> MINIO_CLI : OK
+    
+    SERVICES -> SERVICES : Generar Link de Descarga
+    
+    SERVICES -> MAIL : send_mail(email, link)
+    MAIL -> SMTP : sendmail(to=email, body=link)
+    SMTP -> GMAIL : SMTP send
+    GMAIL --> SMTP : 250 OK
+    SMTP --> MAIL : OK
+    MAIL --> SERVICES : OK
+    
+    GMAIL -> Investgador : Enviar Correo con Link
+    
+    SERVICES -> SQL : update_transaction_status(id, 'listo')
+    SQL -> DB : UPDATE transacciones
+end
 
 @enduml
