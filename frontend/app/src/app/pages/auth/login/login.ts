@@ -6,7 +6,7 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 import { LoginService, LoginResponse } from '../../../services/login.service';
-
+import { HttpErrorResponse } from '@angular/common/http';
 @Component({
   selector: 'app-login',
   standalone: true,
@@ -66,14 +66,21 @@ export class LoginComponent {
           }
         },
 
-        error: (err) => {
-          // 🚨 BACKEND CAÍDO
-          if (err?.backendDown) {
-            this.errorMsg.set(err.message);
+        error: (err: HttpErrorResponse) => {
+          // 🔴 Backend caído / sin respuesta
+          if (err.status === 0) {
+            this.errorMsg.set('No se pudo conectar con el servidor. Intenta nuevamente.');
             return;
           }
 
-          this.errorMsg.set(err?.error?.detail ?? 'Error al iniciar sesión.');
+          // 🔴 Error interno del backend
+          if (err.status >= 500) {
+            this.errorMsg.set('Ocurrió un error interno del servidor. Intenta nuevamente más tarde.');
+            return;
+          }
+
+          // 🟡 Mensaje desde backend (FastAPI suele mandar detail)
+          this.errorMsg.set(err.error?.detail ?? 'Error al iniciar sesión.');
         },
       });
   }
