@@ -1,0 +1,44 @@
+@startuml
+title Diagrama de Secuencia: Ver estado del almacenamiento (HU-8A)
+
+actor Administrador
+
+participant UI as "PAGES - sistema"
+participant FE_Service as "SERVICES - monitorApi"
+participant ENDPOINT as "API ENDPOINT - monitor"
+participant SERVICES as "API SERVICES - monitor_service"
+participant SSH as "DATA PERSISTENCE - paramiko"
+participant PC as "ssh connection"
+
+== Consultar estado del almacenamiento ==
+Administrador -> UI : Abre página "sistema"\n(sección Estado de almacenamiento)
+UI -> FE_Service : getDiskStatus()
+
+FE_Service -> ENDPOINT : GET /monitor/disk_status
+ENDPOINT -> SERVICES : get_disk_status_query()
+
+SERVICES -> SSH : Conectar por SSH y ejecutar comandos
+SSH -> PC : ssh connect(host, user, key)
+PC --> SSH : Conexión OK
+
+SSH -> PC : df -h (o equivalente)\n+ lectura de partición objetivo
+PC --> SSH : Output (uso/total/libre/%)
+
+SSH --> SERVICES : Parsear métricas\n(total, usado, disponible, porcentaje)
+SERVICES --> ENDPOINT : DiskStatusDTO
+ENDPOINT --> FE_Service : 200 OK\n(disk_status)
+FE_Service --> UI : Actualizar tarjeta/indicador\n(barra + porcentaje)
+UI --> Administrador : Visualiza estado del almacenamiento
+
+== Manejo de error de conexión ==
+alt Fallo SSH / PC no disponible
+  SSH -> PC : ssh connect(...)
+  PC --> SSH : Error (timeout / refused)
+  SSH --> SERVICES : Error conexión SSH
+  SERVICES --> ENDPOINT : 503 Service Unavailable\n("Disk check failed")
+  ENDPOINT --> FE_Service : 503 + mensaje
+  FE_Service --> UI : Mostrar tarjeta de error\n(sin bloquear la UI)
+  UI --> Administrador : Ve mensaje de falla\n+ acción reintentar
+end
+
+@enduml

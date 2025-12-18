@@ -1,0 +1,96 @@
+@startuml
+title Diagrama de Secuencia: HU-7I - Elegir formato de exportación (CSV / JSON)
+
+actor Investigador
+participant UI as "PAGES - exportar"
+participant FE_Auth as "SERVICES - AuthService"
+participant FE_Export as "SERVICES - ExportApi"
+participant FE_Tx as "SERVICES - TransactionsApi"
+
+participant ENDPOINT as "API ENDPOINT - export"
+participant SERVICES as "API SERVICES - export_service"
+
+participant Influx as "DATA PERSISTENCE - InfluxDBClient"
+participant SQL as "DATA PERSISTENCE - SqlAlchemy"
+database PG as "POSTGRES (transactions)"
+database TS as "INFLUXDB (irradiance)"
+
+participant MinIO as "MINIO (exports)"
+participant Mail as "MAIL SERVICE"
+
+== Elegir formato y validar ==
+
+Investigador -> UI : Abre página "exportar"
+UI -> FE_Auth : getUserId() / getUserEmail()
+FE_Auth --> UI : user_id, email
+
+Investigador -> UI : Selecciona formato\n(CSV o JSON)
+UI -> UI : Validar selección de formato\n+ variables + fechas
+
+== Ejecutar exportación con formato elegido ==
+
+alt Exportación de 1 día (descarga inmediata)
+    Investigador -> UI : Click "Exportar"\n(format = CSV o JSON)
+
+    UI -> FE_Export : exportDay({date, variables, format, ...})
+    FE_Export -> ENDPOINT : GET/POST /export/day?date=...&format={CSV|JSON}&variables=...
+
+    ENDPOINT -> SERVICES : export_day_service(...)
+    SERVICES -> Influx : query irradiance series\n(según variables y rango)
+    Influx -> TS : Flux query (GHI/DNI/DHI)
+    TS --> Influx : Time series data
+    Influx --> SERVICES : Data
+
+    SERVICES -> SERVICES : Construir archivo según format\n- si CSV: serializar a filas/columnas\n- si JSON: serializar a objetos/arrays
+
+    SERVICES --> ENDPOINT : File bytes + headers\n(Content-Type según formato)
+    ENDPOINT --> FE_Export : 200 OK\n(archivo CSV/JSON)
+
+    FE_Export --> UI : Blob listo para descarga
+    UI -> Investigador : Descarga automática del archivo
+
+    UI -> FE_Tx : createTransaction({user_id, tipo="export", estado="completada", format})
+    FE_Tx -> SQL : INSERT transacción
+    SQL -> PG : INSERT INTO transactions (...)
+    PG --> SQL : OK
+    SQL --> FE_Tx : OK
+    FE_Tx --> UI : OK
+
+else Exportación de 2+ días o por rango (asíncrona por correo)
+    Investigador -> UI : Click "Exportar"\n(format = CSV o JSON,\nrango fechas)
+
+    UI -> FE_Export : exportRangeAsync({date_init, date_finish, variables, format, ...})
+    FE_Export -> ENDPOINT : POST /export/range_async\n{..., format:{CSV|JSON}}
+
+    ENDPOINT -> SERVICES : enqueue_export_job(...)
+    SERVICES -> SQL : Crear transacción\n(estado="pendiente", format)
+    SQL -> PG : INSERT INTO transactions (...)
+    PG --> SQL : OK
+    SQL --> SERVICES : OK
+
+    SERVICES --> ENDPOINT : 202 Accepted\n("Exportación encolada")
+    ENDPOINT --> FE_Export : 202 Accepted
+    FE_Export --> UI : Mostrar mensaje:\n"Se enviará por correo"
+    UI --> Investigador : Confirmación en pantalla
+
+    == Worker genera archivo según formato y envía correo ==
+
+    SERVICES -> Influx : query irradiance series\n(para todo el rango)
+    Influx -> TS : Flux query (rango)
+    TS --> Influx : Time series data
+    Influx --> SERVICES : Data
+
+    SERVICES -> SERVICES : Construir archivo según format\n- CSV o JSON
+    SERVICES -> MinIO : upload export (zip/archivo)\n+ generar presigned URL
+    MinIO --> SERVICES : URL firmada
+
+    SERVICES -> Mail : send_mail(email, link)\n(archivo en URL)
+    Mail --> SERVICES : OK
+
+    SERVICES -> SQL : Actualizar transacción\n(estado="completada", url)
+    SQL -> PG : UPDATE transactions SET ...
+    PG --> SQL : OK
+    SQL --> SERVICES : OK
+end
+
+@enduml

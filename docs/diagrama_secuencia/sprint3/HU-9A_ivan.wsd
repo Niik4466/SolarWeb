@@ -1,0 +1,75 @@
+@startuml
+title Diagrama de Secuencia: Pop-up para mantener sesión activa (HU-9A)
+
+actor Administrador
+
+participant UI as "PAGES - layout / navbar"
+participant FE_Auth as "SERVICES - authService"
+participant FE_Timer as "SERVICES - sessionTimer"
+
+participant ENDPOINT as "API ENDPOINT - auth"
+participant SERVICES as "API SERVICES - auth_service"
+
+participant SQL as "DATA PERSISTENCE - SqlAlchemy"
+database DB as "POSTGRES"
+
+== Sesión activa ==
+Administrador -> UI : Navega por el sistema
+UI -> FE_Auth : getSessionInfo()
+FE_Auth --> UI : token + exp (fecha expiración)
+
+UI -> FE_Timer : Iniciar contador de sesión\n(según exp del token)
+
+== Advertencia de expiración ==
+FE_Timer -> UI : Sesión por expirar\n(ej: faltan 2 min)
+UI -> Administrador : Mostrar pop-up\n"Tu sesión está por expirar"\n[Extender sesión] [Cerrar sesión]
+
+alt Extender sesión
+  Administrador -> UI : Click "Extender sesión"
+  UI -> FE_Auth : refreshToken()
+
+  FE_Auth -> ENDPOINT : POST /auth/refresh
+  ENDPOINT -> SERVICES : refresh_token_query(token)
+
+  SERVICES -> SQL : Validar sesión activa
+  SQL -> DB : SELECT *\nFROM sesiones\nWHERE token = actual
+  DB --> SQL : Sesión válida
+  SQL --> SERVICES : OK
+
+  SERVICES -> SERVICES : Generar nuevo JWT\n(nueva expiración)
+  SERVICES --> ENDPOINT : New token + exp
+  ENDPOINT --> FE_Auth : 200 OK\n(new token)
+  FE_Auth --> UI : Actualizar token\ny reiniciar timer
+  UI --> Administrador : Sesión extendida\n(pop-up se cierra)
+
+else Cerrar sesión
+  Administrador -> UI : Click "Cerrar sesión"
+  UI -> FE_Auth : logout()
+
+  FE_Auth -> ENDPOINT : POST /auth/logout
+  ENDPOINT -> SERVICES : invalidate_token_query()
+
+  SERVICES -> SQL : Invalidar sesión
+  SQL -> DB : DELETE FROM sesiones\nWHERE token = actual
+  DB --> SQL : OK
+  SQL --> SERVICES : Confirmación
+
+  SERVICES --> ENDPOINT : 200 OK
+  ENDPOINT --> FE_Auth : OK
+  FE_Auth --> UI : Limpiar estado\nredirigir a login
+  UI --> Administrador : Sesión cerrada
+end
+
+== Expiración automática ==
+alt Usuario no responde al pop-up
+  FE_Timer -> UI : Tiempo agotado
+  UI -> FE_Auth : logout automático
+  FE_Auth -> ENDPOINT : POST /auth/logout
+  ENDPOINT -> SERVICES : invalidate_token_query()
+  SERVICES -> SQL : Invalidar sesión
+  SQL -> DB : DELETE FROM sesiones
+  DB --> SQL : OK
+  UI --> Administrador : Redirección a login\n(sesión expirada)
+end
+
+@enduml

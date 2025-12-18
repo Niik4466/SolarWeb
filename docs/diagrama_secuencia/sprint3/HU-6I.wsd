@@ -1,0 +1,80 @@
+@startuml
+title Diagrama de Secuencia: Exportar filtrando por tipo de irradiación y métricas (HU-6I)
+
+actor Investigador
+
+participant UI as "PAGES - exportar"
+participant FE_ExportApi as "SERVICES - exportApi"
+participant FE_Transactions as "SERVICES - transactionsApi"
+
+participant ENDPOINT as "API ENDPOINT - export"
+participant SERVICES as "API SERVICES - export_service"
+
+participant INFLUX as "DATA PERSISTENCE - InfluxDBClient"
+database TS as "INFLUXDB"
+
+participant SQL as "DATA PERSISTENCE - SqlAlchemy"
+database DB as "POSTGRES"
+
+== Configurar exportación con filtros ==
+Investigador -> UI : Abre página "exportar"
+UI -> Investigador : Muestra filtros\n- Tipo irradiación (GHI/DNI/DHI)\n- Métricas (promedio, máx, mín, etc.)\n- Rango/diario + granularidad\n- Formato (CSV/JSON)
+
+Investigador -> UI : Selecciona variables (GHI/DNI/DHI)\n+ métricas + fechas + granularidad\n+ formato
+UI -> FE_ExportApi : export(params)
+
+FE_ExportApi -> ENDPOINT : POST /export\n(params: variables, metrics, fechas, granularity, format)
+
+== Construcción de consulta según filtros ==
+ENDPOINT -> SERVICES : generate_export_query(params)
+
+SERVICES -> SERVICES : Validar filtros\n(variables permitidas, métricas soportadas)
+
+SERVICES -> INFLUX : query_time_series_filtered(params)
+INFLUX -> TS : SELECT <metricas>(<campos>)\nFROM irradiance\nWHERE time between ...\nAND field IN (GHI,DNI,DHI)\nGROUP BY time(<granularity>)
+TS --> INFLUX : Resultados agregados
+INFLUX --> SERVICES : Dataset filtrado/agrupado
+
+SERVICES -> SERVICES : Serializar resultado\nsegún format (CSV/JSON)
+
+== Entrega del resultado ==
+alt Exportación pequeña / 1 día (descarga directa)
+  SERVICES --> ENDPOINT : File bytes (CSV/JSON)
+  ENDPOINT --> FE_ExportApi : 200 OK + Blob
+  FE_ExportApi --> UI : Descargar archivo
+  UI --> Investigador : Descarga completa
+
+  opt Registrar transacción
+    UI -> FE_Transactions : createTransaccion(metadata)
+    FE_Transactions -> SQL : INSERT transacción
+    SQL -> DB : INSERT INTO transacciones (...)
+    DB --> SQL : OK
+    SQL --> FE_Transactions : OK
+    FE_Transactions --> UI : Confirmación
+  end
+
+else Exportación grande / rango (asíncrona por correo)
+  SERVICES --> ENDPOINT : 202 Accepted\n(export_id, envío por correo)
+  ENDPOINT --> FE_ExportApi : 202 + export_id
+  FE_ExportApi --> UI : Mostrar mensaje:\n"Te enviaremos el archivo por correo"
+  UI --> Investigador : Confirmación visual
+
+  opt Registrar transacción (pendiente)
+    UI -> FE_Transactions : createTransaccion(export_id, "pendiente")
+    FE_Transactions -> SQL : INSERT transacción
+    SQL -> DB : INSERT INTO transacciones (...)
+    DB --> SQL : OK
+    SQL --> FE_Transactions : OK
+    FE_Transactions --> UI : Confirmación
+  end
+end
+
+== Manejo de error por filtros inválidos ==
+alt Filtros/métricas no soportadas
+  SERVICES --> ENDPOINT : 400 Bad Request\n("Métrica/variable no válida")
+  ENDPOINT --> FE_ExportApi : 400 + mensaje
+  FE_ExportApi --> UI : Mostrar tarjeta de error\n(con detalle)
+  UI --> Investigador : Ajusta filtros
+end
+
+@enduml

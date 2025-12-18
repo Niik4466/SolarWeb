@@ -1,0 +1,80 @@
+@startuml
+title Diagrama de Secuencia: Exportar datos por rango de horas del día (HU-9U)
+
+actor Usuario
+
+participant UI as "PAGES - exportar"
+participant FE_ExportApi as "SERVICES - exportApi"
+participant FE_Transactions as "SERVICES - transactionsApi"
+
+participant ENDPOINT as "API ENDPOINT - export"
+participant SERVICES as "API SERVICES - export_service"
+
+participant INFLUX as "DATA PERSISTENCE - InfluxDBClient"
+database TS as "INFLUXDB"
+
+participant SQL as "DATA PERSISTENCE - SqlAlchemy"
+database DB as "POSTGRES"
+
+== Configurar exportación por rango horario ==
+Usuario -> UI : Abre página "exportar"
+UI -> Usuario : Muestra controles\n(fecha(s), hora inicio, hora fin,\nvariables, granularidad, formato)
+
+Usuario -> UI : Selecciona fecha(s)\n+ rango horario (HH:MM – HH:MM)\n+ variables + granularidad + formato
+UI -> FE_ExportApi : export(params)
+
+FE_ExportApi -> ENDPOINT : POST /export\n(params incluyen hour_from, hour_to)
+
+== Construcción de consulta con filtro horario ==
+ENDPOINT -> SERVICES : generate_export_query(params)
+
+SERVICES -> SERVICES : Validar rango horario\n(hora inicio < hora fin)
+
+SERVICES -> INFLUX : query_time_series_with_hours(params)
+INFLUX -> TS : SELECT ...\nFROM irradiance\nWHERE time between fechas\nAND hour(time) >= hour_from\nAND hour(time) <= hour_to\nGROUP BY time(<granularity>)
+TS --> INFLUX : Resultados filtrados por hora
+INFLUX --> SERVICES : Dataset filtrado
+
+SERVICES -> SERVICES : Serializar datos\nsegún formato (CSV/JSON)
+
+== Entrega del resultado ==
+alt Exportación pequeña / 1 día (descarga directa)
+  SERVICES --> ENDPOINT : File bytes (CSV/JSON)
+  ENDPOINT --> FE_ExportApi : 200 OK + Blob
+  FE_ExportApi --> UI : Descargar archivo
+  UI --> Usuario : Descarga completa
+
+  opt Registrar transacción
+    UI -> FE_Transactions : createTransaccion(metadata)
+    FE_Transactions -> SQL : INSERT transacción
+    SQL -> DB : INSERT INTO transacciones (...)
+    DB --> SQL : OK
+    SQL --> FE_Transactions : OK
+    FE_Transactions --> UI : Confirmación
+  end
+
+else Exportación grande / rango (asíncrona)
+  SERVICES --> ENDPOINT : 202 Accepted\n(export_id, envío por correo)
+  ENDPOINT --> FE_ExportApi : 202 + export_id
+  FE_ExportApi --> UI : Mostrar mensaje:\n"El archivo será enviado por correo"
+  UI --> Usuario : Confirmación visual
+
+  opt Registrar transacción (pendiente)
+    UI -> FE_Transactions : createTransaccion(export_id, "pendiente")
+    FE_Transactions -> SQL : INSERT transacción
+    SQL -> DB : INSERT INTO transacciones (...)
+    DB --> SQL : OK
+    SQL --> FE_Transactions : OK
+    FE_Transactions --> UI : Confirmación
+  end
+end
+
+== Manejo de error ==
+alt Rango horario inválido
+  SERVICES --> ENDPOINT : 400 Bad Request\n("Rango horario inválido")
+  ENDPOINT --> FE_ExportApi : 400 + mensaje
+  FE_ExportApi --> UI : Mostrar tarjeta de error
+  UI --> Usuario : Ajusta horas seleccionadas
+end
+
+@enduml

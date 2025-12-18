@@ -1,0 +1,73 @@
+@startuml
+title Diagrama de Secuencia: Exportar datos con selección de granularidad (HU-10U)
+
+actor Usuario
+
+participant UI as "PAGES - exportar"
+participant FE_ExportApi as "SERVICES - exportApi"
+participant FE_Transactions as "SERVICES - transactionsApi"
+
+participant ENDPOINT as "API ENDPOINT - export"
+participant SERVICES as "API SERVICES - export_service"
+
+participant INFLUX as "DATA PERSISTENCE - InfluxDBClient"
+database TS as "INFLUXDB"
+
+participant SQL as "DATA PERSISTENCE - SqlAlchemy"
+database DB as "POSTGRES"
+
+== Configurar exportación con granularidad ==
+Usuario -> UI : Abre página "exportar"
+UI -> Usuario : Muestra controles\n(fecha(s), variables,\n granularidad, formato)
+
+Usuario -> UI : Selecciona granularidad\n(ej: 1 min / 5 min / 15 min / hora)\n+ fechas + variables + formato
+UI -> FE_ExportApi : export(params)
+
+FE_ExportApi -> ENDPOINT : POST /export\n(params incluyen granularity)
+
+== Construcción de consulta con granularidad ==
+ENDPOINT -> SERVICES : generate_export_query(params)
+
+SERVICES -> SERVICES : Validar granularidad\n(valores permitidos)
+
+SERVICES -> INFLUX : query_time_series_grouped(params)
+INFLUX -> TS : SELECT ...\nFROM irradiance\nWHERE time between fechas\nGROUP BY time(<granularity>)
+TS --> INFLUX : Resultados agregados
+INFLUX --> SERVICES : Dataset agregado
+
+SERVICES -> SERVICES : Serializar datos\nsegún formato (CSV/JSON)
+
+== Entrega del resultado ==
+alt Exportación pequeña / 1 día (descarga directa)
+  SERVICES --> ENDPOINT : File bytes (CSV/JSON)
+  ENDPOINT --> FE_ExportApi : 200 OK + Blob
+  FE_ExportApi --> UI : Descargar archivo
+  UI --> Usuario : Descarga completa
+
+  opt Registrar transacción
+    UI -> FE_Transactions : createTransaccion(metadata)
+    FE_Transactions -> SQL : INSERT transacción
+    SQL -> DB : INSERT INTO transacciones (...)
+    DB --> SQL : OK
+    SQL --> FE_Transactions : OK
+    FE_Transactions --> UI : Confirmación
+  end
+
+else Exportación grande / rango (asíncrona)
+  SERVICES --> ENDPOINT : 202 Accepted\n(export_id, envío por correo)
+  ENDPOINT --> FE_ExportApi : 202 + export_id
+  FE_ExportApi --> UI : Mostrar mensaje:\n"El archivo será enviado por correo"
+  UI --> Usuario : Confirmación visual
+
+  opt Registrar transacción (pendiente)
+    UI -> FE_Transactions : createTransaccion(export_id, "pendiente")
+    FE_Transactions -> SQL : INSERT transacción
+    SQL -> DB : INSERT INTO transacciones (...)
+    DB --> SQL : OK
+    SQL --> FE_Transactions : OK
+    FE_Transactions --> UI : Confirmación
+  end
+end
+
+
+@enduml

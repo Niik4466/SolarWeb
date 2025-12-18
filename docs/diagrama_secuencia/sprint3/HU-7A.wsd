@@ -1,0 +1,97 @@
+@startuml
+title Diagrama de Secuencia: Alertas por correo (sin datos / disco lleno) (HU-7A)
+
+actor Administrador
+
+participant SCHED as "Scheduler (APScheduler/Cron)"
+participant ENDPOINT as "API ENDPOINT - monitor"
+participant MON as "API SERVICES - monitor_service"
+participant INFLUX as "DATA PERSISTENCE - InfluxDBClient"
+database TS as "INFLUXDB"
+
+participant SSH as "DATA PERSISTENCE - paramiko"
+participant PC as "ssh connection"
+
+participant USERS as "API SERVICES - users_service"
+participant SQL as "DATA PERSISTENCE - SqlAlchemy"
+database DB as "POSTGRES"
+
+participant MAIL as "API SERVICES - email_service"
+participant SMTP as "DATA PERSISTENCE - smtplib"
+participant GMAIL as "Google SMTP"
+
+== Ejecución periódica de monitoreo ==
+SCHED -> ENDPOINT : Trigger job (cada X min)\n/run_checks (interno)
+ENDPOINT -> MON : run_monitor_checks()
+
+== Check 1: Sistema no está tomando datos ==
+MON -> INFLUX : healthcheck / query último dato
+INFLUX -> TS : SELECT last(_time)\nFROM irradiance\nWHERE ... LIMIT 1
+TS --> INFLUX : last_timestamp
+INFLUX --> MON : last_timestamp
+
+MON -> MON : Comparar last_timestamp\ncon umbral (ej: > N min)
+
+alt Sin datos por más de N min
+  MON -> USERS : get_admin_emails_query()
+  USERS -> SQL : Consultar admins
+  SQL -> DB : SELECT correo\nFROM usuarios\nWHERE es_admin = true\nAND estado = 'aprobado'
+  DB --> SQL : Query result
+  SQL --> USERS : [emails admins]
+  USERS --> MON : [emails admins]
+
+  MON -> MAIL : send_alert("SIN_DATOS", detalle)
+  MAIL -> SMTP : sendmail(to=[admins], subject, body)
+  SMTP -> GMAIL : SMTP send
+  GMAIL --> SMTP : 250 OK
+  SMTP --> MAIL : OK
+  MAIL --> MON : Confirmación envío
+
+else Datos OK (dentro del umbral)
+  MON -> MON : No enviar alerta
+end
+
+== Check 2: Disco duro se está llenando ==
+MON -> SSH : get_disk_status()
+SSH -> PC : ssh connect + df -h\n(partición objetivo)
+PC --> SSH : Output (uso/total/%)
+
+SSH --> MON : Disk metrics (% usado)
+MON -> MON : Evaluar umbral\n(ej: >= 80% warning / >= 90% critical)
+
+alt Disco >= umbral
+  MON -> USERS : get_admin_emails_query()
+  USERS -> SQL : Consultar admins
+  SQL -> DB : SELECT correo\nFROM usuarios\nWHERE es_admin = true\nAND estado = 'aprobado'
+  DB --> SQL : Query result
+  SQL --> USERS : [emails admins]
+  USERS --> MON : [emails admins]
+
+  MON -> MAIL : send_alert("DISCO_LLENO", detalle)
+  MAIL -> SMTP : sendmail(to=[admins], subject, body)
+  SMTP -> GMAIL : SMTP send
+  GMAIL --> SMTP : 250 OK
+  SMTP --> MAIL : OK
+  MAIL --> MON : Confirmación envío
+
+else Disco OK
+  MON -> MON : No enviar alerta
+end
+
+== Manejo de errores ==
+alt Falla INFLUX o SSH durante checks
+  MON -> MON : Registrar error + estado de fallo
+  opt Enviar alerta técnica (opcional)
+    MON -> USERS : get_admin_emails_query()
+    USERS -> SQL : SELECT correos admins
+    SQL -> DB : ...
+    DB --> SQL : result
+    SQL --> USERS : [emails admins]
+    USERS --> MON : [emails admins]
+    MON -> MAIL : send_alert("FALLA_MONITOREO", detalle)
+    MAIL -> SMTP : sendmail(...)
+    SMTP -> GMAIL : SMTP send
+  end
+end
+
+@enduml

@@ -1,0 +1,11 @@
+@startuml
+title Diagrama de Secuencia: Mostrar contexto de la página de inicio (HU-6U)
+
+actor Usuario
+
+participant UI as "PAGES - inicio"
+
+
+== Acceso a la página de inicio ==
+Usuario -> UI : Ingresa a página "inicio"
+UI -> Usuario : Muestra pagina de inicio\n(con texto e imágenes estáticas)

@@ -1,0 +1,53 @@
+@startuml
+title Diagrama de Secuencia: Notificación por correo al aprobar solicitud (HU-5U)
+
+actor Usuario
+actor Administrador
+
+participant UI as "PAGES - solicitudes"
+participant FE_Service as "SERVICES - solicitudesService"
+
+participant ENDPOINT as "API ENDPOINT - users"
+participant USERS as "API SERVICES - users_service"
+
+participant SQL as "DATA PERSISTENCE - SqlAlchemy"
+database DB as "POSTGRES"
+
+participant MAIL as "API SERVICES - email_service"
+participant SMTP as "DATA PERSISTENCE - smtplib"
+participant GMAIL as "Google SMTP"
+
+== Aprobación de solicitud ==
+Administrador -> UI : Aprueba solicitud\n(definir rol)
+UI -> FE_Service : approveUser(id_solicitud, rol)
+FE_Service -> ENDPOINT : PUT /users/approve/{id}/{rol}
+
+ENDPOINT -> USERS : approve_user_query(id, rol)
+
+USERS -> SQL : Obtener datos del usuario
+SQL -> DB : SELECT *\nFROM usuarios\nWHERE id = {id}
+DB --> SQL : User data
+SQL --> USERS : User data
+
+USERS -> SQL : Actualizar estado\n(estado = 'aprobado', rol)
+SQL -> DB : UPDATE usuarios\nSET estado='aprobado', rol={rol}
+DB --> SQL : OK
+SQL --> USERS : Confirmación
+
+== Envío de correo al usuario ==
+USERS -> MAIL : send_estado_cuenta_email(\n estado='aprobada', usuario)
+MAIL -> SMTP : sendmail(to=usuario.correo,\nsubject, body)
+SMTP -> GMAIL : SMTP send
+GMAIL --> SMTP : 250 OK
+SMTP --> MAIL : OK
+MAIL --> USERS : Confirmación envío
+
+USERS --> ENDPOINT : 200 OK\n("Solicitud aprobada")
+ENDPOINT --> FE_Service : 200 OK
+FE_Service --> UI : Actualizar tabla\n(remover solicitud)
+UI --> Administrador : Solicitud aprobada
+
+== Recepción por parte del usuario ==
+GMAIL -> Usuario : Correo "Cuenta aprobada"\n+ instrucciones de acceso
+
+@enduml
