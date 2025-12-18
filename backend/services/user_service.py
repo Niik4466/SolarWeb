@@ -440,6 +440,7 @@ def get_deleted_users_query(db: Session, admin: Usuario):
             "estado": u.estado.value if hasattr(u.estado, "value") else u.estado,
             "eliminado_en": (log.eliminado_en.isoformat() if log and log.eliminado_en else None),
             "es_admin": u.es_admin,
+            "creado_en": u.creado_en.isoformat() if u.creado_en else None,
         })
 
 
