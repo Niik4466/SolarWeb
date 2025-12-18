@@ -1,9 +1,8 @@
-````markdown
 # Configuración de Red y Seguridad
 
 Este documento detalla la configuración de red, la conectividad entre nodos y las consideraciones de seguridad en SolarWeb.
 
------
+---
 
 ## Redes Docker y Composición
 
@@ -28,7 +27,7 @@ docker network create red_taller_software
 
 Esta red debe crearse **antes** de levantar los servicios en producción. Los contenedores en esta red se comunican entre sí de forma aislada del host.
 
------
+---
 
 ## Conectividad ZeroTier
 
@@ -63,6 +62,7 @@ zerotier:
 ```
 
 **Características:**
+
 - `network_mode: host` - Accede directamente a la red del host para máximo rendimiento
 - Requiere acceso al dispositivo `/dev/net/tun` para crear interfaces virtuales
 - Requiere permisos especiales (`NET_ADMIN`, `SYS_ADMIN`)
@@ -102,7 +102,7 @@ Para crear una nueva red ZeroTier:
 ZT_NETWORK_ID=xxxxxxxxxxxxxxx
 ```
 
------
+---
 
 ## Consideraciones de Seguridad
 
@@ -138,7 +138,7 @@ Nunca incluir en el repositorio:
 
 Utilizar un sistema de gestión de secretos o variables de entorno separadas para cada entorno (desarrollo, staging, producción).
 
------
+---
 
 ## Troubleshooting de Conectividad
 
@@ -152,6 +152,7 @@ zerotier-cli listnetworks  # Listar redes a las que está unido
 ```
 
 PD: para acceder a un contenedor docker en funcionamiento se puede utilizar
+
 ```bash
 docker exec -it <nombre_del_contenedor> sh
 ```
@@ -163,5 +164,3 @@ Los logs se almacenan en el volumen `zerotier-data`. Para inspeccionar:
 ```bash
 docker exec zerotier-solarweb tail -f /var/lib/zerotier-one/zerotier-one.log
 ```
-
-````
