@@ -1,7 +1,7 @@
 # Manual de Usuario – Plataforma SolarWeb (UACh)
 
-**Versión:** 2.0 – Noviembre 2025  
-**URL:** [https://solarweb.inf.uach.cl](https://solarweb.inf.uach.cl)  
+**Versión:** 3.0 – Diciembre 2025  
+**URL:** [https://solarweb.lat/login](https://solarweb.lat/login)  
 
 ---
 
@@ -24,7 +24,7 @@ Este manual está dirigido a **usuarios generales, estudiantes, docentes e inves
 
 #  3. Acceso a la plataforma
 1. Ingresar a la URL oficial:  
-    [https://solarweb.inf.uach.cl](https://solarweb.inf.uach.cl)  
+    [https://solarweb.lat/login](https://solarweb.lat/login)  
 2. El sistema lo llevará a la pantalla de Inicio de Sesión.  
 
 ---
