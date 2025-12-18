@@ -33,15 +33,13 @@ def get_disk_status(current_user: Usuario = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/data_service/state")
-def get_pc3000_state(current_user: Usuario = Depends(get_current_user)):
+def get_pc3000_state():
     """
     Consulta el estado de conectividad del PC 3000.
 
     Devuelve el estado actual monitoreado por el servicio de background, 
     que indica si el PC es accesible vía SSH.
 
-    Args:
-        current_user (Usuario): El usuario autenticado actual.
 
     Returns:
         Status: El estado actual del PC. Puede ser:

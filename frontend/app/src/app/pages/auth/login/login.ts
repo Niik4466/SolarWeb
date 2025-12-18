@@ -7,6 +7,9 @@ import { Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 import { LoginService, LoginResponse } from '../../../services/login.service';
 import { HttpErrorResponse } from '@angular/common/http';
+import { MonitorApi, SimpleState } from '../../../services/monitor.service';
+import { AuthService } from '../../../services/auth.service';
+
 @Component({
   selector: 'app-login',
   standalone: true,
@@ -19,6 +22,8 @@ export class LoginComponent {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private loginService = inject(LoginService);
+  private monitorApi = inject(MonitorApi);
+  auth = inject(AuthService);
 
   mostrarPassword = signal(false);
 
@@ -30,18 +35,19 @@ export class LoginComponent {
   loading = signal(false);
   errorMsg = signal<string | null>(null);
 
+  dataServiceState = signal<string | null>(null);
+
+
   onSubmit() {
     this.errorMsg.set(null);
+    this.dataServiceState.set(null);
 
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
-    const { email, password } = this.form.value as {
-      email: string;
-      password: string;
-    };
+    const { email, password } = this.form.value as { email: string; password: string };
 
     this.loading.set(true);
 
@@ -50,36 +56,53 @@ export class LoginComponent {
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: (res: LoginResponse) => {
-          if (res.success && res.estado === 'aprobado') {
-            const returnUrl =
-              this.route.snapshot.queryParamMap.get('returnUrl') || '**';
-            this.router.navigateByUrl(returnUrl);
+          // si NO fue login exitoso -> flujo normal
+          if (!(res.success && res.estado === 'aprobado')) {
+            if (res.estado === 'pendiente') {
+              this.errorMsg.set('Su solicitud sigue en estado de espera en aprobación.');
+            } else if (res.estado === 'eliminado') {
+              this.errorMsg.set('Su solicitud ha sido rechazada.');
+            } else {
+              this.errorMsg.set(res.message ?? 'Credenciales inválidas.');
+            }
             return;
           }
 
-          if (res.estado === 'pendiente') {
-            this.errorMsg.set('Su solicitud sigue en estado de espera en aprobación.');
-          } else if (res.estado === 'eliminado') {
-            this.errorMsg.set('Su solicitud ha sido rechazada.');
-          } else {
-            this.errorMsg.set(res.message ?? 'Credenciales inválidas.');
-          }
+          // Si fue exitoso -> consulto estado del servicio
+          this.monitorApi.getDataServiceState().subscribe({
+            next: (state) => {
+              // guardo "OK" / "DOWN" / "DEGRADED"
+              this.dataServiceState.set(state.raw);
+
+              // si está caído (o degradado) -> muestro mensaje y NO navego
+              if (state.raw === 'DOWN' || state.raw === 'DEGRADED') {
+                this.auth.logout(); // cierro sesión por seguridad  
+                this.errorMsg.set(
+                  'Actualmente la página no está disponible (servicio de datos con problemas). Intenta más tarde.'
+                );
+                return;
+              }
+
+              //  si está OK -> navego normal
+              const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/';
+              this.router.navigateByUrl(returnUrl);
+            },
+            error: () => {
+              // si falla la consulta del monitor, lo tratamos como no disponible
+              this.errorMsg.set('Actualmente la página no está disponible. Intenta más tarde.');
+            },
+          });
         },
 
         error: (err: HttpErrorResponse) => {
-          // 🔴 Backend caído / sin respuesta
           if (err.status === 0) {
             this.errorMsg.set('No se pudo conectar con el servidor. Intenta nuevamente.');
             return;
           }
-
-          // 🔴 Error interno del backend
           if (err.status >= 500) {
             this.errorMsg.set('Ocurrió un error interno del servidor. Intenta nuevamente más tarde.');
             return;
           }
-
-          // 🟡 Mensaje desde backend (FastAPI suele mandar detail)
           this.errorMsg.set(err.error?.detail ?? 'Error al iniciar sesión.');
         },
       });
