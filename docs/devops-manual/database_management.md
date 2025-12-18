@@ -2,7 +2,7 @@
 
 Este documento describe la lógica de los scripts de ingesta de datos, la gestión de migraciones de base de datos y las consideraciones de almacenamiento en las bases de datos de SolarWeb.
 
------
+---
 
 ### Base de Datos Relacional (PostgreSQL)
 
@@ -18,7 +18,7 @@ PostgreSQL almacena datos estructurados como información de usuarios, solicitud
     docker compose --profile test up --build
     ```
 
------
+---
 
 ### Ingesta de Datos de Irradiancia (InfluxDB)
 
@@ -34,7 +34,7 @@ Los datos de irradiancia solar se almacenan en InfluxDB, una base de datos optim
 
 Este proceso asegura que los datos crudos del sensor se transformen y se organicen de manera óptima para la visualización en el frontend.
 
------
+---
 
 ### Ingesta de Imágenes del Cielo (MinIO)
 
@@ -50,7 +50,7 @@ Las imágenes de cielo se almacenan en MinIO, un servicio de almacenamiento de o
     ```
     YYYY/MM/DD/hh_mm_ss.extension
     ```
-      * **Ejemplo:** La imagen de `*20250802213004*` se almacenará en la ruta `2025/08/02/21_30_04.jpg` dentro del bucket.
+    - **Ejemplo:** La imagen de `*20250802213004*` se almacenará en la ruta `2025/08/02/21_30_04.jpg` dentro del bucket.
 
 ### Procesamiento Local de Archivos (fileIngestDaemon)
 
@@ -59,7 +59,7 @@ El `fileIngestDaemon` es un servicio que corre **localmente en el Nodo de Despli
 **Funcionalidades principales:**
 
 1.  **Monitoreo de imágenes:** Vigila un directorio de origen (`IMAGES_ORIGIN_DIRECTORY`) de forma recursiva.
-2.  **Procesamiento de imágenes:** 
+2.  **Procesamiento de imágenes:**
     - Comprime las imágenes reduciendo sus dimensiones a la mitad
     - Opcionalmente recorta bordes según la variable `CROP_PIXELS`
     - Ajusta la calidad JPEG según `JPEG_QUALITY` (default 85)
@@ -97,6 +97,7 @@ STATE_LOG_FILE=./state_log.csv
 El `fileIngestDaemon` se configura manualmente como un servicio systemd para que se ejecute automáticamente al iniciar el servidor.
 
 1.  **Instalar dependencias:**
+
     ```bash
     cd /mnt/e/SolarWeb/databases/fileIngestDaemon
     python -m venv venv
@@ -106,12 +107,12 @@ El `fileIngestDaemon` se configura manualmente como un servicio systemd para que
 
 2.  **Crear archivo de servicio systemd:**
     Crear `/etc/systemd/system/file-ingest-daemon.service`:
-    
+
     ```ini
     [Unit]
     Description=SolarWeb File Ingest Daemon
     After=network.target
-    
+
     [Service]
     Type=simple
     User=<usuario>
@@ -123,12 +124,13 @@ El `fileIngestDaemon` se configura manualmente como un servicio systemd para que
     RestartSec=10
     StandardOutput=journal
     StandardError=journal
-    
+
     [Install]
     WantedBy=multi-user.target
     ```
 
 3.  **Recargar y habilitar el servicio:**
+
     ```bash
     sudo systemctl daemon-reload
     sudo systemctl enable file-ingest-daemon
@@ -138,7 +140,7 @@ El `fileIngestDaemon` se configura manualmente como un servicio systemd para que
 4.  **Verificar estado:**
     ```bash
     sudo systemctl status file-ingest-daemon
-    sudo journalctl -u file-ingest-daemon -f    # Ver logs en tiempo real
+    sudo journalctl -u file-ingest-daemon -f
     ```
 
 **Gestión del servicio:**
@@ -157,15 +159,57 @@ sudo systemctl restart file-ingest-daemon
 sudo systemctl status file-ingest-daemon
 
 # Ver logs
-sudo journalctl -u file-ingest-daemon -n 100  # Últimas 100 líneas
+tail -f /var/log/ingest_watch.log
 ```
 
 **Flujo de procesamiento:**
 
-1. El daemon se inicia y procesa todos los archivos existentes en los directorios de origen
-2. A continuación, monitorea continuamente los directorios usando watchdog
-3. Cuando detecta un archivo nuevo, espera a que sea "estable" (no cambie de tamaño) antes de procesarlo
+1. El script vigila eventos `created` y `moved` en el directorio origen
+2. Espera a que el archivo deje de crecer (seguro de escritura)
+3. Crea estructura de directorios `YYYY/MM/DD` en destino
 4. Las imágenes se comprimen y guardan en la estructura de destino, luego se borra el original
 5. Los CSV se monitorean de forma incremental, agregando solo nuevas líneas
 6. El estado se persiste en `state_log.csv` para recuperación ante fallos
 
+### Servicios de Ingesta en Contenedores (Docker)
+
+Además del demonio local que prepara los archivos, existen dos contenedores en el nodo de datos encargados de subir esta información a las bases de datos finales (`InfluxDB` y `MinIO`).
+
+#### Ver Logs de los Contenedores
+
+Para monitorear el funcionamiento de estos servicios, se utilizan los comandos de docker compose en el directorio donde está el `docker-compose-data.yml`:
+
+```bash
+# Ver logs de todos los servicios
+docker compose -f docker-compose-data.yml logs -f
+
+# Ver logs solo del uploader de imágenes
+docker compose -f docker-compose-data.yml logs -f minio-uploader
+
+# Ver logs solo del uploader de datos CSV
+docker compose -f docker-compose-data.yml logs -f influxdb-uploader
+```
+
+#### Funcionamiento de los Scripts de Ingesta
+
+**1. Ingesta de Imágenes (MinIO Uploader - `upload_images.py`)**
+
+Este script se encarga de subir las imágenes procesadas al bucket de MinIO.
+
+- **Escaneo Inteligente:** En lugar de usar `watchdog`, realiza un escaneo periódico (polling) del directorio de imágenes.
+- **Compresión:** Redimensiona las imágenes a la mitad de su tamaño original y las convierte a JPEG (calidad 85) antes de subirlas para ahorrar espacio y ancho de banda.
+- **Persistencia de Estado (`UPLOAD_LOG.csv`):** Mantiene un registro local de la última imagen subida exitosamente.
+  - Al reiniciarse, lee este log para saber desde qué fecha/hora continuar, evitando re-procesar todo el historial.
+  - Este archivo guarda: `LAST_DIRECTORY, LAST_FILE`.
+- **Organización:** Sube los archivos respetando la estructura de carpetas `YYYY/MM/DD/HH_MM_SS.jpg`.
+
+**2. Ingesta de Datos (InfluxDB Uploader - `script_parse.py`)**
+
+Este servicio lee los archivos CSV de irradiancia y los inserta en InfluxDB.
+
+- **Carga Inicial:** Al arrancar, escanea todos los CSV existentes en el directorio, los ordena cronológicamente y carga todos los datos históricos que no estén en la base de datos (según lógica de inserción).
+- **Monitoreo en Tiempo Real (Tailing):**
+  - Identifica el archivo CSV más reciente (el "activo").
+  - Mantiene el archivo abierto y lee continuamente las nuevas líneas que se agregan (similar a un `tail -f`).
+  - Cada vez que se detecta un nuevo archivo CSV (rotación de log diaria), cierra el anterior y comienza a leer el nuevo desde el principio.
+- **Formato:** Parsea fecha y hora (`YYYY-MM-DD HH:MM:SS`) y extrae las métricas `DNI`, `DHI` y `GHI` para crear puntos de datos en InfluxDB.
