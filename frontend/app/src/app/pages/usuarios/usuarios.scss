@@ -297,3 +297,37 @@ button.ghost {
     justify-content: center;
   }
 }
+
+
+.modal-card.confirm .modal-body {
+  max-height: min(70vh, 620px);   /* alto máximo en desktop */
+  overflow: auto;                /* scroll vertical + horizontal */
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal-card.confirm .modal-body .tabla.compacta {
+  width: max-content;            /* permite ancho real */
+  min-width: 720px;              /* ajusta si quieres */
+  table-layout: auto;
+  margin: 0;
+}
+
+
+.modal-card.confirm .modal-body .tabla.compacta thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+@media (max-width: 720px) {
+  .modal-card.confirm {
+    width: 94vw;
+  }
+
+  .modal-card.confirm .modal-body {
+    max-height: 65vh;             /* más cómodo en celu */
+  }
+
+  .modal-card.confirm .modal-body .tabla.compacta {
+    min-width: 640px;             /* evita columnas apretadas */
+  }
+}
