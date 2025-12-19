@@ -5,41 +5,35 @@ import { CommonModule } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { BehaviorSubject, forkJoin, of, combineLatest } from 'rxjs';
-import { switchMap, map, catchError, shareReplay, scan, startWith, finalize, tap } from 'rxjs/operators';
+import { switchMap, map, catchError, shareReplay, scan, startWith, finalize, tap, distinctUntilChanged } from 'rxjs/operators';
 
 import { IrradianceChartComponent, Serie } from '../../components/charts/irradiance-chart/irradiance-chart';
 import { ImagenesPorHoraComponent, SkyFrame } from '../../components/imagenes/imagenes.component';
 
 import { ImagesService } from '../../services/images.api';
-import { IrradianceApi, SeriesOut } from '../../services/irradiance.api';
+import { FieldName, IrradianceApi, SeriesOut } from '../../services/irradiance.api';
 import { LoadingService } from '../../services/loading.service';
 
+// ---------------- helpers ----------------
 
-/**
- * Devuelve la fecha de hoy en formato local ISO (yyyy-MM-dd).
- * Se ajusta la zona horaria para que coincida con la hora local.
- */
 function todayLocalISO(): string {
   const d = new Date();
   const off = d.getTimezoneOffset();
-  return new Date(d.getTime() - off * 60_000).toISOString().slice(0, 10); // yyyy-MM-dd
+  return new Date(d.getTime() - off * 60_000).toISOString().slice(0, 10);
 }
 
-/** Convierte "HH:MM" a minutos absolutos del día (ej: "02:30" → 150). */
 function toMinutes(t: string): number {
   const [h, m] = t.split(':').map(n => parseInt(n, 10));
   return (h * 60) + (m || 0);
 }
 
-/** Ordena frames por su hora ascendente. */
 function sortFramesByTime(frames: SkyFrame[]): SkyFrame[] {
   return [...frames].sort((a, b) => toMinutes(String(a.time)) - toMinutes(String(b.time)));
 }
 
-/** Transforma un valor de granularidad ej:'10s' a ms**/
 function granularityToMs(granularity: string): number {
   const match = /^(\d+)([smhd])$/.exec(granularity);
-  if (!match) return 1000; // fallback 1s
+  if (!match) return 1000;
   const value = Number(match[1]);
   const unit = match[2];
   switch (unit) {
@@ -51,14 +45,13 @@ function granularityToMs(granularity: string): number {
   }
 }
 
-/** Rellena valores faltantes en una serie de tiempo con 0's'**/
 function fillMissingTimestamps(
   points: { x: number; y: number }[],
   start: number,
   stop: number,
   stepMs: number
 ) {
-  if (points.length == 0) return points; // Si esta vacio, se deja tal cual
+  if (points.length === 0) return points;
 
   const filled: { x: number; y: number }[] = [];
   const existing = new Map(points.map(p => [p.x, p.y]));
@@ -66,9 +59,10 @@ function fillMissingTimestamps(
   for (let t = start; t <= stop; t += stepMs) {
     filled.push({ x: t, y: existing.get(t) ?? 0 });
   }
-
   return filled;
 }
+
+// ---------------- component ----------------
 
 @Component({
   selector: 'app-graficos',
@@ -82,85 +76,71 @@ function fillMissingTimestamps(
   ],
   templateUrl: './graficos.html',
   styleUrls: ['./graficos.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush, // Optimiza la detección de cambios
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GraficosComponent implements OnInit {
   ngOnInit(): void {
     this.onBuscar();
   }
 
-  // =====================
-  // Estado de la UI
-  // =====================
-  isLoading = false;     // bandera de carga
-  errorMsg = '';         // mensajes de error
-  resetCounter = 0;      // contador para forzar reset de los gráficos
+  // UI state
+  isLoading = false;
+  errorMsg = '';
+  resetCounter = 0;
 
-  // banderas para saber cuándo termina la carga de frames y series
   private framesDone = false;
   private seriesDone = false;
   private framesStreamingFinished = signal(true);
 
-  // =====================
-  // Gestion de granularidad
-  // =====================
-  selectedRange = "5m";  // granularidad seleccionada en la UI
+  // Granularidad
+  selectedRange = '5m';
   readonly range$ = new BehaviorSubject<string>(this.selectedRange);
 
-  // =====================
-  // Gestión de fechas
-  // =====================
-  readonly defaultDay = todayLocalISO();   // día por defecto = HOY
-  selectedDay = this.defaultDay;           // día seleccionado en la UI
-  private day$ = new BehaviorSubject<string>(this.defaultDay); // estado reactivo del día
-  readonly viewingDay$ = this.day$.asObservable(); // día "actualmente mostrado"
+  // Fechas
+  readonly defaultDay = todayLocalISO();
+  selectedDay = this.defaultDay;
+  private day$ = new BehaviorSubject<string>(this.defaultDay);
+  readonly viewingDay$ = this.day$.asObservable();
 
-  // =====================
-  // Configuración de imágenes
-  // =====================
-  private readonly FRAME_SAMPLE_EVERY = 10;  // submuestreo (se aplica en el backend)
-  private readonly FRAME_MAX = 20000;        // límite máximo de frames cargados
-  private readonly START_HHMM = '06:00';     // ajusta si quieres
-  private readonly END_HHMM   = '22:00';     // ajusta si quieres
-  private readonly BATCH_MS   = 100;         // agrupa eventos cada 100 ms
+  // Config imágenes
+  private readonly FRAME_SAMPLE_EVERY = 10;
+  private readonly FRAME_MAX = 20000;
+  private readonly START_HHMM = '06:00';
+  private readonly END_HHMM = '22:00';
+  private readonly BATCH_MS = 100;
 
-  /**
-   * Stream reactivo de imágenes del día seleccionado.
-   * - Ahora consume el endpoint de streaming NDJSON vía ImagesService.
-   * - Acumula progresivamente los frames y los ordena por hora.
-   * - Aplica límite máximo de elementos.
-   */
-  frames$ = this.day$.pipe(
-    switchMap(day => {
-      // valida formato de fecha
+  // TODO: reemplazar por nombres reales del backend/influx
+  private readonly FIELD_TEMP = 'Temp';
+  private readonly FIELD_HUM = 'HR';
+
+  // 🔑 Fuente reactiva única: día + granularidad
+  private readonly query$ = combineLatest([
+    this.day$.pipe(distinctUntilChanged()),
+    this.range$.pipe(distinctUntilChanged()),
+  ]).pipe(shareReplay(1));
+
+  // ---------------- Frames ----------------
+  frames$ = this.query$.pipe(
+    switchMap(([day, range]) => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return of<SkyFrame[]>([]);
 
       this.errorMsg = '';
-      //this.isLoading = true;
-
       this.framesDone = false;
       this.framesStreamingFinished.set(false);
 
-
       return this.images.streamDayFramesBatched(day, {
         startHHMM: this.START_HHMM,
-        endHHMM:   this.END_HHMM,
+        endHHMM: this.END_HHMM,
         sampleEvery: this.FRAME_SAMPLE_EVERY,
         limit: this.FRAME_MAX,
         bufferMs: this.BATCH_MS,
-        granularity: this.selectedRange,
+        granularity: range, // ✅ usar range reactivo
       }).pipe(
-        // Acumula y recorta a FRAME_MAX
         scan((acc, batch) => {
           const next = acc.concat(batch);
-          // si quisieras mantener solo los últimos FRAME_MAX:
-          // return next.length > this.FRAME_MAX ? next.slice(-this.FRAME_MAX) : next;
           return next.length > this.FRAME_MAX ? next.slice(0, this.FRAME_MAX) : next;
         }, [] as SkyFrame[]),
-        // Ordena por hora para estabilidad visual
         map(list => sortFramesByTime(list)),
-        // En cuanto haya al menos 1 imagen, se marca como done
-     
         tap(list => {
           if (!this.framesDone && list.length > 0) {
             this.framesDone = true;
@@ -179,30 +159,25 @@ export class GraficosComponent implements OnInit {
           }
           this.framesStreamingFinished.set(true);
         }),
-
         startWith([] as SkyFrame[])
       );
     }),
-    shareReplay(1) // memoriza el último valor para nuevos suscriptores
+    shareReplay(1)
   );
 
-  /*
-   * Stream reactivo de series de irradiancia (GHI, DNI, DHI).
-   * - Igual que antes.
-   */
-  series$ = this.day$.pipe(
-    switchMap(day => {
+  // ---------------- Irradiancia ----------------
+  series$ = this.query$.pipe(
+    switchMap(([day, range]) => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return of<Serie[]>([]);
       const startISO = `${day}T00:00:00Z`;
-      const stopISO  = `${day}T23:59:59Z`;
+      const stopISO = `${day}T23:59:59Z`;
 
-      // Para cada nueva búsqueda, reiniciar el estado de series
       this.seriesDone = false;
 
       return forkJoin([
-        this.irrApi.getSeries({ startISO, stopISO, field: 'GHI', granularity: this.selectedRange, limit: 200000 }),
-        this.irrApi.getSeries({ startISO, stopISO, field: 'DNI', granularity: this.selectedRange, limit: 200000 }),
-        this.irrApi.getSeries({ startISO, stopISO, field: 'DHI', granularity: this.selectedRange, limit: 200000 }),
+        this.irrApi.getSeries({ startISO, stopISO, field: 'GHI', granularity: range, limit: 200000 }),
+        this.irrApi.getSeries({ startISO, stopISO, field: 'DNI', granularity: range, limit: 200000 }),
+        this.irrApi.getSeries({ startISO, stopISO, field: 'DHI', granularity: range, limit: 200000 }),
       ]).pipe(
         map(([ghi, dni, dhi]) => {
           const toXY = (s?: SeriesOut) =>
@@ -211,16 +186,15 @@ export class GraficosComponent implements OnInit {
               .filter(pt => Number.isFinite(pt.y));
 
           const start = Date.parse(startISO);
-          const stop  = Date.parse(stopISO);
-          const stepMs = granularityToMs(this.selectedRange || '1s');
+          const stop = Date.parse(stopISO);
+          const stepMs = granularityToMs(range || '1s');
 
           return [
-            { name: 'Global',  data: fillMissingTimestamps(toXY(ghi) as any, start, stop, stepMs) },
-            { name: 'Directa', data: fillMissingTimestamps(toXY(dni) as any, start, stop, stepMs) },
-            { name: 'Difusa',  data: fillMissingTimestamps(toXY(dhi) as any, start, stop, stepMs) },
+            { name: 'Global', data: fillMissingTimestamps(toXY(ghi), start, stop, stepMs) },
+            { name: 'Directa', data: fillMissingTimestamps(toXY(dni), start, stop, stepMs) },
+            { name: 'Difusa', data: fillMissingTimestamps(toXY(dhi), start, stop, stepMs) },
           ] as Serie[];
         }),
-        // En cuanto se reciben las series, se marca como done
         tap(() => {
           this.seriesDone = true;
           this.stopLoadingIfReady();
@@ -235,23 +209,34 @@ export class GraficosComponent implements OnInit {
     shareReplay(1)
   );
 
+  // ---------------- Temp/Hum (reutiliza misma lógica) ----------------
+  tempSeries$ = this.buildTimeSeries$(this.FIELD_TEMP, 'Temperatura');
+  humSeries$ = this.buildTimeSeries$(this.FIELD_HUM, 'Humedad');
+
+  tempEmpty$ = this.tempSeries$.pipe(
+    map(series => !series?.some(s => (s?.data?.length ?? 0) > 0)),
+    shareReplay(1)
+  );
+
+  humEmpty$ = this.humSeries$.pipe(
+    map(series => !series?.some(s => (s?.data?.length ?? 0) > 0)),
+    shareReplay(1)
+  );
+
   constructor(
-    private irrApi: IrradianceApi,   // servicio para datos de irradiancia
-    private images: ImagesService,   // servicio para imágenes (con stream)
+    private irrApi: IrradianceApi,
+    private images: ImagesService,
     private loadingSrv: LoadingService,
   ) {}
 
   private stopLoadingIfReady() {
-    if (!this.isLoading) return;        // ya está apagado
+    if (!this.isLoading) return;
     if (this.framesDone && this.seriesDone) {
       this.isLoading = false;
       this.loadingSrv.hide();
     }
   }
-  /**
-   * Acción de búsqueda: valida la fecha y actualiza el stream `day$`.
-   * También reinicia los gráficos (resetCounter).
-   */
+
   onBuscar(): void {
     const day = this.selectedDay?.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
@@ -264,58 +249,79 @@ export class GraficosComponent implements OnInit {
     this.isLoading = true;
     this.loadingSrv.show();
 
-    // Reiniciar banderas paranueva búsqueda
     this.framesDone = false;
     this.seriesDone = false;
 
-    this.day$.next(day);     // dispara carga de datos
-    this.range$.next(this.selectedRange) // se emite el rango junto con el dia
-
-    this.resetCounter++;     // fuerza reset de gráficos
-
-    // El finalize del stream pone isLoading=false al terminar.
-    // Si quieres liberar "loading" inmediato para la UI, déjalo:
-    // setTimeout(() => (this.isLoading = false), 0);
+    this.day$.next(day);
+    this.range$.next(this.selectedRange); // ✅ importante: emite granularidad
+    this.resetCounter++;
   }
 
-  /**
-   * Devuelve la fecha en formato "DD/MM/YYYY" para mostrar en la UI.
-   */
   prettyDay(d: string): string {
     const m = d?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     return m ? `${m[3]}/${m[2]}/${m[1]}` : d;
   }
 
-  // ¿El chart tiene al menos 1 punto?
-readonly seriesEmpty$ = this.series$.pipe(
-  map(series => !series?.some(s => (s?.data?.length ?? 0) > 0)),
-  shareReplay(1)
-);
+  readonly seriesEmpty$ = this.series$.pipe(
+    map(series => !series?.some(s => (s?.data?.length ?? 0) > 0)),
+    shareReplay(1)
+  );
 
-// ¿Hay al menos 1 frame?
-readonly framesEmpty$ = this.frames$.pipe(
-  map(frames => (frames?.length ?? 0) === 0),
-  shareReplay(1)
-);
+  readonly framesEmpty$ = this.frames$.pipe(
+    map(frames => (frames?.length ?? 0) === 0),
+    shareReplay(1)
+  );
 
-// No hay datos en NINGUNO de los dos
-readonly noData$ = combineLatest([this.seriesEmpty$, this.framesEmpty$]).pipe(
-  map(([seriesEmpty, framesEmpty]) => seriesEmpty && framesEmpty),
-  startWith(false),
-  shareReplay(1)
-);
+  readonly noData$ = combineLatest([this.seriesEmpty$, this.framesEmpty$]).pipe(
+    map(([seriesEmpty, framesEmpty]) => seriesEmpty && framesEmpty),
+    startWith(false),
+    shareReplay(1)
+  );
 
-// (opcional) acción rápida
-resetToToday(): void {
-  this.selectedDay = this.defaultDay;
-  this.onBuscar();
-}
+  resetToToday(): void {
+    this.selectedDay = this.defaultDay;
+    this.onBuscar();
+  }
 
-  /**
-   * Handler para cuando cambia un frame en la UI (placeholder).
-   */
   onFrameChange(_f: SkyFrame) {}
   readonly isFramesStreaming = computed(() => !this.framesStreamingFinished());
 
-  
+  private buildTimeSeries$(field: FieldName, name: string) {
+    return this.query$.pipe(
+      switchMap(([day, range]) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return of<Serie[]>([]);
+        const startISO = `${day}T00:00:00Z`;
+        const stopISO = `${day}T23:59:59Z`;
+
+        return this.irrApi.getSeries({
+          startISO,
+          stopISO,
+          field,
+          granularity: range, // ✅ usar range reactivo
+          limit: 200000
+        }).pipe(
+          map(s => {
+            const points =
+              (s?.points ?? [])
+                .map(p => ({ x: Date.parse(p.time), y: Number(p.value) }))
+                .filter(pt => Number.isFinite(pt.y));
+
+            const start = Date.parse(startISO);
+            const stop = Date.parse(stopISO);
+            const stepMs = granularityToMs(range || '1s');
+
+            return [{
+              name,
+              data: fillMissingTimestamps(points, start, stop, stepMs)
+            }] as Serie[];
+          }),
+          catchError(err => {
+            console.error(`[Graficos] series error field=${field}`, err);
+            return of<Serie[]>([]);
+          })
+        );
+      }),
+      shareReplay(1)
+    );
+  }
 }

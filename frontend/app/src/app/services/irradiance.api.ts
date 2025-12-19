@@ -1,3 +1,4 @@
+// frontend/app/src/app/services/irradiance.api.ts
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, forkJoin } from 'rxjs';
@@ -9,7 +10,7 @@ const API_BASE = '/api';
  * - `DNI`: Direct Normal Irradiance
  * - `DHI`: Diffuse Horizontal Irradiance
  */
-export type FieldName = 'GHI'|'DNI'|'DHI';
+export type FieldName = 'GHI' | 'DNI' | 'DHI' | 'HR' | 'Temp';
 
 /**
  * Representa un punto de la serie temporal de irradiancia.

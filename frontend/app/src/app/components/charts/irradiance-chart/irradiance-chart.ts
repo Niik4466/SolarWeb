@@ -7,6 +7,7 @@ import {
   ApexAnnotations
 } from 'ng-apexcharts';
 
+
 export type Serie = { name: string; data: any[]; color?: string }; // data puede ser number[] O [x,y][]
 
 @Component({
@@ -40,6 +41,13 @@ export class IrradianceChartComponent implements OnChanges {
   /** Series: en modo categorías => number[]; en modo datetime => [number,value][]  */
   @Input() series: ApexAxisChartSeries = [];
 
+  @Input() titleText = 'Irradiancia vs. Tiempo';
+  @Input() yTitle = 'Irradiancia (W/m²)';
+  @Input() yUnit = 'W/m²';
+  legend: ApexLegend = { position: 'right' };
+  grid: ApexGrid = { padding: { right: 20 } };
+
+
   chart: ApexChart = {
     type: 'line',
     height: 420,
@@ -51,28 +59,37 @@ export class IrradianceChartComponent implements OnChanges {
   dataLabels: ApexDataLabels = { enabled: false };
   xaxis: ApexXAxis = { categories: this.categories, title: { text: 'Hora' } };
   yaxis: ApexYAxis = {
-    title: { text: 'Irradiancia (W/m²)' },
+    title: { text: this.yTitle },
     min: 0,
-    labels: {
-      formatter: (v: number) => v.toFixed(0), // Redondear sin decimales
-    },
+    labels: { formatter: (v: number) => v.toFixed(0) },
   };
-  title: ApexTitleSubtitle = { text: 'Irradiancia vs. Tiempo', align: 'center' };
-  legend: ApexLegend = { position: 'right' };
-  grid: ApexGrid = { padding: { right: 20 } };
+
+  title: ApexTitleSubtitle = { text: this.titleText, align: 'center' };
+
   tooltip: ApexTooltip = {
     x: { formatter: (v: number) => this.timeSeries ? new Date(v).toLocaleTimeString() : String(v) },
-    y: { formatter: (v: number) => `${v.toFixed(1)} W/m²` }
+    y: { formatter: (v: number) => `${v.toFixed(1)} ${this.yUnit}` }
   };
+
   markers: ApexMarkers = { size: 0, hover: { size: 0 } }; // 0 para rendimiento
   annotations: ApexAnnotations = { points: [] };
 
   ngOnChanges(): void {
-    // Configura eje X según modo
+    this.title = { text: this.titleText, align: 'center' };
+    this.yaxis = {
+      title: { text: this.yTitle },
+      min: 0,
+      labels: { formatter: (v: number) => v.toFixed(0) },
+    };
+
+    this.tooltip = {
+      x: { formatter: (v: number) => this.timeSeries ? new Date(v).toLocaleTimeString() : String(v) },
+      y: { formatter: (v: number) => `${v.toFixed(1)} ${this.yUnit}` }
+    };
+
     this.xaxis = this.timeSeries
       ? { type: 'datetime', labels: { datetimeUTC: false } }
       : { categories: this.categories, title: { text: 'Hora' } };
-
     // Etiquetas de máximos: solo en modo categorías (opcional)
     if (!this.timeSeries && this.categories?.length && this.series?.length) {
       this.annotations = {

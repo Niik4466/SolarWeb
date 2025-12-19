@@ -88,6 +88,47 @@
         </app-imagenes-por-hora>
       }
     </div>
+
+    <!-- Temperatura -->
+    <div class="temp">
+      @if (isLoading) {
+        <div class="empty-chart">Cargando temperatura…</div>
+      } @else if (!(tempEmpty$ | async)) {
+        <app-irradiance-chart
+          [timeSeries]="true"
+          [series]="(tempSeries$ | async) ?? []"
+          [titleText]="'Temperatura vs. Tiempo'"
+          [yTitle]="'Temperatura (°C)'"
+          [yUnit]="'°C'">
+        </app-irradiance-chart>
+      } @else {
+        <div class="empty-chart">
+          <h3>Sin datos de temperatura para este día</h3>
+          <p>Prueba cambiando la fecha o la granularidad.</p>
+        </div>
+      }
+    </div>
+
+    <!-- Humedad -->
+    <div class="hum">
+      @if (isLoading) {
+        <div class="empty-chart">Cargando humedad…</div>
+      } @else if (!(humEmpty$ | async)) {
+        <app-irradiance-chart
+          [timeSeries]="true"
+          [series]="(humSeries$ | async) ?? []"
+          [titleText]="'Humedad vs. Tiempo'"
+          [yTitle]="'Humedad (%)'"
+          [yUnit]="'%'">
+        </app-irradiance-chart>
+      } @else {
+        <div class="empty-chart">
+          <h3>Sin datos de humedad para este día</h3>
+          <p>Prueba cambiando la fecha o la granularidad.</p>
+        </div>
+      }
+    </div>
+
   }
 
 

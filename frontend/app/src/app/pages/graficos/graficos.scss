@@ -8,6 +8,8 @@
   --panel-content-offset: 2.25rem; 
   --gap: 1.25rem;                /* espaciado base reutilizable */
   max-width: 1200px;             /* límite de ancho para líneas legibles */
+  max-height: fit-content;
+  overflow-y: auto;               /* scroll vertical si es necesario */
   margin: 1.25rem auto;          /* margen vertical + centrado horizontal */
   padding: 0 var(--gap);         /* respiración lateral */
   display: grid;
@@ -15,9 +17,22 @@
   grid-template-areas:
     "controls controls"
     "legend   legend"
-    "chart   photos";            /* dos columnas: gráfico + fotos */
-  gap: var(--gap);               /* separación uniforme entre bloques */
+    "chart    photos"
+    "temp     hum";
+  gap: var(--gap);
 }
+
+.legend   { grid-area: legend; }
+.chart,
+.photos,
+.temp,
+.hum {
+  background: #fff;
+  border-radius: .75rem;
+  box-shadow: 0 2px 14px rgba(0,0,0,.06);
+  padding: 1rem;
+}
+
 
 /* ===========================
    Fila de controles superior
@@ -27,11 +42,13 @@
 .controls {
   grid-area: controls;
   display: flex;
-  align-items: center;
+  flex-direction: column; /* si quieres apilado */
+  align-items: flex-start;
   gap: .75rem;
   flex-wrap: wrap;
   padding: .5rem 0;
 }
+
 
 .controls label { font-weight: 600; }
 
@@ -48,11 +65,6 @@
 /* ===========================
    Granularidad (debajo del selector de fecha)
    =========================== */
-.controls {
-  flex-direction: column; /* Apila verticalmente fecha+botón y granularidad */
-  align-items: flex-start; /* Alinea a la izquierda */
-}
-
 .controls .row {
   display: flex;
   align-items: center;
@@ -136,9 +148,12 @@ app-imagenes-por-hora {
       "controls"
       "legend"
       "chart"
-      "photos";
+      "photos"
+      "temp"
+      "hum";
   }
 }
+
 
 /* ===========================
    Bloque de leyenda
