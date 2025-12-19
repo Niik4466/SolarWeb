@@ -59,13 +59,21 @@ def parse_row_to_point(fila):
         # Combinar
         ts = datetime.combine(fecha, hora)
 
-        return (
-            Point("radiacion_solar")
-            .time(ts, WritePrecision.NS)
-            .field("DNI", float(fila["DNI"]))
-            .field("DHI", float(fila["DHI"]))
-            .field("GHI", float(fila["GHI"]))
-        )
+        point = Point("radiacion_solar").time(ts, WritePrecision.NS)
+        
+        # Campos estándar
+        point.field("DNI", float(fila["DNI"]))
+        point.field("DHI", float(fila["DHI"]))
+        point.field("GHI", float(fila["GHI"]))
+
+        # Campos extra (si existen)
+        if fila.get("HR"):
+            point.field("HR", float(fila["HR"]))
+        
+        if fila.get("Temp"):
+            point.field("Temp", float(fila["Temp"]))
+
+        return point
     except Exception as e:
         # print(f"[PARSE ERROR] Fila omitida: {e}") # Verbose
         return None
