@@ -9,6 +9,7 @@ from core.config import settings             # para leer INFLUX_BUCKET del .env
 from schemas.irradiance import SeriesOut, IrrPoint, FieldName
 
 MEASUREMENT = "radiacion_solar"  # el measurement que hay en influx
+IRRADIANCE_FIELDS = {"GHI", "DNI", "DHI"}
 
 def get_series(start: str, stop: str, field: FieldName = "GHI", granularity: str | None = None) -> SeriesOut:
     """
@@ -32,32 +33,34 @@ def get_series(start: str, stop: str, field: FieldName = "GHI", granularity: str
         |> range(start: {start}, stop: {stop})
         |> filter(fn: (r) => r._measurement == "{MEASUREMENT}")
         |> filter(fn: (r) => r._field == "{field}")
-        |> filter(fn: (r) => r._value != 0)
     '''
+
+    # ✅ solo para irradiancia, quitamos ceros
+    if field in IRRADIANCE_FIELDS:
+        flux += '''
+        |> filter(fn: (r) => r._value != 0)
+        '''
 
     if granularity:
         flux += f'''
             |> aggregateWindow(every: {granularity}, fn: mean, createEmpty: false)
         '''
 
-    flux+=f'''
+    flux += '''
         |> keep(columns: ["_time","_value","_field"])
     '''
 
-    # Ejecuta la consulta
     tables = query_flux(flux)
 
-    # Convierte el resultado a una lista de puntos
     points: list[IrrPoint] = []
     for t in tables:
         for rec in t.records:
             points.append(IrrPoint(
-                time=rec.get_time().isoformat(),   
+                time=rec.get_time().isoformat(),
                 value=float(rec.get_value()),
-                field=rec.values["_field"]
+                field=rec.values["_field"],
             ))
 
-    # Devuelve en el formato que definimos en schema (SeriesOut)
     return SeriesOut(field=field, points=points)
 
 def get_series_export(start: str, stop: str, field: FieldName = "GHI", granularity: str | None = None) -> list[tuple[str, float]]:
