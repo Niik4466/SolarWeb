@@ -88,12 +88,17 @@ def get_series_export(start: str, stop: str, field: FieldName = "GHI", granulari
         |> filter(fn: (r) => r._field == "{field}")
     '''
 
+    if field in IRRADIANCE_FIELDS:
+        flux += '''
+        |> filter(fn: (r) => r._value != 0)
+        '''
+
     if granularity:
         flux += f'''
             |> aggregateWindow(every: {granularity}, fn: mean, createEmpty: false)
         '''
 
-    flux+=f'''
+    flux += '''
         |> keep(columns: ["_time","_value"])
         |> sort(columns: ["_time"])
     '''
@@ -102,8 +107,6 @@ def get_series_export(start: str, stop: str, field: FieldName = "GHI", granulari
     out = []
     for t in tables:
         for rec in t.records:
-            # isoformat() de python a veces incluye +00:00, lo normalizamos a Z
             ts = rec.get_time().isoformat().replace("+00:00", "Z")
-            val = float(rec.get_value())
-            out.append((ts, val))
+            out.append((ts, float(rec.get_value())))
     return out

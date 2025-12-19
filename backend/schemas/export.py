@@ -6,7 +6,7 @@ from datetime import datetime
 MetricLiteral = Literal["mean", "min", "max", "sum"]  # puedes ajustar nombres
 
 class ExportBase(BaseModel):
-    variables: List[Literal["GHI","DNI","DHI"]]
+    variables: List[Literal["GHI","DNI","DHI","HR","Temp"]]
     format: Literal["csv","json"]
     include_images: bool = False
     images_bucket: Optional[str] = None

@@ -16,7 +16,7 @@ from models.user import Usuario
 
 router = APIRouter(prefix="/export", tags=["export"])
 
-VALID_FIELDS = {"GHI", "DNI", "DHI"}
+VALID_FIELDS = {"GHI", "DNI", "DHI", "HR", "Temp"}
 
 @router.post("/day")
 def export_day(req: ExportDayReq, current_user: Usuario = Depends(get_current_user)):
@@ -38,9 +38,10 @@ def export_day(req: ExportDayReq, current_user: Usuario = Depends(get_current_us
         HTTPException(500): Si ocurre un error durante la generación del exporte.
     """
     if not req.variables:
-        raise HTTPException(400, "Debe indicar al menos una variable (GHI/DNI/DHI).")
+        raise HTTPException(400, "Debe indicar al menos una variable.")
     if any(v not in VALID_FIELDS for v in req.variables):
         raise HTTPException(400, "Variable no válida.")
+
     try:
         data_bytes, media_type, filename = export_day_query(
                 images_bucket=req.images_bucket,
@@ -210,7 +211,7 @@ async def export_daily_batch_async(req: ExportBatchAsyncReq, current_user: Usuar
             user_id=req.user_id,
             var_ghi="GHI" in req.variables,
             var_dni="DNI" in req.variables,
-            var_global="GLOBAL" in req.variables, # Ojo: validar nombres de vars
+            var_global="DHI" in req.variables, # Ojo: validar nombres de vars
             imagenes=req.include_images
         )
     except Exception as e:
@@ -275,7 +276,7 @@ async def export_by_range_async(req: ExportRangeAsyncReq, current_user: Usuario 
             user_id=req.user_id,
             var_ghi="GHI" in req.variables,
             var_dni="DNI" in req.variables,
-            var_global="GLOBAL" in req.variables,
+            var_global="DHI" in req.variables,
             imagenes=req.include_images
         )
     except Exception as e:

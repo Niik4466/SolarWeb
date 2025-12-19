@@ -19,7 +19,7 @@ import { NgxDaterangepickerMd, LocaleConfig } from 'ngx-daterangepicker-material
 import dayjs from 'dayjs';
 
 type Granularity = 'diario' | 'rango';
-type VariableKey = 'GHI' | 'DNI' | 'DHI';
+type VariableKey = 'GHI' | 'DNI' | 'DHI' | 'HR' | 'Temp';
 type FormatKey = 'csv' | 'json';
 type MetricKey = 'mean' | 'min' | 'max' | 'sum';
 
@@ -81,6 +81,9 @@ export class ExportarPage implements OnDestroy {
     varDNI: this.fb.nonNullable.control<boolean>(false),
     varDHI: this.fb.nonNullable.control<boolean>(false),
 
+    varHR: this.fb.nonNullable.control<boolean>(false),
+    varTemp: this.fb.nonNullable.control<boolean>(false),
+
     formato: this.fb.nonNullable.control<FormatKey>('csv', { validators: [Validators.required] }),
     incluirImagenes: this.fb.nonNullable.control<boolean>(false),
 
@@ -88,7 +91,6 @@ export class ExportarPage implements OnDestroy {
     rangoInicio: this.fb.control<string | null>(null),
     rangoFin: this.fb.control<string | null>(null),
 
-    // 🆕 horas de inicio/fin
     startHour: this.fb.nonNullable.control<string>('00:00', {
       validators: [Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)],
     }),
@@ -96,13 +98,14 @@ export class ExportarPage implements OnDestroy {
       validators: [Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)],
     }),
 
-   granularity: this.fb.control<TimeGranularity | null>(null, {
-    validators: [Validators.required]
-  }),
-  metricMean: this.fb.nonNullable.control<boolean>(false),
-  metricMin:  this.fb.nonNullable.control<boolean>(false),
-  metricMax:  this.fb.nonNullable.control<boolean>(false),
-  metricSum:  this.fb.nonNullable.control<boolean>(false), 
+    granularity: this.fb.control<TimeGranularity | null>(null, {
+      validators: [Validators.required]
+    }),
+
+    metricMean: this.fb.nonNullable.control<boolean>(false),
+    metricMin:  this.fb.nonNullable.control<boolean>(false),
+    metricMax:  this.fb.nonNullable.control<boolean>(false),
+    metricSum:  this.fb.nonNullable.control<boolean>(false),
   });
   private granularitySig = signal<TimeGranularity | null>(this.form.controls.granularity.value);
 
@@ -112,7 +115,9 @@ export class ExportarPage implements OnDestroy {
   private varGHI = signal<boolean>(this.form.controls.varGHI.value);
   private varDNI = signal<boolean>(this.form.controls.varDNI.value);
   private varDHI = signal<boolean>(this.form.controls.varDHI.value);
-
+  private varHR = signal<boolean>(this.form.controls.varHR.value);
+  private varTemp = signal<boolean>(this.form.controls.varTemp.value);
+  
   private rangoInicioSig = signal<string | null>(this.form.controls.rangoInicio.value);
   private rangoFinSig = signal<string | null>(this.form.controls.rangoFin.value);
 
@@ -175,6 +180,8 @@ export class ExportarPage implements OnDestroy {
       this.form.controls.varGHI.valueChanges.subscribe(v => this.varGHI.set(!!v)),
       this.form.controls.varDNI.valueChanges.subscribe(v => this.varDNI.set(!!v)),
       this.form.controls.varDHI.valueChanges.subscribe(v => this.varDHI.set(!!v)),
+      this.form.controls.varHR.valueChanges.subscribe(v => this.varHR.set(!!v)),
+      this.form.controls.varTemp.valueChanges.subscribe(v => this.varTemp.set(!!v)),
 
       this.form.controls.rangoInicio.valueChanges.subscribe(v => this.rangoInicioSig.set(v ?? null)),
       this.form.controls.rangoFin.valueChanges.subscribe(v => this.rangoFinSig.set(v ?? null)),
@@ -198,6 +205,8 @@ export class ExportarPage implements OnDestroy {
     if (this.varGHI()) v.push('GHI');
     if (this.varDNI()) v.push('DNI');
     if (this.varDHI()) v.push('DHI');
+    if (this.varHR())  v.push('HR');
+    if (this.varTemp()) v.push('Temp');
     return v;
   }
 

@@ -27,7 +27,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from services.mail_templates.export_ready_template import get_export_ready_email
 
 MEASUREMENT = "radiacion_solar"
-VALID_FIELDS = {"GHI", "DNI", "DHI"}
+VALID_FIELDS = {"GHI", "DNI", "DHI", "HR", "Temp"}
 VALID_METRICS = {"mean", "min", "max", "sum"} #sum = energía kWh/m2
 
 

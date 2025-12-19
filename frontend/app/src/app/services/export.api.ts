@@ -15,7 +15,7 @@ export type TimeGranularity =
   | '1h';
 
 type CommonExportBody = {
-  variables: ('GHI'|'DNI'|'DHI')[];
+  variables: ('GHI'|'DNI'|'DHI'|'HR'|'Temp')[];
   format: 'csv'|'json';
   include_images: boolean;
   images_bucket?: string;
