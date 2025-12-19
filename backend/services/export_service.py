@@ -393,7 +393,8 @@ def _build_table(variables: List[str], start: str, stop: str, granularity: str |
     # Une por timestamp (llave = time), dejando None si falta
     timeline: Dict[str, Dict] = {}
     for field in variables:
-        series = get_series_export(start, stop, field, granularity)
+        # Usamos time_src="_start" para que el timestamp refleje el inicio del intervalo
+        series = get_series_export(start, stop, field, granularity, time_src="_start")
         for ts, val in series:
             row = timeline.setdefault(ts, {"time": ts})
             row[field] = val

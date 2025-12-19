@@ -63,7 +63,7 @@ def get_series(start: str, stop: str, field: FieldName = "GHI", granularity: str
 
     return SeriesOut(field=field, points=points)
 
-def get_series_export(start: str, stop: str, field: FieldName = "GHI", granularity: str | None = None) -> list[tuple[str, float]]:
+def get_series_export(start: str, stop: str, field: FieldName = "GHI", granularity: str | None = None, time_src: str = "_stop") -> list[tuple[str, float]]:
     """
     Obtiene datos brutos para exportación sin filtrar valores cero.
 
@@ -77,6 +77,7 @@ def get_series_export(start: str, stop: str, field: FieldName = "GHI", granulari
         stop (str): Fecha de fin RFC3339.
         field (FieldName, optional): Campo a consultar.
         granularity (str, optional): Ventana de agregación.
+        time_src (str, optional): Fuente de tiempo para la agregación ('_start' o '_stop'). Default '_stop'.
 
     Returns:
         list[tuple[str, float]]: Lista de pares (timestamp ISO, valor).
@@ -95,7 +96,7 @@ def get_series_export(start: str, stop: str, field: FieldName = "GHI", granulari
 
     if granularity:
         flux += f'''
-            |> aggregateWindow(every: {granularity}, fn: mean, createEmpty: false)
+            |> aggregateWindow(every: {granularity}, fn: mean, createEmpty: false, timeSrc: "{time_src}")
         '''
 
     flux += '''
