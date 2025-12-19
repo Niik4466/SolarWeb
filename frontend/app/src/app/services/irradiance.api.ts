@@ -9,6 +9,8 @@ const API_BASE = '/api';
  * - `GHI`: Global Horizontal Irradiance
  * - `DNI`: Direct Normal Irradiance
  * - `DHI`: Diffuse Horizontal Irradiance
+ * - `HR`: Humedad Relativa
+ * - `Temp`: Temperatura
  */
 export type FieldName = 'GHI' | 'DNI' | 'DHI' | 'HR' | 'Temp';
 
@@ -22,7 +24,7 @@ export type IrrPoint = {
   /** Valor numérico de la irradiancia en W/m². */
   value: number;
 
-  /** Tipo de campo: GHI, DNI o DHI. */
+  /** Tipo de campo: GHI, DNI DHI, HR o Temp. */
   field: FieldName;
 };
 
@@ -54,7 +56,7 @@ export class IrradianceApi {
    * @param params Parámetros de consulta:
    *  - `startISO`: fecha/hora inicial en formato ISO (ej: "2025-09-28T00:00:00Z").
    *  - `stopISO`: fecha/hora final en formato ISO.
-   *  - `field`: tipo de serie (`GHI`, `DNI` o `DHI`).
+   *  - `field`: tipo de serie (`GHI`, `DNI`, `DHI`, `HR` o `Temp`).
    *  - `limit`: número máximo de puntos a devolver (default: 20000).
    *  - `granularity`: intervalo de agregación (ej: `"5m"`, `"1h"`).
    *  - `bucket`: nombre del bucket (opcional).
