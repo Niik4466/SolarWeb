@@ -456,18 +456,17 @@ Cada servicio presenta un estado visible, como *operativo* o **Sin respuesta**, 
 
 ---                                                                               
 
-#  9. Solución de problemas
+#  11. Solución de problemas
 
 | Problema | Causa probable | Solución |
 |----------|----------------|----------|
-| Gráfico en blanco | No hay datos para el período | Probar con otro rango de fechas |
 | Descarga vacía | Período sin registros | Verificar disponibilidad de datos |
 | CSV no abre en Excel | Separador distinto | Usar “Importar datos” en Excel y definir separador “coma” |
 | Archivo muy pesado | Rango extenso + imágenes | Exportar en períodos más cortos |
 
 ---
 
-#  10. Anexos
+#  12. Anexos
 
 **Glosario**  
 - **GHI**: Irradiancia Global Horizontal.  
