@@ -29,12 +29,12 @@ En ambos nodos se debe tener:
     INFLUX_ORG=miOrg
     INFLUX_BUCKET=miBucket
     INFLUX_TOKEN=super-secret-token
-    INFLUX_ENDPOINT=http://<IP_NODO_DATOS>:8086
+    INFLUX_ENDPOINT=http://influxdb-solarweb:8086
 
     # Variables del servicio de almacenamiento de objetos (MinIO)
     MINIO_USER=minio
     MINIO_PASSWORD=minio123
-    MINIO_ENDPOINT=http://<IP_NODO_DATOS>:9000
+    MINIO_ENDPOINT=http://minio-solarweb:9000
 
     # Variables de la base de datos relacional (PostgreSQL)
     POSTGRES_USER=postgres
@@ -44,20 +44,21 @@ En ambos nodos se debe tener:
     POSTGRES_DB=solarweb
 
     # Variables para los servicios de carga de datos (Uploaders)
-    MINIO_UPLOAD_IMAGES_DIR=~/Pictures/DatosCamera
-    INFLUXDB_UPLOAD_CSV_DIR=~/Downloads/csv
+    MINIO_UPLOAD_LOG_FILE=./data/logs/UPLOAD_LOG.csv
+    MINIO_UPLOAD_IMAGES_DIR=./data/images
+    INFLUXDB_UPLOAD_CSV_DIR=./data/csv
 
     # Variables para el modulo de correos
-    GMAIL_API_KEY="<google API key>"
+    GMAIL_API_KEY=dev-placeholder
     GMAIL_USER=solarwebuach@gmail.com
 
     # Variables para monitorear pc
-    DESTINY_MONITOR_PC=xxx.xxx.xxx.xxx
-    SSH_USER=user
-    SSH_PASSWORD=xxxxxx
+    DESTINY_MONITOR_PC=127.0.0.1
+    SSH_USER=devuser
+    SSH_PASSWORD=devpassword
 
     # Variables para la red ZeroTier
-    ZT_NETWORK_ID=<tu_network_id>
+    ZT_NETWORK_ID=
     ```
 
 ## Proceso de Despliegue por Nodo
