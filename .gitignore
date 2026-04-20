@@ -86,3 +86,9 @@ volumes/
 
 # IGNORA ENTORNO VIRTUAL 
 venv
+
+
+# =========================================
+# METODOS Y MODELOS 
+# =========================================
+metodos-modelos/codigos/testing/node_modules

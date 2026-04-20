@@ -1,0 +1,13 @@
+{
+
+  "name": "testing",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "mocha test/*.js --reporter mochawesome"
+  },
+  "devDependencies": {
+    "mocha": "^11.7.5",
+    "mochawesome": "^7.1.4",
+    "selenium-webdriver": "^4.43.0"
+  }
+}

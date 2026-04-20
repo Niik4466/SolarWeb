@@ -1,0 +1,176 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 3,
+    "passes": 3,
+    "pending": 0,
+    "failures": 0,
+    "start": "2026-04-20T17:56:18.560Z",
+    "end": "2026-04-20T17:56:37.562Z",
+    "duration": 19002,
+    "testsRegistered": 3,
+    "passPercent": 100,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "3e06d632-1c69-45dc-85b4-3a8d8501e8a4",
+      "title": "",
+      "fullFile": "/home/josezaki/Documentos/metodos-modelos/SolarWeb/metodos-modelos/codigos/testing/test/prueba_hu2u.js",
+      "file": "/test/prueba_hu2u.js",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "397ab334-9d73-41d2-9c10-5ac598f04c02",
+          "title": "HU-2U - Solicitar un registro",
+          "fullFile": "/home/josezaki/Documentos/metodos-modelos/SolarWeb/metodos-modelos/codigos/testing/test/prueba_hu2u.js",
+          "file": "/test/prueba_hu2u.js",
+          "beforeHooks": [
+            {
+              "title": "\"before each\" hook in \"HU-2U - Solicitar un registro\"",
+              "fullTitle": "HU-2U - Solicitar un registro \"before each\" hook in \"HU-2U - Solicitar un registro\"",
+              "timedOut": false,
+              "duration": 589,
+              "state": null,
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "driver = await new Builder().forBrowser('chrome').build();",
+              "err": {},
+              "uuid": "5db38695-f6d3-4e67-ab57-1e25d7c13580",
+              "parentUUID": "397ab334-9d73-41d2-9c10-5ac598f04c02",
+              "isHook": true,
+              "skipped": false
+            }
+          ],
+          "afterHooks": [
+            {
+              "title": "\"after each\" hook in \"HU-2U - Solicitar un registro\"",
+              "fullTitle": "HU-2U - Solicitar un registro \"after each\" hook in \"HU-2U - Solicitar un registro\"",
+              "timedOut": false,
+              "duration": 53,
+              "state": null,
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "if (driver) {\n  await driver.quit();\n}",
+              "err": {},
+              "uuid": "ee9c707c-6543-43cf-bf01-a51b8ce7f1d4",
+              "parentUUID": "397ab334-9d73-41d2-9c10-5ac598f04c02",
+              "isHook": true,
+              "skipped": false
+            }
+          ],
+          "tests": [
+            {
+              "title": "debería navegar a la vista de solicitar registro desde login",
+              "fullTitle": "HU-2U - Solicitar un registro debería navegar a la vista de solicitar registro desde login",
+              "timedOut": false,
+              "duration": 4869,
+              "state": "passed",
+              "speed": "slow",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "await driver.get('http://localhost:3002/login');\nawait driver.sleep(2000);\nconst urlAntes = await driver.getCurrentUrl();\nconsole.log('URL inicial:', urlAntes);\nconst linkRegistro = await driver.findElement(\n  By.css('a[href=\"/solicitar-registro\"], a[href=\"#/solicitar-registro\"], a[routerlink=\"/solicitar-registro\"]')\n);\nawait linkRegistro.click();\nawait driver.sleep(2000);\nconst urlDespues = await driver.getCurrentUrl();\nconsole.log('URL después del click:', urlDespues);\nassert.ok(urlDespues.includes('solicitar-registro'));",
+              "err": {},
+              "uuid": "0d19cf2a-ec4d-4a89-a763-d14a31e0982e",
+              "parentUUID": "397ab334-9d73-41d2-9c10-5ac598f04c02",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "no debería permitir enviar el formulario vacío",
+              "fullTitle": "HU-2U - Solicitar un registro no debería permitir enviar el formulario vacío",
+              "timedOut": false,
+              "duration": 5304,
+              "state": "passed",
+              "speed": "slow",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "await driver.get('http://localhost:3002/login');\nawait driver.sleep(1500);\nconst linkRegistro = await driver.findElement(\n  By.css('a[href=\"/solicitar-registro\"], a[href=\"#/solicitar-registro\"], a[routerlink=\"/solicitar-registro\"]')\n);\nawait linkRegistro.click();\nawait driver.sleep(1500);\nconst urlAntes = await driver.getCurrentUrl();\nconsole.log('URL antes de enviar:', urlAntes);\nconst botonEnviar = await driver.findElement(By.css('button[type=\"submit\"]'));\nawait botonEnviar.click();\nawait driver.sleep(1500);\nconst urlDespues = await driver.getCurrentUrl();\nconsole.log('URL después de enviar:', urlDespues);\nassert.ok(urlDespues.includes('/solicitar-registro'));",
+              "err": {},
+              "uuid": "b63720eb-77cd-43a2-a894-586880b55f6b",
+              "parentUUID": "397ab334-9d73-41d2-9c10-5ac598f04c02",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "no debería permitir enviar si los correos no coinciden",
+              "fullTitle": "HU-2U - Solicitar un registro no debería permitir enviar si los correos no coinciden",
+              "timedOut": false,
+              "duration": 6387,
+              "state": "passed",
+              "speed": "slow",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "await driver.get('http://localhost:3002/login');\nawait driver.sleep(1500);\nconst linkRegistro = await driver.findElement(\n    By.css('a[href=\"/solicitar-registro\"], a[href=\"#/solicitar-registro\"], a[routerlink=\"/solicitar-registro\"]')\n);\nawait linkRegistro.click();\nawait driver.sleep(1500);\nawait driver.findElement(By.css('[formcontrolname=\"nombre\"]')).sendKeys('Pepito');\nawait driver.findElement(By.css('[formcontrolname=\"apellido\"]')).sendKeys('Sanchez');\nawait driver.findElement(By.css('[formcontrolname=\"email\"]')).sendKeys('pepito@test.com');\nawait driver.findElement(By.css('[formcontrolname=\"confirmEmail\"]')).sendKeys('otro@test.com');\nawait driver.findElement(By.css('[formcontrolname=\"password\"]')).sendKeys('Clave1234');\nawait driver.findElement(By.css('[formcontrolname=\"confirmPassword\"]')).sendKeys('Clave1234');\nawait driver.findElement(By.css('[formcontrolname=\"motivo\"]')).sendKeys(\n    'Quiero solicitar acceso al sistema para revisar información del proyecto, analizar datos disponibles y apoyar actividades relacionadas con el uso de la plataforma en el contexto académico.'\n);\nconst botonEnviar = await driver.findElement(By.css('button[type=\"submit\"]'));\nawait botonEnviar.click();\nawait driver.sleep(1500);\nconst urlDespues = await driver.getCurrentUrl();\nconsole.log('URL después de enviar correos distintos:', urlDespues);\nassert.ok(urlDespues.includes('/solicitar-registro'));",
+              "err": {},
+              "uuid": "a0ec53fe-8931-4128-bc72-6f2d935448be",
+              "parentUUID": "397ab334-9d73-41d2-9c10-5ac598f04c02",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "0d19cf2a-ec4d-4a89-a763-d14a31e0982e",
+            "b63720eb-77cd-43a2-a894-586880b55f6b",
+            "a0ec53fe-8931-4128-bc72-6f2d935448be"
+          ],
+          "failures": [],
+          "pending": [],
+          "skipped": [],
+          "duration": 16560,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 30000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "11.7.5"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": true,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.4"
+    },
+    "marge": {
+      "options": null,
+      "version": "6.3.2"
+    }
+  }
+}
