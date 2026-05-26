@@ -1,0 +1,110 @@
+@startuml classes_UserSchemas
+set namespaceSeparator none
+class "Config" as user.TransaccionOut.Config {
+  orm_mode : bool
+}
+class "RecoveryCodeRequest" as user.RecoveryCodeRequest {
+  email : EmailStr
+}
+class "RecoveryCodeVerify" as user.RecoveryCodeVerify {
+  code : str
+  email : EmailStr
+  password : str
+}
+class "SolicitudBase" as user.SolicitudBase {
+  justificacion : Optional[str]
+}
+class "SolicitudCreate" as user.SolicitudCreate {
+  usuario_id : int
+}
+class "SolicitudOut" as user.SolicitudOut {
+  creado_en : datetime
+  id : int
+  model_config : dict
+  usuario_id : int
+}
+class "Token" as user.Token {
+  access_token : str
+  token_type : str
+}
+class "TransaccionBase" as user.TransaccionBase {
+  archivos : Optional[List[str]]
+  estado
+  imagenes : bool
+  var_dni : bool
+  var_ghi : bool
+  var_global : bool
+}
+class "TransaccionCreate" as user.TransaccionCreate {
+  usuario_id : int
+}
+class "TransaccionEstado" as user.TransaccionEstado {
+  name
+}
+class "TransaccionOut" as user.TransaccionOut {
+  creado_en : datetime
+  exportado_en : Optional[datetime]
+  id : int
+  usuario_id : int
+}
+class "UsuarioBase" as user.UsuarioBase {
+  apellido : Optional[str]
+  correo : EmailStr
+  es_admin : bool
+  estado
+  nombre : str
+}
+class "UsuarioCreate" as user.UsuarioCreate {
+  apellido : Optional[str]
+  correo : EmailStr
+  justificacion : str
+  nombre : str
+  password : str
+}
+class "UsuarioEliminacionLogBase" as user.UsuarioEliminacionLogBase {
+  motivo : Optional[str]
+}
+class "UsuarioEliminacionLogCreate" as user.UsuarioEliminacionLogCreate {
+  eliminado_por_id : int
+  usuario_id : int
+}
+class "UsuarioEliminacionLogOut" as user.UsuarioEliminacionLogOut {
+  eliminado_en : datetime
+  eliminado_por_id : int
+  id : int
+  model_config : dict
+  usuario_id : int
+}
+class "UsuarioEstado" as user.UsuarioEstado {
+  name
+}
+class "UsuarioEstadoActualizar" as user.UsuarioEstadoActualizar {
+  estado
+}
+class "UsuarioOut" as user.UsuarioOut {
+  actualizado_en : datetime
+  aprobado_en : Optional[datetime]
+  creado_en : datetime
+  id : int
+  model_config : dict
+  owner : bool
+}
+class "UsuarioPoderActualizar" as user.UsuarioPoderActualizar {
+  es_admin : bool
+}
+class "UsuarioUpdate" as user.UsuarioUpdate {
+  apellido : Optional[str]
+  estado : Optional[UsuarioEstado]
+  nombre : Optional[str]
+}
+user.SolicitudCreate --|> user.SolicitudBase
+user.SolicitudOut --|> user.SolicitudBase
+user.TransaccionCreate --|> user.TransaccionBase
+user.TransaccionOut --|> user.TransaccionBase
+user.UsuarioEliminacionLogCreate --|> user.UsuarioEliminacionLogBase
+user.UsuarioEliminacionLogOut --|> user.UsuarioEliminacionLogBase
+user.UsuarioOut --|> user.UsuarioBase
+user.TransaccionEstado --* user.TransaccionBase : estado
+user.UsuarioEstado --* user.UsuarioBase : estado
+user.UsuarioEstado --* user.UsuarioEstadoActualizar : estado
+@enduml
